@@ -13,8 +13,10 @@ import {
     ServiceAccountScope,
     type ComposerChart,
     type ComposerChartAsCode,
+    type ComposerChartParameters,
     type ComposerChartPipeline,
     type ComposerChartRunResults,
+    type ComposerChartWithDetails,
     type CreateComposerChart,
     type Dashboard,
     type DashboardAsCode,
@@ -1843,6 +1845,90 @@ describe('Composer charts', () => {
                 (await postChart(composerSpaceChartBody(space.uuid), editor))
                     .status,
             ).toBe(201);
+        });
+
+        it('opens by uuid or slug with its space and last editor, for its page', async () => {
+            const { space, chart } = await createSpaceChart();
+            const viewer = await loginAsViewer();
+            const bySlug = await viewer.get<Body<ComposerChartWithDetails>>(
+                `${chartsUrl}/${chart.slug}`,
+            );
+            expect(bySlug.status).toBe(200);
+            expect(bySlug.body.results).toMatchObject({
+                uuid: chart.uuid,
+                space: { uuid: space.uuid, name: space.name },
+                updatedByUser: { firstName: expect.any(String) },
+            });
+            const byUuid = await viewer.get<Body<ComposerChartWithDetails>>(
+                `${chartsUrl}/${chart.uuid}`,
+            );
+            expect(byUuid.body.results).toEqual(bySlug.body.results);
+
+            const unknown = await viewer.get(
+                `${chartsUrl}/${uniqueName('no-such-chart')}`,
+                { failOnStatusCode: false },
+            );
+            expect(unknown.status).toBe(404);
+        });
+
+        it("lists the parameters its nodes reference for the page's parameter bar", async () => {
+            const { chart } = await createSpaceChart({
+                pipeline: {
+                    schemaVersion: 1,
+                    terminalNodeId: 'tagged',
+                    nodes: [
+                        {
+                            sourceType: QuerySourceType.SEMANTIC_LAYER,
+                            nodeId: 'dates',
+                            title: 'Dates',
+                            exploreName: 'orders',
+                            dimensions: ['orders_date_custom_param_test'],
+                            metrics: ['orders_unique_order_count'],
+                        },
+                        {
+                            sourceType: QuerySourceType.DUCKDB,
+                            nodeId: 'tagged',
+                            title: 'Tagged',
+                            // eslint-disable-next-line no-template-curly-in-string
+                            sql: 'SELECT ${lightdash.parameters.currency} AS currency, count(*) AS n FROM dates',
+                            references: ['dates'],
+                        },
+                    ],
+                },
+                chart: {
+                    schemaVersion: 1,
+                    columns: [
+                        {
+                            reference: 'currency',
+                            fieldType: FieldType.DIMENSION,
+                        },
+                        { reference: 'n', fieldType: FieldType.METRIC },
+                    ],
+                    chartConfig: { type: ChartType.TABLE, config: {} },
+                    pivotConfig: null,
+                    tableConfig: { columnOrder: ['currency', 'n'] },
+                },
+            });
+            const viewer = await loginAsViewer();
+            const resp = await viewer.get<Body<ComposerChartParameters>>(
+                `${chartsUrl}/${chart.uuid}/parameters`,
+            );
+            expect(resp.status).toBe(200);
+            expect([...resp.body.results.parameterReferences].sort()).toEqual([
+                'currency',
+                'date_custom_parameter',
+            ]);
+            expect(resp.body.results.parameterDefinitions).toMatchObject({
+                currency: { label: 'Currency', default: 'usd' },
+                date_custom_parameter: { label: 'A custom date parameter' },
+            });
+
+            const outsider = await anotherLogin();
+            const refused = await outsider.get(
+                `${chartsUrl}/${chart.uuid}/parameters`,
+                { failOnStatusCode: false },
+            );
+            expect(refused.status).toBe(403);
         });
 
         it('refuses an editor reading a chart in a space they cannot see', async () => {

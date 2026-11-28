@@ -138,12 +138,14 @@ export const useCompiledSqlFromMetricQuery = ({
     projectUuid,
     metricQuery,
     pivotConfiguration,
+    parameters,
     enabled = true,
 }: Partial<{
     tableName: string;
     projectUuid: string;
     metricQuery: MetricQuery;
     pivotConfiguration: PivotConfiguration;
+    parameters: ParametersValuesMap;
     enabled: boolean;
 }>) => {
     const lightdashApi = useLightdashApi();
@@ -154,6 +156,7 @@ export const useCompiledSqlFromMetricQuery = ({
             metricQuery,
             projectUuid,
             pivotConfiguration,
+            parameters,
         ],
         queryFn: () =>
             getCompiledQuery(
@@ -161,7 +164,7 @@ export const useCompiledSqlFromMetricQuery = ({
                 projectUuid!,
                 tableName!,
                 metricQuery!,
-                undefined,
+                parameters,
                 pivotConfiguration,
             ),
         enabled: enabled && !!tableName && !!projectUuid && !!metricQuery,

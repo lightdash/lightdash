@@ -1,0 +1,11 @@
+.chart {
+    flex: 1;
+    min-height: 0;
+    padding: 0 var(--mantine-spacing-md) var(--mantine-spacing-md);
+}
+
+/* The lineage graph and notebook split a fixed height, like the results table */
+.lineage {
+    height: 70vh;
+    min-height: 400px;
+}

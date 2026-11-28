@@ -43,6 +43,7 @@ import { useCompiledSqlFromMetricQuery } from '../../../../hooks/useCompiledSql'
 import { useExploreByProjectUuid } from '../../../../hooks/useExplore';
 import { useExploreWarehouseConnection } from '../../../../hooks/useExploreWarehouseConnection';
 import { useCompiledMergeQuery } from '../../hooks/useAiMergeCompiledSql';
+import { useComposerRunParameters } from '../composerRunParametersContext';
 import { SemanticNodeDetails } from '../SemanticNodeDetails';
 import { isLongCode } from './codeCollapse';
 import styles from './PipelineNotebook.module.css';
@@ -127,6 +128,7 @@ const CompiledSql: FC<{
     projectUuid: string;
 }> = ({ query, projectUuid }) => {
     const getUiString = useUiStrings();
+    const runParameters = useComposerRunParameters();
     const metricQuery = useMemo(
         () => metricQueryOfSemanticNode(query),
         [query],
@@ -136,6 +138,7 @@ const CompiledSql: FC<{
         projectUuid,
         metricQuery,
         pivotConfiguration: query.pivotConfiguration,
+        parameters: query.nodeId ? runParameters?.[query.nodeId] : undefined,
     });
     if (data) {
         return <NotebookCode code={formatSql(data.query)} language="sql" />;
@@ -264,6 +267,8 @@ type CellQueryProps = {
 
 const SavedSqlNote: FC = () => {
     const getUiString = useUiStrings();
+    // The chart page has no dashboard, and its semantic SQL compiles with the run's values
+    if (useComposerRunParameters()) return null;
     return (
         <Text fz="xs" c="dimmed" px="sm" pt="xs">
             {getUiString('tile.composerChart.lineageSavedSql')}

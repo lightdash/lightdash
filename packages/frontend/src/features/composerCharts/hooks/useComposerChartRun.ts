@@ -1,28 +1,29 @@
 import {
     type ApiError,
-    type ComposerChart,
     type ComposerChartRunRequest,
     type ComposerChartRunResults,
+    type ComposerChartWithDetails,
     type DashboardComposerChartRunRequest,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export const useComposerChart = (
     projectUuid: string | undefined,
-    composerChartUuid: string | null,
+    composerChartUuidOrSlug: UuidOrSlug | null,
 ) => {
     const lightdashApi = useLightdashApi();
-    return useQuery<ComposerChart, ApiError>({
-        queryKey: ['composerChart', projectUuid, composerChartUuid],
+    return useQuery<ComposerChartWithDetails, ApiError>({
+        queryKey: ['composerChart', projectUuid, composerChartUuidOrSlug],
         queryFn: () =>
-            lightdashApi<ComposerChart>({
-                url: `/projects/${projectUuid}/composer-charts/${composerChartUuid}`,
+            lightdashApi<ComposerChartWithDetails>({
+                url: `/projects/${projectUuid}/composer-charts/${composerChartUuidOrSlug}`,
                 version: 'v2',
                 method: 'GET',
                 body: undefined,
             }),
-        enabled: !!projectUuid && !!composerChartUuid,
+        enabled: !!projectUuid && !!composerChartUuidOrSlug,
     });
 };
 

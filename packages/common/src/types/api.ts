@@ -1,4 +1,5 @@
 import { type ExploreWarningReport } from '../compiler/compilationReport';
+import { type ApiComposerChartParametersResponse } from '../composer/composerChart';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
@@ -1739,6 +1740,7 @@ type ApiResults =
     | ApiChartAsCodeListResponse['results']
     | ApiSqlChartAsCodeListResponse['results']
     | ApiComposerChartAsCodeListResponse['results']
+    | ApiComposerChartParametersResponse['results']
     | ApiComposerChartAsCodeUpsertResponse['results']
     | ApiDashboardAsCodeListResponse['results']
     | ApiGoogleSheetsSyncAsCodeListResponse['results']

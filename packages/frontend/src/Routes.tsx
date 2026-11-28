@@ -523,6 +523,15 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     ...CHART_ROUTES,
     ...DASHBOARD_LIST_ROUTES,
     {
+        path: 'composer-charts/:composerChartUuidOrSlug',
+        lazy: async () => ({
+            Component: await loadLazyRouteDefault(
+                './pages/ComposerChart',
+                () => import('./pages/ComposerChart'),
+            ),
+        }),
+    },
+    {
         path: 'documents',
         lazy: async () => ({
             Component: await loadLazyRouteDefault(

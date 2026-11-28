@@ -34,10 +34,12 @@ import {
     type ComposerAvailableFilterSource,
     type ComposerChart,
     type ComposerChartOwner,
+    type ComposerChartParameters,
     type ComposerChartPipeline,
     type ComposerChartPipelineNode,
     type ComposerChartRunRequest,
     type ComposerChartRunResults,
+    type ComposerChartWithDetails,
     type ComposerStoredChart,
     type CreateComposerChart,
     type DashboardAvailableFiltersTile,
@@ -50,6 +52,7 @@ import {
     type ParametersValuesMap,
     type RegisteredAccount,
     type UUID,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { validate as isUuid } from 'uuid';
@@ -713,6 +716,95 @@ export class ComposerChartService extends BaseService {
         return sources.flat();
     }
 
+    /** The chart page's read; answers with the flag off, as `get` does. */
+    async getWithDetails(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuidOrSlug: UuidOrSlug,
+    ): Promise<ComposerChartWithDetails> {
+        const composerChartUuid =
+            await this.composerChartModel.getUuidByUuidOrSlug(
+                projectUuid,
+                composerChartUuidOrSlug,
+            );
+        await this.assertCanView(account, projectUuid, composerChartUuid);
+        return this.composerChartModel.getWithDetails(composerChartUuid);
+    }
+
+    /** The parameters the chart's nodes reference, for its page; answers with the flag off, as the chart run does. */
+    async getParameters(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<ComposerChartParameters> {
+        const projectParameters =
+            await this.projectParametersModel.find(projectUuid);
+        const { parameterReferences, parameterDefinitions } =
+            await this.getChartParameterReferences(
+                account,
+                projectUuid,
+                composerChartUuid,
+                Object.fromEntries(
+                    projectParameters.map(({ name, config }) => [
+                        name,
+                        { ...config, type: config.type || 'string' },
+                    ]),
+                ),
+            );
+        return { parameterReferences, parameterDefinitions };
+    }
+
+    private async getChartParameterReferences(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        uuid: UUID,
+        projectDefinitions: ParameterDefinitions,
+    ): Promise<Extract<ChartParameterReferencesResult, { error: null }>> {
+        const { organizationUuid } = await this.assertCanView(
+            account,
+            projectUuid,
+            uuid,
+        );
+        const { pipeline } = await this.composerChartModel.get(uuid);
+        const exploreByNodeId = await this.getNodeExplores(
+            account,
+            { organizationUuid, projectUuid },
+            pipeline,
+        );
+        const explores = Object.values(exploreByNodeId);
+        const parameterReferences = getComposerParameterReferences(
+            pipeline.nodes,
+            exploreByNodeId,
+        );
+        // A project parameter wins over a model's copy of its name, as on saved charts
+        const definitions = {
+            ...explores.reduce<ParameterDefinitions>(
+                (acc, explore) => ({
+                    ...acc,
+                    ...getExploreParameterDefinitions(explore),
+                }),
+                {},
+            ),
+            ...projectDefinitions,
+        };
+        return {
+            parameterReferences,
+            parameterDefinitions: getReferencedParameterDefinitions(
+                definitions,
+                parameterReferences,
+            ),
+            chartSavedValues: getComposerSavedParameterValues(pipeline.nodes),
+            virtualViewSavedValues: explores.reduce<ParametersValuesMap>(
+                (acc, explore) => ({
+                    ...acc,
+                    ...explore.savedParameterValues,
+                }),
+                {},
+            ),
+            error: null,
+        };
+    }
+
     /** Each chart's parameters for the dashboard's tile lookup, read from its stored nodes without a run. */
     async getParameterReferences(
         account: Account,
@@ -731,58 +823,14 @@ export class ComposerChartService extends BaseService {
                     uuid,
                 ): Promise<[string, ChartParameterReferencesResult]> => {
                     try {
-                        const { organizationUuid } = await this.assertCanView(
-                            account,
-                            projectUuid,
-                            uuid,
-                        );
-                        const { pipeline } =
-                            await this.composerChartModel.get(uuid);
-                        const exploreByNodeId = await this.getNodeExplores(
-                            account,
-                            { organizationUuid, projectUuid },
-                            pipeline,
-                        );
-                        const explores = Object.values(exploreByNodeId);
-                        const parameterReferences =
-                            getComposerParameterReferences(
-                                pipeline.nodes,
-                                exploreByNodeId,
-                            );
-                        // A project parameter wins over a model's copy of its name, as on saved charts
-                        const definitions = {
-                            ...explores.reduce<ParameterDefinitions>(
-                                (acc, explore) => ({
-                                    ...acc,
-                                    ...getExploreParameterDefinitions(explore),
-                                }),
-                                {},
-                            ),
-                            ...projectDefinitions,
-                        };
                         return [
                             uuid,
-                            {
-                                parameterReferences,
-                                parameterDefinitions:
-                                    getReferencedParameterDefinitions(
-                                        definitions,
-                                        parameterReferences,
-                                    ),
-                                chartSavedValues:
-                                    getComposerSavedParameterValues(
-                                        pipeline.nodes,
-                                    ),
-                                virtualViewSavedValues:
-                                    explores.reduce<ParametersValuesMap>(
-                                        (acc, explore) => ({
-                                            ...acc,
-                                            ...explore.savedParameterValues,
-                                        }),
-                                        {},
-                                    ),
-                                error: null,
-                            },
+                            await this.getChartParameterReferences(
+                                account,
+                                projectUuid,
+                                uuid,
+                                projectDefinitions,
+                            ),
                         ];
                     } catch (e) {
                         return [
