@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.437.0",
-  "previousVersion": "3.436.0",
-  "releaseDate": "2026-11-28T00:55:15.189Z",
+  "version": "3.438.0",
+  "previousVersion": "3.437.0",
+  "releaseDate": "2026-11-28T01:29:06.814Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -17,9 +17,12 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": false,
-      "changes": [],
-      "breakingCount": 0,
+      "breaking": true,
+      "changes": [
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — the response property `results/dashboards/items/tiles/items/anyOf[#/components/schemas/DashboardComposerChartTileAsCode]/allOf[subschema #2]/properties/allOf[subschema #2]/chartSlug` became nullable for the status `200`",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — the response property `results/dashboards/items/tiles/items/anyOf[#/components/schemas/DashboardComposerChartTileAsCode]/allOf[subschema #2]/properties/allOf[subschema #2]/chartSlug` became nullable for the status `200`"
+      ],
+      "breakingCount": 2,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -42,5 +45,22 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": []
+  "declaredAdvisories": [
+    {
+      "id": "composer-tile-as-code-chart-slug-nullable",
+      "reason": "The dashboard-as-code type now allows chartSlug: null on a composer chart tile, so the two dashboard download responses show that property as nullable. Only the schema widens: this release still leaves a composer tile whose chart is gone out of the download, so no response carries a null slug and an old CLI or an old server pod in a rolling update reads exactly what it read before.",
+      "requiredStop": false,
+      "impact": {
+        "kind": "no-external-callers",
+        "firstPartyOnly": "The Lightdash CLI download is the only client of these dashboard-as-code endpoints, and this release never sends it a null composer chartSlug; the nullable type lets new CLIs and servers read such a tile before a later release writes one.",
+        "covers": {
+          "rest": [
+            "GET /api/v1/projects/{projectUuid}/code/dashboards",
+            "GET /api/v1/projects/{projectUuid}/dashboards/code"
+          ],
+          "mcp": []
+        }
+      }
+    }
+  ]
 }

@@ -6546,7 +6546,14 @@ const models: TsoaRoute.Models = {
                                     dataType: 'nestedObjectLiteral',
                                     nestedProperties: {
                                         chartSlug: {
-                                            dataType: 'string',
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                { dataType: 'string' },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                            ],
                                             required: true,
                                         },
                                     },

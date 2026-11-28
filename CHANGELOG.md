@@ -1,3 +1,10 @@
+# [3.438.0](https://github.com/lightdash/lightdash/compare/3.437.0...3.438.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** dashboards leave a composer chart they do not own alone ([#33581](https://github.com/lightdash/lightdash/issues/33581)) ([09af86a](https://github.com/lightdash/lightdash/commit/09af86ad16d93ba445680d76874d8e0f50fe6a2a))
+
 # [3.437.0](https://github.com/lightdash/lightdash/compare/3.436.0...3.437.0) (2026-11-28)
 
 
