@@ -34674,6 +34674,23 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ExecuteComposerChartRequest": {
+                "properties": {
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Override the values saved on the chart's nodes and the parameter defaults."
+                    },
+                    "composerChartUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": ["invalidateCache", "composerChartUuid"],
+                "type": "object",
+                "description": "A chart run: a space-owned chart on its own, with no dashboard filters or date zoom."
+            },
             "ComposerChartRunRequest": {
                 "properties": {
                     "dateZoom": {
@@ -81900,7 +81917,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.436.0",
+        "version": "3.437.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -91376,6 +91393,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/composer-chart": {
+            "post": {
+                "operationId": "executeAsyncComposerChartQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Runs a composer chart that belongs to a space. The run applies no\ndashboard filters or date zoom. Parameters override the values saved on\nthe chart's nodes. The endpoint rejects a chart that belongs to a\ndashboard. Run that chart with Execute dashboard composer chart. Poll\neach node's query with GET /api/v2/projects/{projectUuid}/query/{queryUuid}.",
+                "summary": "Execute composer chart",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteComposerChartRequest"
                             }
                         }
                     }

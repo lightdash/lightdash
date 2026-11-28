@@ -1,3 +1,10 @@
+# [3.437.0](https://github.com/lightdash/lightdash/compare/3.436.0...3.437.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** run a space-owned composer chart on its own ([#33594](https://github.com/lightdash/lightdash/issues/33594)) ([56e8c59](https://github.com/lightdash/lightdash/commit/56e8c5903a1838c33c95f638d7b52ceb15a10a15))
+
 # [3.436.0](https://github.com/lightdash/lightdash/compare/3.435.0...3.436.0) (2026-11-28)
 
 
