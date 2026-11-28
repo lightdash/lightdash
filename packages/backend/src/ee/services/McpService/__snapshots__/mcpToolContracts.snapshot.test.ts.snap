@@ -3039,9 +3039,16 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
                 "description": "Composer chart built from a query node.",
                 "properties": {
                   "dashboardSlug": {
-                    "description": "The existing dashboard that owns the chart and gets its tile. Leave it out or pass null to save the chart into spaceSlug.",
-                    "minLength": 1,
-                    "type": "string",
+                    "anyOf": [
+                      {
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "The existing dashboard that owns the chart and gets its tile. Null or left out saves the chart into spaceSlug.",
                   },
                   "description": {
                     "type": "string",
@@ -3347,9 +3354,16 @@ A custom chart type is chosen the same way: by its own description first, then a
                     "type": "object",
                   },
                   "dashboardSlug": {
-                    "description": "The existing dashboard that owns the chart and gets its tile. Leave it out or pass null to save the chart into spaceSlug.",
-                    "minLength": 1,
-                    "type": "string",
+                    "anyOf": [
+                      {
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "The existing dashboard that owns the chart and gets its tile. Null or left out saves the chart into spaceSlug.",
                   },
                   "description": {
                     "type": "string",

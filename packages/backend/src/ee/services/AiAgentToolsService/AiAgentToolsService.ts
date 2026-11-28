@@ -4729,7 +4729,7 @@ export class AiAgentToolsService extends BaseService {
     private async getComposerChartCreateOwner(
         context: AiAgentToolsRuntimeContext,
         {
-            dashboardSlug,
+            dashboardSlug = null,
             spaceSlug = null,
         }: Pick<
             CreateComposerChartArgs['content'],
