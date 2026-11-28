@@ -34,7 +34,7 @@ import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberP
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SpaceModel, type CascadedDocument } from '../../models/SpaceModel';
+import { SpaceModel, type CascadedSpaceContent } from '../../models/SpaceModel';
 import {
     assertHumanManagedMutation,
     getManagedAgentPolicy,
@@ -806,37 +806,48 @@ export class SpaceService
             });
         }
 
-        const documents = await this.spaceModel.softDelete(
+        const cascaded = await this.spaceModel.softDelete(
             spaceUuid,
             user.userUuid,
         );
-        this.logCascadedDocuments(user, 'delete', 'Document', {
+        this.logCascadedContent(user, 'delete', {
             organizationUuid: user.organizationUuid ?? 'unknown',
             spaceUuid,
-            documents,
+            cascaded,
         });
     }
 
-    /** Documents follow their Space in SQL, so each gets the bypass audit
-     * event that cascaded charts and dashboards log from their services. */
-    private logCascadedDocuments(
+    /** Documents and composer charts follow their Space in SQL, so each gets the
+     * bypass audit event that cascaded charts and dashboards log from their services. */
+    private logCascadedContent(
         user: SessionUser,
-        action: 'delete' | 'manage',
-        type: 'Document' | 'DeletedContent',
+        operation: 'delete' | 'restore',
         {
             organizationUuid,
             spaceUuid,
-            documents,
+            cascaded,
         }: {
             organizationUuid: string;
             spaceUuid: string;
-            documents: CascadedDocument[];
+            cascaded: CascadedSpaceContent;
         },
     ): void {
-        for (const { documentUuid, projectUuid } of documents) {
+        const action = operation === 'delete' ? 'delete' : 'manage';
+        for (const { documentUuid, projectUuid } of cascaded.documents) {
             this.logBypassEvent(user, action, {
-                type,
+                type: operation === 'delete' ? 'Document' : 'DeletedContent',
                 metadata: { documentUuid, spaceUuid },
+                organizationUuid,
+                projectUuid,
+            });
+        }
+        for (const {
+            composerChartUuid,
+            projectUuid,
+        } of cascaded.composerCharts) {
+            this.logBypassEvent(user, action, {
+                type: operation === 'delete' ? 'SavedChart' : 'DeletedContent',
+                metadata: { composerChartUuid, spaceUuid },
                 organizationUuid,
                 projectUuid,
             });
@@ -976,11 +987,11 @@ export class SpaceService
             }
         }
 
-        const restoredDocuments = await this.spaceModel.restore(spaceUuid);
-        this.logCascadedDocuments(user, 'manage', 'DeletedContent', {
+        const restored = await this.spaceModel.restore(spaceUuid);
+        this.logCascadedContent(user, 'restore', {
             organizationUuid: space.organizationUuid,
             spaceUuid,
-            documents: restoredDocuments,
+            cascaded: restored,
         });
 
         // Cascade: restore children that were cascade-deleted by the same user

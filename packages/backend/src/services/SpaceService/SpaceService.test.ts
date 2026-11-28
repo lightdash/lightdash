@@ -2121,11 +2121,16 @@ describe('SpaceService - space share target validation', () => {
     });
 });
 
-describe('Space cascade audit for Documents', () => {
-    const cascaded = [
-        { documentUuid: 'doc-1', projectUuid: 'project' },
-        { documentUuid: 'doc-2', projectUuid: 'project' },
-    ];
+describe('Space cascade audit for Documents and composer charts', () => {
+    const cascaded = {
+        documents: [
+            { documentUuid: 'doc-1', projectUuid: 'project' },
+            { documentUuid: 'doc-2', projectUuid: 'project' },
+        ],
+        composerCharts: [
+            { composerChartUuid: 'composer-1', projectUuid: 'project' },
+        ],
+    };
     const setup = () => {
         const user = createTestUser({
             organizationUuid: 'org',
@@ -2156,10 +2161,10 @@ describe('Space cascade audit for Documents', () => {
         return { user, service, logBypassEvent };
     };
 
-    it('logs one bypass event per Document deleted with the Space', async () => {
+    it('logs one bypass event per Document and composer chart deleted with the Space', async () => {
         const { user, service, logBypassEvent } = setup();
         await service.softDelete(user, 'space', { bypassPermissions: true });
-        cascaded.forEach(({ documentUuid }) =>
+        cascaded.documents.forEach(({ documentUuid }) =>
             expect(logBypassEvent).toHaveBeenCalledWith(user, 'delete', {
                 type: 'Document',
                 metadata: { documentUuid, spaceUuid: 'space' },
@@ -2167,17 +2172,28 @@ describe('Space cascade audit for Documents', () => {
                 projectUuid: 'project',
             }),
         );
+        expect(logBypassEvent).toHaveBeenCalledWith(user, 'delete', {
+            type: 'SavedChart',
+            metadata: { composerChartUuid: 'composer-1', spaceUuid: 'space' },
+            organizationUuid: 'org',
+            projectUuid: 'project',
+        });
         // Plus the Space's own bypass event
-        expect(logBypassEvent).toHaveBeenCalledTimes(cascaded.length + 1);
+        expect(logBypassEvent).toHaveBeenCalledTimes(4);
     });
 
-    it('logs one bypass event per Document restored with the Space', async () => {
+    it('logs one bypass event per Document and composer chart restored with the Space', async () => {
         const { user, service, logBypassEvent } = setup();
         await service.restore(user, 'space', { bypassPermissions: true });
-        cascaded.forEach(({ documentUuid }) =>
+        [
+            ...cascaded.documents.map(({ documentUuid }) => ({
+                documentUuid,
+            })),
+            { composerChartUuid: 'composer-1' },
+        ].forEach((metadata) =>
             expect(logBypassEvent).toHaveBeenCalledWith(user, 'manage', {
                 type: 'DeletedContent',
-                metadata: { documentUuid, spaceUuid: 'space' },
+                metadata: { ...metadata, spaceUuid: 'space' },
                 organizationUuid: 'org',
                 projectUuid: 'project',
             }),
