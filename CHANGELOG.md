@@ -1,3 +1,10 @@
+# [3.435.0](https://github.com/lightdash/lightdash/compare/3.434.0...3.435.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** create a space-owned composer chart by API ([#33586](https://github.com/lightdash/lightdash/issues/33586)) ([7364ff9](https://github.com/lightdash/lightdash/commit/7364ff94de412ee53738df4e084fa1d753f50ce6))
+
 # [3.434.0](https://github.com/lightdash/lightdash/compare/3.433.0...3.434.0) (2026-11-27)
 
 
