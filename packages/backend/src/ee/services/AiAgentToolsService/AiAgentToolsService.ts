@@ -604,6 +604,7 @@ type AiAgentToolsServiceDependencies = {
         | 'preflightPipeline'
         | 'preflightCreate'
         | 'preflightSpaceChartEdit'
+        | 'preflightWrite'
         | 'update'
         | 'moveToSpace'
         | 'getDashboardsShowing'
@@ -4345,6 +4346,17 @@ export class AiAgentToolsService extends BaseService {
             patched,
         );
         const edited = patched as ComposerChartAsCode;
+        // A root replace skips the banned-path check
+        if (
+            edited.slug !== current.content.slug ||
+            edited.contentType !== current.content.contentType ||
+            (edited.dashboardSlug ?? null) !==
+                (current.content.dashboardSlug ?? null)
+        ) {
+            throw new ParameterError(
+                'slug, contentType and dashboardSlug of a composer chart cannot change.',
+            );
+        }
         const { versionUuid } =
             await this.coderService.getCurrentContentVersionBySlug(
                 context.user,
@@ -4388,13 +4400,22 @@ export class AiAgentToolsService extends BaseService {
                 'editContent.composer_chart_sql',
             );
         }
-        if (newSqlNodes.length > 0 || spaceEdit?.write === 'version') {
+        const project = {
+            organizationUuid: context.organizationUuid,
+            projectUuid: context.projectUuid,
+        };
+        if (spaceEdit?.write === 'version') {
+            await this.composerChartService.preflightWrite(account, project, {
+                pipeline: edited.pipeline,
+                chart: await this.coderService.toStoredComposerChart(
+                    context.projectUuid,
+                    edited.chart,
+                ),
+            });
+        } else if (newSqlNodes.length > 0) {
             await this.composerChartService.preflightPipeline(
                 account,
-                {
-                    organizationUuid: context.organizationUuid,
-                    projectUuid: context.projectUuid,
-                },
+                project,
                 edited.pipeline,
             );
         }

@@ -4502,13 +4502,13 @@ describe('AiAgentToolsService', () => {
             spaces = [{ uuid: 'marketing-uuid', path: 'marketing' }],
             spaceAccess = null,
             preflightSpaceChartEdit = vi.fn().mockResolvedValue(undefined),
-            preflightPipeline = vi.fn().mockResolvedValue(undefined),
+            preflightWrite = vi.fn().mockResolvedValue(undefined),
             dashboardsShowing = [],
         }: {
             spaces?: Array<{ uuid: string; path: string }>;
             spaceAccess?: string[] | null;
             preflightSpaceChartEdit?: import('vitest').Mock;
-            preflightPipeline?: import('vitest').Mock;
+            preflightWrite?: import('vitest').Mock;
             dashboardsShowing?: Array<{ uuid: string; name: string }>;
         } = {}) => {
             let version = 1;
@@ -4538,6 +4538,9 @@ describe('AiAgentToolsService', () => {
                         versionUuid: `version-${version}`,
                     })),
                     upsertComposerChart,
+                    toStoredComposerChart: vi.fn(
+                        async (_: string, chart: unknown) => chart,
+                    ),
                 },
                 spaceModel: {
                     hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(true),
@@ -4547,7 +4550,7 @@ describe('AiAgentToolsService', () => {
                 },
                 composerChartService: {
                     isEnabled: vi.fn().mockResolvedValue(true),
-                    preflightPipeline,
+                    preflightWrite,
                     preflightSpaceChartEdit,
                     update,
                     moveToSpace,
@@ -4568,7 +4571,7 @@ describe('AiAgentToolsService', () => {
                 upsertComposerChart,
                 update,
                 moveToSpace,
-                preflightPipeline,
+                preflightWrite,
                 renameElsewhere,
             };
         };
@@ -4579,7 +4582,7 @@ describe('AiAgentToolsService', () => {
                 upsertComposerChart,
                 update,
                 moveToSpace,
-                preflightPipeline,
+                preflightWrite,
             } = makeSpaceEditService();
             const approveSql = vi.fn();
 
@@ -4598,7 +4601,7 @@ describe('AiAgentToolsService', () => {
             );
             expect(upsertComposerChart).not.toHaveBeenCalled();
             expect(moveToSpace).not.toHaveBeenCalled();
-            expect(preflightPipeline).not.toHaveBeenCalled();
+            expect(preflightWrite).not.toHaveBeenCalled();
             expect(approveSql).not.toHaveBeenCalled();
             expect(edited).toMatchObject({
                 href: `/projects/${projectUuid}/composer-charts/composer-chart-uuid`,
@@ -4607,7 +4610,7 @@ describe('AiAgentToolsService', () => {
         });
 
         it('writes a pipeline change as a new version after approval, keeping the space owner', async () => {
-            const { runtime, upsertComposerChart, update, preflightPipeline } =
+            const { runtime, upsertComposerChart, update, preflightWrite } =
                 makeSpaceEditService();
             const approveSql = vi.fn(async () => {
                 expect(upsertComposerChart).not.toHaveBeenCalled();
@@ -4620,7 +4623,7 @@ describe('AiAgentToolsService', () => {
                 approveSql,
             });
 
-            expect(preflightPipeline).toHaveBeenCalledOnce();
+            expect(preflightWrite).toHaveBeenCalledOnce();
             expect(approveSql).toHaveBeenCalledExactlyOnceWith({
                 sql: '-- orders\nselect status from orders',
                 chartName: 'Orders by status',
@@ -4640,10 +4643,54 @@ describe('AiAgentToolsService', () => {
             });
         });
 
+        it('runs the version write checks before asking for SQL approval', async () => {
+            const { runtime, upsertComposerChart } = makeSpaceEditService({
+                preflightWrite: vi
+                    .fn()
+                    .mockRejectedValue(new ParameterError('bad chart')),
+            });
+            const approveSql = vi.fn();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql,
+                }),
+            ).rejects.toThrow('bad chart');
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses a root replace that puts the chart on a dashboard', async () => {
+            const { runtime, update } = makeSpaceEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '',
+                            value: {
+                                ...spaceChart,
+                                name: 'Renamed',
+                                dashboardSlug: 'ops',
+                            },
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow('cannot change');
+            expect(update).not.toHaveBeenCalled();
+        });
+
         it('checks the pipeline before saving a chart change with no new SQL', async () => {
-            const { runtime, upsertComposerChart, preflightPipeline } =
+            const { runtime, upsertComposerChart, preflightWrite } =
                 makeSpaceEditService({
-                    preflightPipeline: vi
+                    preflightWrite: vi
                         .fn()
                         .mockRejectedValue(new ForbiddenError('no composer')),
                 });
@@ -4662,7 +4709,7 @@ describe('AiAgentToolsService', () => {
                     approveSql: vi.fn(),
                 }),
             ).rejects.toThrow(ForbiddenError);
-            expect(preflightPipeline).toHaveBeenCalledOnce();
+            expect(preflightWrite).toHaveBeenCalledOnce();
             expect(upsertComposerChart).not.toHaveBeenCalled();
         });
 
