@@ -242,7 +242,10 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
         title,
     });
 
-    const errorMessage = !composerChartUuid
+    // A chart gone since the dashboard was read shows as deleted, as on a classic tile
+    const isChartGone =
+        !composerChartUuid || chartQuery.error?.error.statusCode === 404;
+    const errorMessage = isChartGone
         ? 'This chart has been deleted.'
         : (chartQuery.error?.error.message ??
           runQuery.error?.error.message ??
