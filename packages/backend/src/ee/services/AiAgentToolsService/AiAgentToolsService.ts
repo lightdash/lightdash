@@ -3405,14 +3405,14 @@ export class AiAgentToolsService extends BaseService {
 
     private async readComposerChartAsCode(
         context: AiAgentToolsRuntimeContext,
-        slug: string,
+        composerChartUuidOrSlug: UuidOrSlug,
         action: 'read' | 'update' = 'read',
     ): Promise<
         Extract<Awaited<ReturnType<ReadContentFn>>, { type: 'composer_chart' }>
     > {
         const { current } = await this.readComposerChartForAgent(
             context,
-            slug,
+            composerChartUuidOrSlug,
             action,
         );
         return current;
@@ -3420,7 +3420,7 @@ export class AiAgentToolsService extends BaseService {
 
     private async readComposerChartForAgent(
         context: AiAgentToolsRuntimeContext,
-        slug: string,
+        composerChartUuidOrSlug: UuidOrSlug,
         action: 'read' | 'update',
     ): Promise<{
         current: Extract<
@@ -3430,7 +3430,11 @@ export class AiAgentToolsService extends BaseService {
         composerChartUuid: UUID;
     }> {
         const { composerChart, composerChartUuid } =
-            await this.findComposerChartForAgent(context, slug, action);
+            await this.findComposerChartForAgent(
+                context,
+                composerChartUuidOrSlug,
+                action,
+            );
         if (!composerChart.dashboardSlug) {
             return {
                 current: {
@@ -4489,7 +4493,6 @@ export class AiAgentToolsService extends BaseService {
         };
     }
 
-    /** The space a `spaceSlug` edit moves a chart to, inside the agent's writable spaces. */
     /** The one space at a path that the agent reaches and may write to. */
     private async findTargetSpace(
         context: AiAgentToolsRuntimeContext,
@@ -4732,10 +4735,7 @@ export class AiAgentToolsService extends BaseService {
             CreateComposerChartArgs['content'],
             'dashboardSlug' | 'spaceSlug'
         >,
-    ): Promise<
-        | { type: 'dashboard'; dashboard: { uuid: string; slug: string } }
-        | { type: 'space'; spaceUuid: UUID }
-    > {
+    ): Promise<ComposerChartOwner> {
         const bound = await this.getBoundResource(context);
         if (dashboardSlug === null) {
             if (bound !== null) {
@@ -4785,7 +4785,7 @@ export class AiAgentToolsService extends BaseService {
             `Dashboard "${dashboardSlug}" was not found`,
             'update',
         );
-        return { type: 'dashboard', dashboard };
+        return { type: 'dashboard', dashboardUuid: dashboard.uuid };
     }
 
     /** Saves as the UI's Save does: into a space, or onto a dashboard with its tile at the bottom of the first tab. */
@@ -4805,11 +4805,7 @@ export class AiAgentToolsService extends BaseService {
             context,
             'Composer charts are not enabled for this organization',
         );
-        const target = await this.getComposerChartCreateOwner(context, content);
-        const owner: ComposerChartOwner =
-            target.type === 'space'
-                ? target
-                : { type: 'dashboard', dashboardUuid: target.dashboard.uuid };
+        const owner = await this.getComposerChartCreateOwner(context, content);
 
         const { pipeline, chart } =
             content.from === 'node'
@@ -4834,24 +4830,16 @@ export class AiAgentToolsService extends BaseService {
                 chart,
             },
         );
-        if (target.type === 'space') {
+        if (owner.type === 'space') {
             const saved = await this.readComposerChartAsCode(
                 context,
                 composerChart.uuid,
             );
-            return {
-                ...saved,
-                uuid: composerChart.uuid,
-                href: AiAgentToolsService.getComposerChartUrl(
-                    context,
-                    composerChart.uuid,
-                ),
-            };
+            return { ...saved, uuid: composerChart.uuid };
         }
-        const { dashboard } = target;
         // Re-read, unrecorded as a view: the layout may have changed while the SQL awaited approval.
         const current = await this.dashboardModel.getByIdOrSlug(
-            dashboard.uuid,
+            owner.dashboardUuid,
             { projectUuid: context.projectUuid },
         );
         const tabUuid = [...current.tabs].sort((a, b) => a.order - b.order)[0]
@@ -4874,7 +4862,7 @@ export class AiAgentToolsService extends BaseService {
         };
         await this.dashboardService.update(
             context.user,
-            dashboard.uuid,
+            owner.dashboardUuid,
             {
                 filters: current.filters,
                 tiles: [...current.tiles, tile],

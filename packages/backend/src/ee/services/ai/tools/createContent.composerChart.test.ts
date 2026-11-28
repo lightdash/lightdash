@@ -1,3 +1,4 @@
+import { toolCreateContentOutputSchema } from '@lightdash/common';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { getCreateContent } from './createContent';
 
@@ -106,9 +107,21 @@ describe('createContent composer_chart', () => {
         };
         const { spaceSlug: _, ...withoutSpace } = toSpace;
 
-        await create(toSpace);
-        await create({ ...fromJson, dashboardSlug: null, spaceSlug: 'jaffle' });
-        await create(withoutSpace);
+        const outputs = [
+            await create(toSpace),
+            await create({
+                ...fromJson,
+                dashboardSlug: null,
+                spaceSlug: 'jaffle',
+            }),
+            await create(withoutSpace),
+        ];
+
+        for (const output of outputs) {
+            expect(
+                toolCreateContentOutputSchema.safeParse(output).success,
+            ).toBe(true);
+        }
 
         expect(save.mock.calls.map(([args]) => args.content)).toEqual([
             expect.objectContaining({

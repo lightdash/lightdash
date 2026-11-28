@@ -9,7 +9,7 @@ export const SQL_CHART_CREATE_GUIDANCE =
     'A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.';
 
 export const COMPOSER_CHART_CREATE_GUIDANCE =
-    'A composer chart (type composer_chart) is saved into a space (spaceSlug, with dashboardSlug null) or onto an existing dashboard (dashboardSlug), from a query node (from: "node") or from full pipeline and chart JSON (from: "json"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.';
+    'A composer chart (type composer_chart) is saved into a space or onto an existing dashboard, from a query node (from: "node") or from full pipeline and chart JSON (from: "json"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.';
 
 export const TOOL_CREATE_CONTENT_DESCRIPTION = ({
     runtime,
@@ -107,16 +107,14 @@ const composerChartOwnerShape = {
         .min(1)
         .nullable()
         .describe(
-            'The existing dashboard the chart belongs to, which gets a tile for it; null saves the chart into spaceSlug.',
+            'The existing dashboard that owns the chart and gets its tile; null to save it into spaceSlug.',
         ),
     spaceSlug: z
         .string()
         .min(1)
         .nullable()
         .optional()
-        .describe(
-            'The space a chart saved with a null dashboardSlug belongs to. Ignored when dashboardSlug is set.',
-        ),
+        .describe('The space that owns the chart when dashboardSlug is null.'),
     name: z.string().min(1),
     description: z.string().nullable(),
 };

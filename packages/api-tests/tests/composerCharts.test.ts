@@ -2070,7 +2070,7 @@ describe('Composer charts', () => {
         });
 
         describe('agent and MCP create into a space', () => {
-            it('saves a composer chart into a space through MCP create_content and links its page, refusing a viewer of the space and a null dashboard with no space', async () => {
+            it('MCP create_content saves into a space and links its page; refuses a space viewer and a missing space', async () => {
                 const privateSpace = await createSpace(false);
                 const shareUrl = `/api/v1/projects/${projectUuid}/spaces/${privateSpace.uuid}/share`;
                 expect(
@@ -2089,7 +2089,7 @@ describe('Composer charts', () => {
                 const name = uniqueName('MCP space chart');
                 const create = (
                     callTool: typeof adminMcp,
-                    owner: Record<string, unknown>,
+                    owner: { dashboardSlug: null; spaceSlug?: string },
                 ) =>
                     callTool('create_content', {
                         projectUuid,

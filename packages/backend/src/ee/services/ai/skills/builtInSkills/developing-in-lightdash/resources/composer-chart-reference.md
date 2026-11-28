@@ -26,7 +26,7 @@ A pipeline with an `external` node cannot be saved. Composer charts already on a
 
 ## Create
 
-Save it into a space, as a chart is saved: `spaceSlug` names a space whose `canEdit` is true, and `dashboardSlug` is null. Save it onto a dashboard only when the user names that dashboard or the conversation is bound to one: `dashboardSlug` names the existing dashboard, and the chart gets a tile at the bottom of the dashboard's first tab. In a conversation bound to a dashboard, only that dashboard can be named. Pass the content in one of two shapes:
+Save it into a space (`spaceSlug`), as a chart is saved, unless the user names a dashboard or the conversation is bound to one. Then save it onto that dashboard (`dashboardSlug`), where it gets a tile at the bottom of the first tab. Pass the content in one of two shapes:
 
 - **From a query node** (usual): `{ from: "node", nodeId, sessionId, dashboardSlug, spaceSlug, name, description, vizConfig }`. `nodeId` names a node from a successful `query` call; the chart saves it and every node it reads. `vizConfig` references that node's result columns: pass the one the user saw with `visualize`, or over MCP the one you chose for the result. `sessionId` is the query result's session id over MCP, and null in an agent conversation. The node's SQL was approved when `query` ran it, so this asks no approval.
 - **From full JSON**: `{ from: "json", dashboardSlug, spaceSlug, name, description, pipeline, chart }`, with `pipeline` and `chart` shaped as `readContent` returns them; a `slug` is not kept. Warehouse SQL in it needs approval, as for a SQL chart.

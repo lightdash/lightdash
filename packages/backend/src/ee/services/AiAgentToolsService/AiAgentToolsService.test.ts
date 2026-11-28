@@ -6154,6 +6154,7 @@ describe('AiAgentToolsService createContent composer_chart in a space', () => {
                         dashboardSlug: null,
                         spaceSlug: 'jaffle',
                     },
+                    composerChartUuid: 'composer-chart-uuid',
                     spaceUuid: 'jaffle-uuid',
                 })),
             },
