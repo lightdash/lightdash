@@ -200,6 +200,11 @@ describe('Composer chart permissions', () => {
                 expect(
                     (await admin.post(controlsUrl, { enabled })).status,
                 ).toBe(200);
+                const effective =
+                    await chartsOnly.get<Body<{ enabled: boolean }>>(
+                        controlsUrl,
+                    );
+                expect(effective.body.results.enabled).toBe(enabled);
                 const run = (client: ApiClient) =>
                     client.post<Body<ComposerChartRunResults>>(
                         tileRunUrl,
