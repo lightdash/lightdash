@@ -340,6 +340,91 @@ test.describe('Composer charts in spaces', () => {
         }
     });
 
+    test('adds a space chart to a dashboard from the saved chart picker, and the tile draws', async ({
+        page,
+        api,
+    }) => {
+        await loginAs(api.raw, SEED_USERS.admin);
+        const { space, chart: spaceChart } =
+            await createComposerSpaceChart(api);
+        const name = `Picked composer chart ${Date.now()}`;
+        expect(
+            (
+                await api.patch(
+                    `/api/v2/projects/${space.projectUuid}/composer-charts/${spaceChart.uuid}`,
+                    { data: { name } },
+                )
+            ).status(),
+        ).toBe(200);
+        const created = await api.post(
+            `/api/v1/projects/${space.projectUuid}/dashboards`,
+            {
+                data: {
+                    name: `Picks a space chart ${Date.now()}`,
+                    tiles: [],
+                    tabs: [],
+                },
+            },
+        );
+        expect(created.status()).toBe(201);
+        const dashboard = await json<Dashboard>(created);
+        try {
+            await page.goto(
+                `/projects/${space.projectUuid}/dashboards/${dashboard.uuid}/view`,
+            );
+            await page.getByLabel('Edit dashboard').click();
+            await page
+                .getByRole('button', { name: 'Add tile' })
+                .first()
+                .click();
+            await page
+                .getByRole('menuitem', { name: 'Saved chart' })
+                .click({ force: true });
+            const search = page
+                .getByRole('dialog')
+                .getByPlaceholder('Search...');
+            await search.click();
+            await search.fill(name);
+            await page.getByRole('option', { name }).click();
+            await page
+                .getByRole('dialog')
+                .getByRole('textbox')
+                .dispatchEvent('keydown', { key: 'Escape', bubbles: true });
+            await page
+                .getByRole('button', { name: 'Add', exact: true })
+                .click();
+
+            const saved = page.waitForResponse(
+                (res) =>
+                    res.request().method() === 'PATCH' &&
+                    res.url().includes(`/dashboards/${dashboard.uuid}`),
+            );
+            await page.getByRole('button', { name: 'Save changes' }).click();
+            expect((await saved).status()).toBe(200);
+            await expect(page.getByLabel('Edit dashboard')).toBeVisible();
+            await expect(
+                page
+                    .getByTestId('composer-chart-visualization')
+                    .locator('.echarts-for-react'),
+            ).toBeVisible({ timeout: 30_000 });
+
+            const stored = await json<Dashboard>(
+                await api.get(`/api/v1/dashboards/${dashboard.uuid}`),
+            );
+            expect(stored.tiles).toEqual([
+                expect.objectContaining({
+                    type: DashboardTileTypes.COMPOSER_CHART,
+                    properties: expect.objectContaining({
+                        composerChartUuid: spaceChart.uuid,
+                    }),
+                }),
+            ]);
+        } finally {
+            await deleteComposerDashboard(api, dashboard.uuid);
+            await deleteComposerSpace(api, space.uuid);
+        }
+    });
+
     test('a space chart shown on a dashboard leaves a deleted-chart tile once permanently deleted, and the dashboard still saves', async ({
         page,
         api,

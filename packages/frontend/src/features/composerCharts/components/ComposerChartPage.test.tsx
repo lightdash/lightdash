@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { ComposerChartPage } from './ComposerChartPage';
 
+const mocks = vi.hoisted(() => ({ flagOn: false, canWrite: false }));
+
 vi.mock('../../../api');
 vi.mock(
     '../../../hooks/useServerOrClientFeatureFlag',
@@ -13,7 +15,7 @@ vi.mock(
         ...(await importOriginal<object>()),
         useServerFeatureFlag: () => ({
             isLoading: false,
-            data: { enabled: false },
+            data: { enabled: mocks.flagOn },
         }),
     }),
 );
@@ -22,7 +24,7 @@ vi.mock(
     () => ({ useRefreshComposerChartOnAgentEdit: () => {} }),
 );
 vi.mock('../hooks/useCanWriteComposerChart', () => ({
-    useCanWriteComposerChart: () => false,
+    useCanWriteComposerChart: () => mocks.canWrite,
 }));
 vi.mock('../hooks/useComposerChartPage', () => ({
     useComposerChartPageRun: () => ({
@@ -50,6 +52,19 @@ vi.mock('../hooks/useComposerChartDraw', () => ({
         displayedQueryUuid: 'query-uuid',
         error: null,
     }),
+}));
+vi.mock(
+    '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton',
+    () => ({
+        AskAiAgentButton: () => null,
+    }),
+);
+vi.mock('../../../components/SavedDashboards/AddTilesToDashboardModal', () => ({
+    default: (({ uuid, dashboardTileType }) => (
+        <div>
+            Add {dashboardTileType} {uuid} to a dashboard
+        </div>
+    )) as FC<{ uuid: string; dashboardTileType: string }>,
 }));
 vi.mock('./ComposerChartVisualization', () => ({
     ComposerChartVisualization: () => <div>Drawn chart</div>,
@@ -85,7 +100,41 @@ const renderPage = () =>
     );
 
 describe('ComposerChartPage', () => {
-    afterEach(cleanup);
+    afterEach(() => {
+        cleanup();
+        mocks.flagOn = false;
+        mocks.canWrite = false;
+    });
+
+    const openActions = async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Chart actions' }));
+        await screen.findByRole('menu');
+    };
+
+    it('adds the chart to a dashboard from the actions menu', async () => {
+        mocks.flagOn = true;
+        mocks.canWrite = true;
+        renderPage();
+        await openActions();
+        fireEvent.click(
+            screen.getByRole('menuitem', { name: 'Add to dashboard' }),
+        );
+        expect(
+            screen.getByText('Add composer_chart chart-uuid to a dashboard'),
+        ).toBeInTheDocument();
+    });
+
+    it('offers no "Add to dashboard" with composer charts off', async () => {
+        mocks.canWrite = true;
+        renderPage();
+        await openActions();
+        expect(
+            screen.getByRole('menuitem', { name: 'Rename' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('menuitem', { name: 'Add to dashboard' }),
+        ).not.toBeInTheDocument();
+    });
 
     it('draws the chart once, with the lineage in its own card below', () => {
         renderPage();

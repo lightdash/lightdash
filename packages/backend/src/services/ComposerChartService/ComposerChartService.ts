@@ -672,7 +672,13 @@ export class ComposerChartService extends BaseService {
             projectUuid,
             owner,
             composerChartUuid,
-        );
+        ).catch((error: unknown) => {
+            // Its space is deleted: a tile shows this, so name no space
+            if (error instanceof NotFoundError) {
+                throw new NotFoundError('Composer chart not found');
+            }
+            throw error;
+        });
         return { organizationUuid, owner };
     }
 

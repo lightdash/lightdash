@@ -13,6 +13,11 @@ import DashboardComposerChartTile from './DashboardComposerChartTile';
 const drawMocks = vi.hoisted(() => ({
     chartType: 'cartesian' as string,
     hasFetchedAllRows: true,
+    chartError: null as null | {
+        error: { statusCode: number; message: string };
+    },
+    savedTileUuids: ['tile-uuid'],
+    runEnabled: [] as boolean[],
 }));
 
 vi.mock('../../../api');
@@ -39,24 +44,30 @@ vi.mock(
     }),
 );
 vi.mock('../hooks/useComposerChartRun', () => ({
-    useComposerChart: () => ({
-        data: {
-            versionUuid: 'v1',
-            pipeline: { terminalNodeId: 'n1', nodes: [] },
-        },
-        error: null,
-    }),
-    useComposerChartRun: () => ({
-        data: {
-            queries: [{ nodeId: 'n1', queryUuid: 'query-uuid' }],
-            fields: {},
-            sqlColumns: [],
-            parameterReferences: [],
-            appliedDashboardFiltersByNodeId: {},
-            usedParameterValuesByNodeId: {},
-        },
-        error: null,
-    }),
+    useComposerChart: () =>
+        drawMocks.chartError
+            ? { data: undefined, error: drawMocks.chartError }
+            : {
+                  data: {
+                      versionUuid: 'v1',
+                      pipeline: { terminalNodeId: 'n1', nodes: [] },
+                  },
+                  error: null,
+              },
+    useComposerChartRun: ({ enabled }: { enabled: boolean }) => {
+        drawMocks.runEnabled.push(enabled);
+        return {
+            data: {
+                queries: [{ nodeId: 'n1', queryUuid: 'query-uuid' }],
+                fields: {},
+                sqlColumns: [],
+                parameterReferences: [],
+                appliedDashboardFiltersByNodeId: {},
+                usedParameterValuesByNodeId: {},
+            },
+            error: null,
+        };
+    },
 }));
 vi.mock('../../../hooks/useQueryResults', () => ({
     useInfiniteQueryResults: () => ({
@@ -80,7 +91,15 @@ vi.mock('../../../hooks/dashboard/useDashboardFiltersForTile', () => ({
 vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector: (value: Record<string, unknown>) => unknown) =>
         selector({
-            dashboard: { uuid: 'dashboard-uuid', slug: 'dashboard' },
+            dashboard: {
+                uuid: 'dashboard-uuid',
+                slug: 'dashboard',
+                tiles: drawMocks.savedTileUuids.map((uuid) => ({
+                    uuid,
+                    type: 'composer_chart',
+                    properties: { composerChartUuid: 'composer-chart-uuid' },
+                })),
+            },
             projectUuid: 'project-uuid',
             hasTileComments: () => false,
             dashboardTiles: [],
@@ -210,7 +229,53 @@ describe('DashboardComposerChartTile "Export image"', () => {
 });
 
 describe('DashboardComposerChartTile with a deleted chart', () => {
-    afterEach(cleanup);
+    afterEach(() => {
+        cleanup();
+        drawMocks.chartError = null;
+    });
+
+    const renderTile = () =>
+        renderWithProviders(
+            <DashboardStoreTestProvider store={createDashboardTestStore({})}>
+                <DashboardComposerChartTile
+                    tile={tile}
+                    isEditMode={false}
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                />
+            </DashboardStoreTestProvider>,
+        );
+
+    // As a classic tile: the dashboard was read before the chart went away
+    it('shows the deleted-chart state when the chart read finds no chart', async () => {
+        drawMocks.chartError = {
+            error: {
+                statusCode: 404,
+                message: "Couldn't find access context for space space-uuid",
+            },
+        };
+        renderTile();
+        expect(
+            await screen.findByText('This chart has been deleted.'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/space-uuid/)).toBeNull();
+    });
+
+    it("shows the server's refusal when the chart is not viewable", async () => {
+        drawMocks.chartError = {
+            error: {
+                statusCode: 403,
+                message:
+                    "You don't have permission to view this composer chart",
+            },
+        };
+        renderTile();
+        expect(
+            await screen.findByText(
+                "You don't have permission to view this composer chart",
+            ),
+        ).toBeInTheDocument();
+    });
 
     it('shows the deleted-chart state when the chart is in Recently deleted', async () => {
         renderWithProviders(
@@ -229,5 +294,33 @@ describe('DashboardComposerChartTile with a deleted chart', () => {
         expect(
             await screen.findByText('This chart has been deleted.'),
         ).toBeInTheDocument();
+    });
+});
+
+describe('DashboardComposerChartTile before the dashboard is saved', () => {
+    afterEach(() => {
+        cleanup();
+        drawMocks.savedTileUuids = ['tile-uuid'];
+        drawMocks.runEnabled = [];
+    });
+
+    // The server runs only tiles it has stored, so an unsaved tile would fail
+    it('asks to save instead of running a tile the saved dashboard lacks', async () => {
+        drawMocks.savedTileUuids = [];
+        drawMocks.runEnabled = [];
+        renderWithProviders(
+            <DashboardStoreTestProvider store={createDashboardTestStore({})}>
+                <DashboardComposerChartTile
+                    tile={tile}
+                    isEditMode
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                />
+            </DashboardStoreTestProvider>,
+        );
+        expect(
+            await screen.findByText('Save the dashboard to show this chart'),
+        ).toBeInTheDocument();
+        expect(drawMocks.runEnabled).not.toContain(true);
     });
 });

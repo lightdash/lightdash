@@ -1885,11 +1885,14 @@ describe('ComposerChartService.get', () => {
         const { service, spacePermissionService, composerChartModel } =
             setupGet(spaceOwner);
         spacePermissionService.resolveAccess.mockRejectedValue(
-            new NotFoundError("Couldn't find access context for space"),
+            new NotFoundError(
+                "Couldn't find access context for space space-uuid",
+            ),
         );
+        // The message names no space: a tile shows it to dashboard viewers
         await expect(
             service.get(chartViewer(), projectUuid, 'chart-uuid'),
-        ).rejects.toThrow(NotFoundError);
+        ).rejects.toThrow(new NotFoundError('Composer chart not found'));
         expect(composerChartModel.get).not.toHaveBeenCalled();
     });
 

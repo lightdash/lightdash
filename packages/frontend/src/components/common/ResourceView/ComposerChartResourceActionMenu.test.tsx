@@ -78,13 +78,20 @@ const renderMenu = () => {
 };
 
 describe('Composer chart resource actions', () => {
-    it('offers rename, move and delete to a space editor', () => {
+    it('offers rename, add to dashboard, move and delete to a space editor', () => {
         mocks.spaceRole = 'editor';
         mocks.canAsk = false;
         const onAction = renderMenu();
         fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }));
         expect(onAction).toHaveBeenCalledWith({
             type: ResourceViewItemAction.UPDATE,
+            item,
+        });
+        fireEvent.click(
+            screen.getByRole('menuitem', { name: 'Add to Dashboard' }),
+        );
+        expect(onAction).toHaveBeenCalledWith({
+            type: ResourceViewItemAction.ADD_TO_DASHBOARD,
             item,
         });
         fireEvent.click(screen.getByRole('menuitem', { name: 'Move' }));
@@ -108,6 +115,9 @@ describe('Composer chart resource actions', () => {
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('menuitem', { name: 'Rename' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('menuitem', { name: 'Add to Dashboard' }),
         ).not.toBeInTheDocument();
         cleanup();
         mocks.canAsk = false;

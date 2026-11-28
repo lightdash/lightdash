@@ -22,6 +22,7 @@ import {
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import { useComposerChart } from '../../features/composerCharts/hooks/useComposerChartRun';
 import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
 import {
     appendNewTilesToBottom,
@@ -77,6 +78,10 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         { projectUuid, uuid: uuid },
         { enabled: dashboardTileType === DashboardTileTypes.SQL_CHART },
     );
+    const composerChartQuery = useComposerChart(
+        projectUuid,
+        dashboardTileType === DashboardTileTypes.COMPOSER_CHART ? uuid : null,
+    );
 
     const tile = useMemo<
         | {
@@ -129,11 +134,32 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     },
                 };
 
+            case DashboardTileTypes.COMPOSER_CHART:
+                if (!composerChartQuery.isSuccess) return;
+
+                return {
+                    props: {
+                        uuid: composerChartQuery.data.uuid,
+                        spaceUuid: composerChartQuery.data.space.uuid,
+                    },
+                    payload: {
+                        uuid: uuid4(),
+                        type: DashboardTileTypes.COMPOSER_CHART,
+                        properties: {
+                            composerChartUuid: composerChartQuery.data.uuid,
+                            chartName: composerChartQuery.data.name,
+                        },
+                        tabUuid: undefined,
+                        ...getDefaultChartTileSize(
+                            composerChartQuery.data.chart.chartConfig.type,
+                        ),
+                    },
+                };
+
             case DashboardTileTypes.LOOM:
             case DashboardTileTypes.MARKDOWN:
             case DashboardTileTypes.HEADING:
             case DashboardTileTypes.DATA_APP:
-            case DashboardTileTypes.COMPOSER_CHART:
                 throw new Error(
                     `not implemented for chart tile type: ${dashboardTileType}`,
                 );
@@ -143,7 +169,12 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     `Unsupported chart tile type: ${dashboardTileType}`,
                 );
         }
-    }, [dashboardTileType, exploreChartQuery, sqlChartQuery]);
+    }, [
+        dashboardTileType,
+        exploreChartQuery,
+        sqlChartQuery,
+        composerChartQuery,
+    ]);
 
     const { data: dashboards, isInitialLoading: isLoadingDashboards } =
         useDashboards(
@@ -333,6 +364,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const ADD_TO_DASHBOARD_FORM_ID = 'add-to-dashboard-form';
 
     const isSubmitDisabled =
+        !tile ||
         (isCreatingNewDashboard &&
             form.getInputProps('dashboardName').value === '') ||
         (isCreatingNewSpace && form.getInputProps('spaceName').value === '') ||

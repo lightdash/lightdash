@@ -4,6 +4,7 @@ import {
     FeatureFlags,
     getChartKind,
     getComposerChartExportLabels,
+    isDashboardComposerChartTile,
     type DashboardComposerChartTile as ComposerChartTile,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
@@ -136,6 +137,18 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             : tile.properties.composerChartUuid;
     const projectUuid = useProjectUuid();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    // The server runs only a tile it has stored: one added or changed in edit mode waits for the save
+    const isSaved = useDashboardContext(
+        (c) =>
+            c.dashboard?.tiles.some(
+                (saved) =>
+                    saved.uuid === tile.uuid &&
+                    isDashboardComposerChartTile(saved) &&
+                    saved.properties.composerChartUuid ===
+                        tile.properties.composerChartUuid,
+            ) === true,
+    );
+    const saveToShow = useUiString('tile.composerChart.saveToShow');
     const isEmbedded = useIsEmbedded();
     const appliedParameterValues = useDashboardSelector(selectParameterValues);
     const {
@@ -174,7 +187,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             dateZoom,
         },
         refreshCounter,
-        enabled: !!dashboardUuid,
+        enabled: !!dashboardUuid && isSaved,
     });
     const chart = chartQuery.data;
     const run = runQuery.data;
@@ -242,13 +255,19 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
         title,
     });
 
-    const errorMessage = !composerChartUuid
+    // A chart gone since the dashboard was read shows as deleted, as on a classic tile
+    const isChartGone =
+        !composerChartUuid || chartQuery.error?.error.statusCode === 404;
+    const errorMessage = isChartGone
         ? 'This chart has been deleted.'
         : (chartQuery.error?.error.message ??
           runQuery.error?.error.message ??
           drawError);
+    const isUnsaved = errorMessage === null && !isSaved;
     const isLoading =
-        errorMessage === null && (!readyDraw || !results.hasFetchedAllRows);
+        errorMessage === null &&
+        !isUnsaved &&
+        (!readyDraw || !results.hasFetchedAllRows);
     const { user } = useApp();
     const canExportData = !!user.data?.ability?.can(
         'manage',
@@ -360,7 +379,13 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                 </>
             }
         >
-            {errorMessage !== null ? (
+            {isUnsaved ? (
+                <SuboptimalState
+                    adaptive
+                    icon={IconChartDots3}
+                    description={saveToShow}
+                />
+            ) : errorMessage !== null ? (
                 <TileError
                     tileUuid={tile.uuid}
                     message={errorMessage}

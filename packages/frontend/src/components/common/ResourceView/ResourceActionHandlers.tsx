@@ -4,6 +4,7 @@ import {
     ChartSourceType,
     ContentType,
     convertChartSourceTypeToDashboardTileType,
+    DashboardTileTypes,
     ResourceViewItemType,
     type ResourceViewItem,
     type Space,
@@ -389,6 +390,17 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     );
             }
         case ResourceViewItemAction.ADD_TO_DASHBOARD:
+            if (action.item.type === ResourceViewItemType.COMPOSER_CHART) {
+                return (
+                    <AddTilesToDashboardModal
+                        isOpen
+                        projectUuid={projectUuid}
+                        uuid={action.item.data.uuid}
+                        dashboardTileType={DashboardTileTypes.COMPOSER_CHART}
+                        onClose={handleReset}
+                    />
+                );
+            }
             return action.item.data.source ? (
                 <AddTilesToDashboardModal
                     isOpen
