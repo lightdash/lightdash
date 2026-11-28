@@ -1,3 +1,10 @@
+# [3.436.0](https://github.com/lightdash/lightdash/compare/3.435.0...3.436.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** tile run endpoint; old composer chart run deprecated ([#33591](https://github.com/lightdash/lightdash/issues/33591)) ([3e6543c](https://github.com/lightdash/lightdash/commit/3e6543cb3130b3eb707243ab06f21920a52aa21d))
+
 # [3.435.0](https://github.com/lightdash/lightdash/compare/3.434.0...3.435.0) (2026-11-28)
 
 
