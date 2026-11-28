@@ -88,6 +88,7 @@ import {
     type AppExternalConnectionLink,
     type ChartAsCode,
     type ComposerChartAsCode,
+    type ComposerChartOwner,
     type ComposerChartPipeline,
     type ComposerStoredChart,
     type ComposerStoredChartAsCode,
@@ -4467,7 +4468,11 @@ export class AiAgentToolsService extends BaseService {
         const targetSpaceUuid =
             edited.spaceSlug === current.spaceSlug
                 ? null
-                : await this.findMoveTargetSpace(context, edited.spaceSlug);
+                : await this.findTargetSpace(
+                      context,
+                      edited.spaceSlug,
+                      'update',
+                  );
         await this.composerChartService.preflightSpaceChartEdit(
             account,
             context.projectUuid,
@@ -4498,10 +4503,11 @@ export class AiAgentToolsService extends BaseService {
         };
     }
 
-    /** The space a `spaceSlug` edit moves a chart to, inside the agent's writable spaces. */
-    private async findMoveTargetSpace(
+    /** The one space at a path that the agent reaches and may write to. */
+    private async findTargetSpace(
         context: AiAgentToolsRuntimeContext,
         spaceSlug: string,
+        action: 'create' | 'update',
     ): Promise<UUID> {
         const notFound = `Space "${spaceSlug}" was not found`;
         const spaces = await this.spaceModel.find({
@@ -4514,7 +4520,9 @@ export class AiAgentToolsService extends BaseService {
         }
         if (spaces.length > 1) {
             throw new ParameterError(
-                `More than one space has the path "${spaceSlug}", so this edit cannot move the chart there. Move the chart from its page instead.`,
+                action === 'create'
+                    ? `More than one space has the path "${spaceSlug}", so the chart cannot be saved there by path.`
+                    : `More than one space has the path "${spaceSlug}", so this edit cannot move the chart there. Move the chart from its page instead.`,
             );
         }
         if (
@@ -4526,7 +4534,7 @@ export class AiAgentToolsService extends BaseService {
             await this.recordRefusal(
                 context,
                 'content',
-                'update',
+                action,
                 'agent_scope',
                 'content_outside_agent_scope',
                 undefined,
@@ -4537,7 +4545,7 @@ export class AiAgentToolsService extends BaseService {
         await this.assertSpaceWritable(
             context,
             'content',
-            'update',
+            action,
             space.uuid,
             null,
         );
@@ -4679,7 +4687,7 @@ export class AiAgentToolsService extends BaseService {
         });
         if (draft.status === 'unavailable') {
             throw new ParameterError(
-                `Node "${nodeId}" cannot be saved as a dashboard chart: ${draft.reason}.`,
+                `Node "${nodeId}" cannot be saved as a composer chart: ${draft.reason}.`,
             );
         }
         return { pipeline: draft.pipeline, chart: draft.chart };
@@ -4689,7 +4697,7 @@ export class AiAgentToolsService extends BaseService {
     private async buildComposerChartFromJson(
         context: AiAgentToolsRuntimeContext,
         account: RegisteredAccount,
-        dashboardUuid: string,
+        owner: ComposerChartOwner,
         content: ToolComposerChartAsCodeContent,
         approveSql: ApproveSqlFn | null,
     ): Promise<{
@@ -4717,7 +4725,7 @@ export class AiAgentToolsService extends BaseService {
         await this.composerChartService.preflightCreate(
             account,
             context.projectUuid,
-            { dashboardUuid, pipeline, chart },
+            { owner, pipeline, chart },
         );
         await approveSql({
             sql: approvalSql,
@@ -4727,29 +4735,49 @@ export class AiAgentToolsService extends BaseService {
         return { pipeline, chart };
     }
 
-    /** Saves as the UI's Save does: the chart, then its tile at the bottom of the dashboard's first tab. */
-    private async createComposerChart(
+    /** The owner a create names: a dashboard (the bound one in a dashboard thread), or else a space. */
+    private async getComposerChartCreateOwner(
         context: AiAgentToolsRuntimeContext,
-        { content, approveSql }: CreateComposerChartArgs,
-    ): Promise<
-        Extract<
-            Awaited<ReturnType<CreateContentFn>>,
-            { type: 'composer_chart' }
-        >
-    > {
-        const { account } = context;
-        assertRegisteredAccount(account);
-        const { dashboardSlug, name, description } = content;
-        await this.assertComposerChartsEnabled(
-            context,
-            'Composer charts are not enabled for this organization',
-        );
+        {
+            dashboardSlug = null,
+            spaceSlug = null,
+        }: Pick<
+            CreateComposerChartArgs['content'],
+            'dashboardSlug' | 'spaceSlug'
+        >,
+    ): Promise<ComposerChartOwner> {
+        const bound = await this.getBoundResource(context);
+        if (dashboardSlug === null) {
+            if (bound !== null) {
+                await this.refuseOutsideThreadBinding(context, {
+                    objectType: 'composer_chart',
+                    action: 'create',
+                    bound,
+                    reason:
+                        bound.type === 'dashboard'
+                            ? `Composer charts can only be saved to that dashboard. Set dashboardSlug to "${bound.slug}".`
+                            : 'New content cannot be created here. Edit that chart instead.',
+                });
+            }
+            if (spaceSlug === null) {
+                throw new ParameterError(
+                    'A composer chart saved without a dashboard needs a spaceSlug.',
+                );
+            }
+            return {
+                type: 'space',
+                spaceUuid: await this.findTargetSpace(
+                    context,
+                    spaceSlug,
+                    'create',
+                ),
+            };
+        }
         const dashboard = await this.dashboardService.getByIdOrSlug(
             context.user,
             dashboardSlug,
             { projectUuid: context.projectUuid },
         );
-        const bound = await this.getBoundResource(context);
         if (
             bound !== null &&
             (bound.type !== 'dashboard' || bound.slug !== dashboard.slug)
@@ -4767,6 +4795,27 @@ export class AiAgentToolsService extends BaseService {
             `Dashboard "${dashboardSlug}" was not found`,
             'update',
         );
+        return { type: 'dashboard', dashboardUuid: dashboard.uuid };
+    }
+
+    /** Saves as the UI's Save does: into a space, or onto a dashboard with its tile at the bottom of the first tab. */
+    private async createComposerChart(
+        context: AiAgentToolsRuntimeContext,
+        { content, approveSql }: CreateComposerChartArgs,
+    ): Promise<
+        Extract<
+            Awaited<ReturnType<CreateContentFn>>,
+            { type: 'composer_chart' }
+        >
+    > {
+        const { account } = context;
+        assertRegisteredAccount(account);
+        const { name, description } = content;
+        await this.assertComposerChartsEnabled(
+            context,
+            'Composer charts are not enabled for this organization',
+        );
+        const owner = await this.getComposerChartCreateOwner(context, content);
 
         const { pipeline, chart } =
             content.from === 'node'
@@ -4774,7 +4823,7 @@ export class AiAgentToolsService extends BaseService {
                 : await this.buildComposerChartFromJson(
                       context,
                       account,
-                      dashboard.uuid,
+                      owner,
                       content,
                       approveSql,
                   );
@@ -4782,16 +4831,25 @@ export class AiAgentToolsService extends BaseService {
             account,
             context.projectUuid,
             {
-                dashboardUuid: dashboard.uuid,
+                dashboardUuid:
+                    owner.type === 'dashboard' ? owner.dashboardUuid : null,
+                spaceUuid: owner.type === 'space' ? owner.spaceUuid : null,
                 name,
                 description,
                 pipeline,
                 chart,
             },
         );
+        if (owner.type === 'space') {
+            const saved = await this.readComposerChartAsCode(
+                context,
+                composerChart.uuid,
+            );
+            return { ...saved, uuid: composerChart.uuid };
+        }
         // Re-read, unrecorded as a view: the layout may have changed while the SQL awaited approval.
         const current = await this.dashboardModel.getByIdOrSlug(
-            dashboard.uuid,
+            owner.dashboardUuid,
             { projectUuid: context.projectUuid },
         );
         const tabUuid = [...current.tabs].sort((a, b) => a.order - b.order)[0]
@@ -4814,7 +4872,7 @@ export class AiAgentToolsService extends BaseService {
         };
         await this.dashboardService.update(
             context.user,
-            dashboard.uuid,
+            owner.dashboardUuid,
             {
                 filters: current.filters,
                 tiles: [...current.tiles, tile],
