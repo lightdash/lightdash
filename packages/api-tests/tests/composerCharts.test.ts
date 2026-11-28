@@ -2165,6 +2165,85 @@ describe('Composer charts', () => {
             });
         });
 
+        describe('agent and MCP create onto a dashboard', () => {
+            it('MCP create_content with a cached-client payload (no spaceSlug) adds a tile and keeps every existing tile', async () => {
+                const dashboard = await createDashboard();
+                const existing = await createChart(dashboard.uuid);
+                const markdownTile = {
+                    uuid: randomUUID(),
+                    type: DashboardTileTypes.MARKDOWN,
+                    x: 12,
+                    y: 0,
+                    h: 9,
+                    w: 12,
+                    tabUuid: null,
+                    properties: { title: 'Notes', content: 'Keep me' },
+                } as Dashboard['tiles'][number];
+                const before = (
+                    await saveTiles(dashboard, [
+                        composerTileFor(existing.uuid),
+                        markdownTile,
+                    ])
+                ).body.results;
+                const adminMcp = await openMcpSession(admin);
+                const { pipeline, chart } = composerChartBody(dashboard.uuid);
+                const name = uniqueName('MCP dashboard chart');
+                try {
+                    const created = await adminMcp('create_content', {
+                        projectUuid,
+                        type: 'composer_chart',
+                        content: {
+                            from: 'json',
+                            dashboardSlug: dashboard.slug,
+                            name,
+                            description: null,
+                            pipeline,
+                            chart,
+                        },
+                    });
+                    expect(mcpText(created)).toContain(
+                        `/dashboards/${dashboard.uuid}/view`,
+                    );
+
+                    const after = await getDashboard(dashboard.uuid);
+                    expect(after.tiles).toHaveLength(before.tiles.length + 1);
+                    expect(after.tiles).toEqual(
+                        expect.arrayContaining(
+                            before.tiles.map((tile) =>
+                                expect.objectContaining({
+                                    uuid: tile.uuid,
+                                    type: tile.type,
+                                    properties: tile.properties,
+                                }),
+                            ),
+                        ),
+                    );
+                    const added = composerChartUuidsOn(after).filter(
+                        (uuid): uuid is string =>
+                            uuid !== null && uuid !== existing.uuid,
+                    );
+                    expect(added).toHaveLength(1);
+                    expect(
+                        (await getChart(added[0])).body.results,
+                    ).toMatchObject({
+                        name,
+                        owner: {
+                            type: 'dashboard',
+                            dashboardUuid: dashboard.uuid,
+                        },
+                    });
+                } finally {
+                    for (const { client, uuid } of personalAccessTokens.splice(
+                        0,
+                    )) {
+                        await client.delete(
+                            `/api/v1/user/me/personal-access-tokens/${uuid}`,
+                        );
+                    }
+                }
+            });
+        });
+
         it('creates a chart the space owns, which a viewer of the space reads and no one from another organization', async () => {
             const { space, chart } = await createSpaceChart();
             expect(chart).toMatchObject({
