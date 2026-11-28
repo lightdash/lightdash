@@ -1,3 +1,10 @@
+# [3.447.0](https://github.com/lightdash/lightdash/compare/3.446.0...3.447.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** save an AI answer to a space ([#33615](https://github.com/lightdash/lightdash/issues/33615)) ([d4a7556](https://github.com/lightdash/lightdash/commit/d4a7556570acf0490e269ecfc0bdf824321dd0b0))
+
 # [3.446.0](https://github.com/lightdash/lightdash/compare/3.445.0...3.446.0) (2026-11-28)
 
 
