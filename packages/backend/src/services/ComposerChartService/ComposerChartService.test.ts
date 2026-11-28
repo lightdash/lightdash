@@ -2231,6 +2231,7 @@ describe('ComposerChartService restore and permanent delete', () => {
                 expect(calls[method]).toHaveBeenCalledWith(
                     'chart-uuid',
                     spaceUuid,
+                    deletedByUserUuid,
                 );
             },
         );

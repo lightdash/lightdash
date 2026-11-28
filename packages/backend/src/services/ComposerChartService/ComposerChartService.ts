@@ -758,7 +758,7 @@ export class ComposerChartService extends BaseService {
         projectUuid: UUID,
         composerChartUuid: UUID,
         action: 'restore' | 'permanently delete',
-    ): Promise<UUID> {
+    ): Promise<{ spaceUuid: UUID; deletedByUserUuid: string | null }> {
         const deleted =
             await this.composerChartModel.getDeleted(composerChartUuid);
         if (deleted.projectUuid !== projectUuid) {
@@ -779,7 +779,10 @@ export class ComposerChartService extends BaseService {
         }
         switch (deleted.owner.type) {
             case 'space':
-                return deleted.owner.spaceUuid;
+                return {
+                    spaceUuid: deleted.owner.spaceUuid,
+                    deletedByUserUuid: deleted.deletedByUserUuid,
+                };
             case 'dashboard':
                 throw new ParameterError(
                     'This composer chart belongs to a dashboard. You can only restore or delete it with that dashboard.',
@@ -798,15 +801,17 @@ export class ComposerChartService extends BaseService {
         projectUuid: UUID,
         composerChartUuid: UUID,
     ): Promise<void> {
-        const spaceUuid = await this.assertCanManageDeleted(
-            account,
-            projectUuid,
-            composerChartUuid,
-            'restore',
-        );
+        const { spaceUuid, deletedByUserUuid } =
+            await this.assertCanManageDeleted(
+                account,
+                projectUuid,
+                composerChartUuid,
+                'restore',
+            );
         await this.composerChartModel.restoreToSpace(
             composerChartUuid,
             spaceUuid,
+            deletedByUserUuid,
         );
     }
 
@@ -816,15 +821,17 @@ export class ComposerChartService extends BaseService {
         projectUuid: UUID,
         composerChartUuid: UUID,
     ): Promise<void> {
-        const spaceUuid = await this.assertCanManageDeleted(
-            account,
-            projectUuid,
-            composerChartUuid,
-            'permanently delete',
-        );
+        const { spaceUuid, deletedByUserUuid } =
+            await this.assertCanManageDeleted(
+                account,
+                projectUuid,
+                composerChartUuid,
+                'permanently delete',
+            );
         await this.composerChartModel.permanentlyDeleteFromSpace(
             composerChartUuid,
             spaceUuid,
+            deletedByUserUuid,
         );
     }
 

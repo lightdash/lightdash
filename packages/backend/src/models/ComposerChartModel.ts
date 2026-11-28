@@ -237,8 +237,12 @@ export class ComposerChartModel {
         };
     }
 
-    /** Restores a deleted chart still in the space checked, once that space is live. */
-    async restoreToSpace(uuid: string, spaceUuid: string): Promise<void> {
+    /** Restores a chart still deleted by the user checked and in the space checked, once that space is live. */
+    async restoreToSpace(
+        uuid: string,
+        spaceUuid: string,
+        deletedByUserUuid: string | null,
+    ): Promise<void> {
         await this.database.transaction(async (trx) => {
             const space = await trx(SpaceTableName)
                 .select('space_uuid')
@@ -254,6 +258,7 @@ export class ComposerChartModel {
             const count = await trx(ComposerChartsTableName)
                 .where('composer_chart_uuid', uuid)
                 .where('space_uuid', spaceUuid)
+                .where('deleted_by_user_uuid', deletedByUserUuid)
                 .whereNotNull('deleted_at')
                 .update({ deleted_at: null, deleted_by_user_uuid: null });
             if (count !== 1) {
@@ -264,14 +269,16 @@ export class ComposerChartModel {
         });
     }
 
-    /** Permanently deletes a deleted chart still in the space checked; its versions cascade. */
+    /** Permanently deletes a chart still deleted by the user checked and in the space checked; its versions cascade. */
     async permanentlyDeleteFromSpace(
         uuid: string,
         spaceUuid: string,
+        deletedByUserUuid: string | null,
     ): Promise<void> {
         const count = await this.database(ComposerChartsTableName)
             .where('composer_chart_uuid', uuid)
             .where('space_uuid', spaceUuid)
+            .where('deleted_by_user_uuid', deletedByUserUuid)
             .whereNotNull('deleted_at')
             .delete();
         if (count !== 1) {

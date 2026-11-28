@@ -2364,10 +2364,15 @@ export class SpaceModel {
             )
                 .where('space_uuid', spaceUuid)
                 .where('deleted_at', deletedSpace.deleted_at)
-                .where(
-                    'deleted_by_user_uuid',
-                    deletedSpace.deleted_by_user_uuid,
-                )
+                // A removed deleter leaves the chart's FK null while the space keeps the uuid
+                .where((deleter) => {
+                    void deleter
+                        .where(
+                            'deleted_by_user_uuid',
+                            deletedSpace.deleted_by_user_uuid,
+                        )
+                        .orWhereNull('deleted_by_user_uuid');
+                })
                 .update({ deleted_at: null, deleted_by_user_uuid: null })
                 .returning(['composer_chart_uuid', 'project_uuid']);
             return toCascadedContent(documents, composerCharts);
