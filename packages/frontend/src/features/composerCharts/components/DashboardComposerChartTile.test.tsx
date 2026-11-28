@@ -4,6 +4,7 @@ import {
     type DashboardComposerChartTile as ComposerChartTile,
 } from '@lightdash/common';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDashboardTestStore } from '../../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
@@ -14,6 +15,7 @@ const drawMocks = vi.hoisted(() => ({
     chartType: 'cartesian' as string,
     config: {} as object,
     hasFetchedAllRows: true,
+    drawThrows: false,
 }));
 
 vi.mock('../../../api');
@@ -98,10 +100,19 @@ vi.mock('../../../providers/Dashboard/useDashboardTileStatusContext', () => ({
     ),
 }));
 vi.mock('./ComposerChartVisualization', () => ({
-    ComposerChartVisualization: () => null,
+    ComposerChartVisualization: () => {
+        if (drawMocks.drawThrows) throw new Error('Unexpected series type');
+        return null;
+    },
 }));
 vi.mock('./ComposerTileLineagePanel', () => ({
-    ComposerTileLineagePanel: () => null,
+    ComposerTileLineagePanel: ({
+        opened,
+        chart,
+    }: {
+        opened: boolean;
+        chart: ReactNode;
+    }) => (opened ? chart : null),
 }));
 vi.mock(
     '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton',
@@ -237,6 +248,7 @@ describe('DashboardComposerChartTile with a stored series type this build does n
     afterEach(() => {
         cleanup();
         drawMocks.config = {};
+        drawMocks.drawThrows = false;
     });
 
     it('keeps the tile and its menu', async () => {
@@ -247,5 +259,13 @@ describe('DashboardComposerChartTile with a stored series type this build does n
         };
         await openMenu();
         expect(exportImageItem()).toBeInTheDocument();
+    });
+
+    it('keeps the tile when its chart fails to draw inside Lineage', async () => {
+        drawMocks.chartType = ChartType.CARTESIAN;
+        drawMocks.drawThrows = true;
+        await openMenu();
+        fireEvent.click(screen.getByRole('menuitem', { name: 'View lineage' }));
+        expect(await screen.findByTestId('tile-icon-more')).toBeInTheDocument();
     });
 });
