@@ -73,7 +73,7 @@ export type LiveBaseLayer = {
     baseVersion: number;
     /** The integration's own declaration, shared by every model. */
     capabilities: LiveCapabilities;
-    definitions: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
+    definitions: readonly LiveExploreDefinition[];
 };
 
 export const getLiveBaseLayer = (
@@ -205,14 +205,14 @@ export const getLostLiveFieldIds = ({
     /** Names the explores of edits keyed `<model>.<name>`. */
     sourceName: string;
     /** The model of the first explore, whose edits have bare keys. */
-    firstModel: string;
+    firstModel: string | undefined;
 }): string[] => {
     // A bare key is the first explore's field; `<model>.<name>` another's
     const toFieldId = (key: string) => {
         const dot = key.indexOf('.');
         return dot === -1
             ? getItemId({
-                  table: getLiveExploreName(sourceName, firstModel),
+                  table: getLiveExploreName(sourceName, firstModel ?? ''),
                   name: key,
               })
             : getItemId({

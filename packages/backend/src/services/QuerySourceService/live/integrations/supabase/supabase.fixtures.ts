@@ -27,5 +27,13 @@ export const OPEN_API = {
     swagger: '2.0',
     info: { title: 'standard public schema', version: '12.2.3' },
     paths: { '/': {}, '/orders': {} },
-    definitions: { orders: ORDERS_TABLE, customers: { properties: {} } },
+    definitions: {
+        orders: ORDERS_TABLE,
+        customers: {
+            properties: {
+                id: { format: 'bigint', type: 'integer' },
+                name: { format: 'text', type: 'string' },
+            },
+        },
+    },
 };

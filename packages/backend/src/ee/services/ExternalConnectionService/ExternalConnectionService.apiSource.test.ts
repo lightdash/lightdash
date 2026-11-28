@@ -1119,28 +1119,6 @@ describe('ExternalConnectionService live source writes', () => {
             service.update(account, 'proj-1', 'conn-1', { apiSource: null }),
         ).rejects.toThrow(ParameterError);
     });
-
-    it('refuses to point a Supabase source at another table', async () => {
-        const { service } = buildService({
-            connections: [
-                posthogConnection({
-                    origin: 'https://abcdefghijklmnopqrst.supabase.co',
-                    apiSource: {
-                        connector: ApiConnectorType.SUPABASE,
-                        table: 'orders',
-                    },
-                }),
-            ],
-        });
-        await expect(
-            service.update(account, 'proj-1', 'conn-1', {
-                apiSource: {
-                    connector: ApiConnectorType.SUPABASE,
-                    table: 'customers',
-                },
-            }),
-        ).rejects.toThrow('Add a new Supabase source to read another table');
-    });
 });
 
 describe('ExternalConnectionService live source rate limits', () => {
@@ -3886,5 +3864,82 @@ describe('ExternalConnectionService explores found by a Refresh, through Hydra',
         expect(deals.find(({ name }) => name === 'etag')).toMatchObject({
             inUse: false,
         });
+    });
+});
+
+describe('ExternalConnectionService explores found by a Refresh, through Supabase', () => {
+    const supabaseConnection = () =>
+        posthogConnection({
+            type: 'api_key',
+            origin: 'https://abcdefghijklmnopqrst.supabase.co',
+            allowedPathPrefixes: ['/rest/v1/'],
+            allowedMethods: ['GET'],
+            apiKeyName: 'apikey',
+            apiKeyLocation: 'header',
+            liveSourceName: 'shop',
+            apiSource: { connector: ApiConnectorType.SUPABASE },
+        });
+    const tableList = (tables: string[]) => ({
+        status: 200,
+        contentType: 'application/openapi+json',
+        headers: {},
+        bodyText: JSON.stringify({
+            definitions: Object.fromEntries(
+                tables.map((table) => [
+                    table,
+                    {
+                        properties: {
+                            id: { type: 'integer', format: 'bigint' },
+                        },
+                    },
+                ]),
+            ),
+        }),
+        truncated: false,
+    });
+    const exploreNames = (
+        projectModel: ReturnType<typeof buildService>['projectModel'],
+    ) =>
+        (
+            projectModel.replaceApiSourceExplores.mock.calls.at(-1)?.[2] as {
+                name: string;
+            }[]
+        ).map(({ name }) => name);
+
+    beforeEach(() => {
+        mockSecureFetch.mockReset();
+    });
+
+    it('turns every table on as its own explore, and leaves one turned off off', async () => {
+        const { service, projectModel } = buildService({
+            connections: [supabaseConnection()],
+        });
+        mockSecureFetch.mockResolvedValueOnce(
+            tableList(['orders', 'customers']),
+        );
+
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(exploreNames(projectModel)).toEqual([
+            'shop_orders',
+            'shop_customers',
+        ]);
+
+        await service.updateLiveSourceFields(
+            account,
+            'proj-1',
+            'conn-1',
+            [],
+            [{ exploreName: 'shop_customers', inUse: false }],
+        );
+        mockSecureFetch.mockResolvedValueOnce(
+            tableList(['orders', 'customers', 'payments']),
+        );
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(exploreNames(projectModel)).toEqual([
+            'shop_orders',
+            'shop_payments',
+        ]);
     });
 });

@@ -144,9 +144,10 @@ export type LiveExtension = {
 export type LiveModel<C extends ApiConnectorType = ApiConnectorType> = {
     /**
      * The explores every source has, each with its fixed name. The first
-     * one's field edits are stored under bare field names.
+     * one's field edits are stored under bare field names. Empty for an
+     * integration whose explores all come from `discover`.
      */
-    explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
+    explores: readonly LiveExploreDefinition[];
 } & (
     | { scan?: undefined; metadata?: undefined; extend?: undefined }
     | {

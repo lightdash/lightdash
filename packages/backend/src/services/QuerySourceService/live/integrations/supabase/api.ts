@@ -21,10 +21,7 @@ const getRetryAfterSeconds = (headers: Record<string, string>) => {
 };
 
 /** Turns a Data API error response into an error that says what to change. */
-export const toSupabaseError = (
-    response: LiveHttpResponse,
-    { table }: { table: string },
-): Error => {
+export const toSupabaseError = (response: LiveHttpResponse): Error => {
     const parsed = errorSchema.safeParse(response.body);
     const body = parsed.success ? parsed.data : {};
     const message = [body.message, body.details, body.hint]
@@ -49,12 +46,12 @@ export const toSupabaseError = (
     }
     if (response.status === 404) {
         return new WarehouseConnectionError(
-            `Supabase can't find the table "${table}"${detail}. Check the table name, and that its schema is exposed in the project's Data API settings.`,
+            `Supabase can't find the table${detail}. If it was renamed or dropped, refresh this live data source; check that its schema is exposed in the project's Data API settings.`,
         );
     }
     if (response.status >= 400 && response.status < 500) {
         return new WarehouseQueryError(
-            `Supabase couldn't read "${table}"${detail}. Check the filter values.`,
+            `Supabase couldn't read the table${detail}. Check the filter values.`,
         );
     }
     return new UnexpectedServerError(

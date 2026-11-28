@@ -1,6 +1,6 @@
 /**
- * Adds a Supabase live data source: the project URL, one table and a secret
- * key, laid out like the token dialog.
+ * Adds a Supabase live data source: the project URL and a secret key, laid
+ * out like the token dialog. Every table and view becomes its own explore.
  */
 import { ApiConnectorType, LIVE_INTEGRATION_CATALOG } from '@lightdash/common';
 import { PasswordInput, Stack, TextInput } from '@mantine/core';
@@ -15,7 +15,7 @@ import { LiveSourceSetupCard } from './LiveSourceSetupCard';
 import { LiveSourceTestRow } from './LiveSourceTestRow';
 import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import {
-    getSupabaseTestRequest,
+    SUPABASE_TEST_REQUEST,
     toSupabaseCreatePayload,
     useSupabaseConnectionForm,
 } from './supabaseConnection';
@@ -53,7 +53,7 @@ export const SupabaseConnectionModal: FC<Props> = ({
         testMutation.mutate({
             projectUuid,
             config: toSupabaseCreatePayload(form.values),
-            ...getSupabaseTestRequest(form.values.table),
+            ...SUPABASE_TEST_REQUEST,
         });
     };
 
@@ -102,18 +102,6 @@ export const SupabaseConnectionModal: FC<Props> = ({
                         />
                     </SettingsRow>
                     <SettingsRow
-                        label="Table"
-                        hint="One table or view; add a source per table"
-                    >
-                        <TextInput
-                            w={FIELD_WIDTH}
-                            size="xs"
-                            aria-label="Table"
-                            placeholder="orders"
-                            {...form.getInputProps('table')}
-                        />
-                    </SettingsRow>
-                    <SettingsRow
                         label="Secret key"
                         hint="An sb_secret_ key from API Keys; only GET calls are sent"
                     >
@@ -128,11 +116,7 @@ export const SupabaseConnectionModal: FC<Props> = ({
                         hint="Checks the details above, without saving"
                         test={testMutation}
                         onTest={handleTest}
-                        inputs={[
-                            form.values.projectUrl,
-                            form.values.table,
-                            form.values.secret,
-                        ]}
+                        inputs={[form.values.projectUrl, form.values.secret]}
                     />
                 </SettingsCard>
 

@@ -3,7 +3,6 @@ import {
     getHubspotReadScopes,
     HUBSPOT_OBJECTS,
     isSentrySlug,
-    isSupabaseTableName,
     SENTRY_MAX_PROJECTS,
     type ApiSourceOf,
     type ExternalConnectionApiSource,
@@ -270,15 +269,12 @@ export const LIVE_INTEGRATION_CATALOG: {
         defaultName: 'Supabase',
         messageLabel: 'Supabase',
         agentLabel: 'Supabase',
-        description: 'Rows of one table in a Supabase project',
+        description: 'Rows of the tables in a Supabase project',
         setup: 'supabase',
         settings: z.object({
             connector: z.literal(ApiConnectorType.SUPABASE),
-            table: z.string().refine(isSupabaseTableName, {
-                message: 'Use the name of one table or view',
-            }),
         }),
-        getTarget: ({ table }) => `Table ${table}`,
+        getTarget: () => 'Every table and view',
     },
     [ApiConnectorType.SENTRY]: {
         id: 'sentry',
