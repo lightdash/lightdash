@@ -514,7 +514,12 @@ export class ComposerChartService extends BaseService {
         CreateComposerChart,
         'dashboardUuid' | 'spaceUuid'
     >): ComposerChartOwner {
-        if (dashboardUuid !== null) return { type: 'dashboard', dashboardUuid };
+        if (dashboardUuid !== null) {
+            if (!isUuid(dashboardUuid)) {
+                throw new ParameterError('dashboardUuid must be a UUID');
+            }
+            return { type: 'dashboard', dashboardUuid };
+        }
         if (spaceUuid !== null) {
             if (!isUuid(spaceUuid)) {
                 throw new ParameterError('spaceUuid must be a UUID');

@@ -4157,10 +4157,19 @@ describe('AiAgentToolsService', () => {
                     getChartsForRead: vi.fn(async () => ({
                         charts: [{ slug: 'orders-by-status' }],
                     })),
-                    getCurrentContentVersionBySlug: vi.fn(async () => ({
-                        contentUuid: 'composer-chart-uuid',
-                        versionUuid: `version-${version}`,
-                    })),
+                    getCurrentContentVersionBySlug: vi.fn(
+                        async (_u, _p, _t, slug: string) => {
+                            if (slug !== composerChart.slug) {
+                                throw new NotFoundError(
+                                    `Composer chart with slug "${slug}" not found`,
+                                );
+                            }
+                            return {
+                                contentUuid: 'composer-chart-uuid',
+                                versionUuid: `version-${version}`,
+                            };
+                        },
+                    ),
                     upsertComposerChart,
                     upsertChart,
                 },
@@ -4216,6 +4225,29 @@ describe('AiAgentToolsService', () => {
             expect(edited).toMatchObject({
                 type: 'composer_chart',
                 uuid: 'composer-chart-uuid',
+                versionUuids: { before: 'version-1', after: 'version-2' },
+            });
+        });
+
+        it('edits a dashboard chart addressed by its uuid', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+
+            const edited = await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'composer-chart-uuid',
+                patch: renameChart,
+                approveSql: vi.fn(),
+            });
+
+            expect(upsertComposerChart).toHaveBeenCalledExactlyOnceWith(
+                user,
+                account,
+                projectUuid,
+                'orders-by-status',
+                expect.objectContaining({ name: 'Orders by state' }),
+                { authorization: 'space_access' },
+            );
+            expect(edited).toMatchObject({
                 versionUuids: { before: 'version-1', after: 'version-2' },
             });
         });
@@ -4534,10 +4566,19 @@ describe('AiAgentToolsService', () => {
                         composerChartUuid: 'composer-chart-uuid',
                         spaceUuid: 'jaffle-uuid',
                     })),
-                    getCurrentContentVersionBySlug: vi.fn(async () => ({
-                        contentUuid: 'composer-chart-uuid',
-                        versionUuid: `version-${version}`,
-                    })),
+                    getCurrentContentVersionBySlug: vi.fn(
+                        async (_u, _p, _t, slug: string) => {
+                            if (slug !== current.slug) {
+                                throw new NotFoundError(
+                                    `Composer chart with slug "${slug}" not found`,
+                                );
+                            }
+                            return {
+                                contentUuid: 'composer-chart-uuid',
+                                versionUuid: `version-${version}`,
+                            };
+                        },
+                    ),
                     upsertComposerChart,
                     toStoredComposerChart: vi.fn(
                         async (_: string, chart: unknown) => chart,
@@ -4639,6 +4680,40 @@ describe('AiAgentToolsService', () => {
             );
             expect(update).not.toHaveBeenCalled();
             expect(edited).toMatchObject({
+                versionUuids: { before: 'version-1', after: 'version-2' },
+            });
+        });
+
+        it('edits a space chart addressed by its uuid, the id its read link carries', async () => {
+            const { runtime, upsertComposerChart } = makeSpaceEditService();
+            const approveSql = vi.fn();
+
+            await expect(
+                runtime.prepareComposerChartEdit({
+                    slug: 'composer-chart-uuid',
+                    patch: changeSql,
+                }),
+            ).resolves.toEqual({
+                approvalSql: '-- orders\nselect status from orders',
+            });
+            const edited = await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'composer-chart-uuid',
+                patch: changeSql,
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledOnce();
+            expect(upsertComposerChart).toHaveBeenCalledExactlyOnceWith(
+                user,
+                account,
+                projectUuid,
+                'orders-by-status',
+                expect.objectContaining({ dashboardSlug: null }),
+                { authorization: 'space_access', spaceOwner: 'keep' },
+            );
+            expect(edited).toMatchObject({
+                href: `/projects/${projectUuid}/composer-charts/composer-chart-uuid`,
                 versionUuids: { before: 'version-1', after: 'version-2' },
             });
         });

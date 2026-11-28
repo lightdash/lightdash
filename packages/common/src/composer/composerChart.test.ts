@@ -1,7 +1,7 @@
 import { ParameterError } from '../types/errors';
 import { FieldType, MetricType } from '../types/field';
 import { QuerySourceType } from '../types/querySources';
-import { ChartType } from '../types/savedCharts';
+import { ChartKind, ChartType, type ChartConfig } from '../types/savedCharts';
 import {
     getComposerChartDisplayedQueryUuid,
     getComposerChartExportLabels,
@@ -11,6 +11,7 @@ import {
     parseComposerStoredChart,
     parseDashboardComposerChartRunRequest,
     parseExecuteComposerChartRequest,
+    toComposerChartKind,
 } from './composerChart';
 
 const orders = {
@@ -549,5 +550,36 @@ describe('getComposerChartExportLabels', () => {
                 },
             }),
         ).toEqual({ orders_total_order_amount: 'Total order amount' });
+    });
+});
+
+describe('toComposerChartKind', () => {
+    const cartesian = (seriesType: string) =>
+        ({
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: { xField: 'status', yField: ['n'] },
+                eChartsConfig: {
+                    series: [
+                        {
+                            type: seriesType,
+                            encode: {
+                                xRef: { field: 'status' },
+                                yRef: { field: 'n' },
+                            },
+                        },
+                    ],
+                },
+            },
+        }) as ChartConfig;
+
+    test('reads the kind of a known config', () => {
+        expect(toComposerChartKind(cartesian('line'))).toBe(ChartKind.LINE);
+    });
+
+    test('falls back instead of throwing on a series type it does not know', () => {
+        expect(toComposerChartKind(cartesian('waterfall'))).toBe(
+            ChartKind.VERTICAL_BAR,
+        );
     });
 });

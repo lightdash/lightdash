@@ -4304,8 +4304,12 @@ export class AiAgentToolsService extends BaseService {
     /** Every check of a composer chart edit short of saving it, so approval asks only for a save that can happen. */
     private async prepareComposerChartEdit(
         context: AiAgentToolsRuntimeContext,
-        { slug, patch }: Parameters<PrepareComposerChartEditFn>[0],
+        {
+            slug: composerChartUuidOrSlug,
+            patch,
+        }: Parameters<PrepareComposerChartEditFn>[0],
     ): Promise<{
+        slug: string;
         edited: ComposerChartAsCode;
         versionUuid: string | null;
         approvalSql: string | null;
@@ -4327,7 +4331,12 @@ export class AiAgentToolsService extends BaseService {
             });
         }
         const { current, composerChartUuid } =
-            await this.readComposerChartForAgent(context, slug, 'update');
+            await this.readComposerChartForAgent(
+                context,
+                composerChartUuidOrSlug,
+                'update',
+            );
+        const { slug } = current.content;
         if (
             bound?.type === 'dashboard' &&
             current.content.dashboardSlug !== bound.slug
@@ -4423,6 +4432,7 @@ export class AiAgentToolsService extends BaseService {
             );
         }
         return {
+            slug,
             edited,
             versionUuid,
             spaceEdit,
@@ -4819,15 +4829,18 @@ export class AiAgentToolsService extends BaseService {
     private async editComposerChart(
         context: AiAgentToolsRuntimeContext,
         {
-            slug,
+            slug: composerChartUuidOrSlug,
             patch,
             approveSql,
         }: Extract<Parameters<EditContentFn>[0], { type: 'composer_chart' }>,
     ): Promise<
         Extract<Awaited<ReturnType<EditContentFn>>, { type: 'composer_chart' }>
     > {
-        const { edited, versionUuid, approvalSql, spaceEdit } =
-            await this.prepareComposerChartEdit(context, { slug, patch });
+        const { slug, edited, versionUuid, approvalSql, spaceEdit } =
+            await this.prepareComposerChartEdit(context, {
+                slug: composerChartUuidOrSlug,
+                patch,
+            });
         if (approvalSql !== null) {
             if (!approveSql) {
                 throw new ForbiddenError(COMPOSER_CHART_SQL_DISABLED_MESSAGE);

@@ -1,11 +1,10 @@
 import { subject } from '@casl/ability';
 import {
     FeatureFlags,
-    ChartKind,
     ContentType,
-    getChartKind,
     getComposerChartExportLabels,
     ResourceViewItemType,
+    toComposerChartKind,
     type ApiErrorDetail,
     type ComposerChartWithDetails,
     type ParametersValuesMap,
@@ -194,11 +193,7 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                 spaceUuid: chart.space.uuid,
                 projectUuid,
                 organizationUuid: user.data?.organizationUuid ?? '',
-                chartKind:
-                    getChartKind(
-                        chart.chart.chartConfig.type,
-                        chart.chart.chartConfig.config,
-                    ) ?? ChartKind.VERTICAL_BAR,
+                chartKind: toComposerChartKind(chart.chart.chartConfig),
                 updatedAt: chart.updatedAt,
                 updatedByUser: chart.updatedByUser,
             },

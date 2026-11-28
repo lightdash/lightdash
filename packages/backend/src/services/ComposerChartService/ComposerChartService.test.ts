@@ -44,7 +44,7 @@ import type { ComposerRunBinding } from './ComposerRunBinding';
 
 const projectUuid = grantFixture().approvedProjectUuids[0];
 const organizationUuid = defaultSessionUser.organizationUuid!;
-const dashboardUuid = 'dashboard-uuid';
+const dashboardUuid = '3e8b1f4a-6c2d-4f9e-8a7b-5d1c9e2f4a6b';
 
 const AUTHOR_SUBJECTS = [
     'ComposerChart',
@@ -627,6 +627,8 @@ describe('ComposerChartService.create owner', () => {
         ['both null', { dashboardUuid: null, spaceUuid: null }],
         ['both missing', {}],
         ['a malformed space', { dashboardUuid: null, spaceUuid: 'space-uuid' }],
+        ['an empty dashboard', { dashboardUuid: '', spaceUuid }],
+        ['a malformed dashboard', { dashboardUuid: 'dashboard', spaceUuid }],
     ])('refuses a create naming no usable owner: %s', async (_, owner) => {
         const { service, composerChartModel } = setup();
         const { dashboardUuid: _d, ...body } = createBody(PIPELINES.sql);
