@@ -130,7 +130,7 @@ describe("a composer chart slug that is another chart's uuid", () => {
             createdByUserUuid: elsewhere.userUuid,
         });
         const foreignSlugChart = await createChart(foreign);
-        // A collision whose new slug is already taken is left as it is
+        // A collision whose new slug is already taken gets the next free one
         const blockedOwner = await createChart(null);
         const blocked = await createChart(blockedOwner);
         await createChart(`${blockedOwner}-${blocked}`);
@@ -144,7 +144,16 @@ describe("a composer chart slug that is another chart's uuid", () => {
         expect(await slugOf(owner)).toBe(ownerSlug);
         expect(await slugOf(loneChart)).toBe(lone);
         expect(await slugOf(foreignSlugChart)).toBe(foreign);
-        expect(await slugOf(blocked)).toBe(blockedOwner);
+        expect(await slugOf(blocked)).toBe(`${blockedOwner}-${blocked}-2`);
+        await expect(
+            model.getUuidByUuidOrSlug(
+                fixture.projectUuid,
+                `${blockedOwner}-${blocked}-2`,
+            ),
+        ).resolves.toBe(blocked);
+        await expect(
+            model.getUuidByUuidOrSlug(fixture.projectUuid, blockedOwner),
+        ).resolves.toBe(blockedOwner);
         await expect(
             model.getUuidByUuidOrSlug(fixture.projectUuid, `${owner}-${other}`),
         ).resolves.toBe(other);
