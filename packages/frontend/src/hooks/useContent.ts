@@ -165,8 +165,18 @@ export const invalidateContent = async (
         queryClient.invalidateQueries(['space']),
         queryClient.invalidateQueries(['spaces']),
         queryClient.invalidateQueries([projectUuid, 'search']),
-        queryClient.invalidateQueries(['composerChart', projectUuid]),
     ]);
+};
+
+/** Only after composer actions: a deleted dashboard's open tiles would refetch into a 404. */
+const invalidateComposerCharts = async (
+    queryClient: QueryClient,
+    projectUuid: string,
+    items: { contentType: ContentType }[],
+) => {
+    if (items.some((i) => i.contentType === ContentType.COMPOSER_CHART)) {
+        await queryClient.invalidateQueries(['composerChart', projectUuid]);
+    }
 };
 
 export const useContentAction = (
@@ -202,6 +212,9 @@ export const useContentAction = (
             }
 
             await invalidateContent(queryClient, projectUuid);
+            await invalidateComposerCharts(queryClient, projectUuid, [
+                variables.item,
+            ]);
 
             options?.onSuccess?.(data, variables, context);
 
@@ -295,6 +308,11 @@ export const useContentBulkAction = (
             }
 
             await invalidateContent(queryClient, projectUuid);
+            await invalidateComposerCharts(
+                queryClient,
+                projectUuid,
+                variables.content,
+            );
 
             options?.onSuccess?.(data, variables, context);
 

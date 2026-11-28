@@ -24,7 +24,10 @@ export const useUpdateComposerChart = (
                 body: JSON.stringify(body),
             }),
         onSuccess: async () => {
-            await invalidateContent(queryClient, projectUuid);
+            await Promise.all([
+                invalidateContent(queryClient, projectUuid),
+                queryClient.invalidateQueries(['composerChart', projectUuid]),
+            ]);
             showToastSuccess({ title: 'Chart updated' });
         },
         onError: ({ error }) => {
