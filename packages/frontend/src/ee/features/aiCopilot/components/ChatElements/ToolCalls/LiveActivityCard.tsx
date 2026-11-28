@@ -22,7 +22,7 @@ import {
     IconNotes,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
-import { useContext, useState, type FC, type ReactNode } from 'react';
+import { Fragment, useContext, useState, type FC, type ReactNode } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type ComposerQueryNodeStatus } from '../../../../../../features/composerCharts/lineage/composerNodeStatus';
@@ -776,13 +776,13 @@ export const LiveActivityCard: FC<Props> = ({
         ? toolGroups.filter((group) => group !== latest)
         : toolGroups;
     const hasOlderAwaitingApproval = olderGroups.some(isGroupAwaitingApproval);
+    const hasGroupAwaitingApproval =
+        latestAwaitingApproval || hasOlderAwaitingApproval;
     const olderCount = latest ? totalCalls - latest.calls.length : totalCalls;
     const hasExpandableBody = olderCount > 0 || hasReasoning;
     // Auto-expand while approval is pending so the user sees it immediately.
     const expanded =
-        latestAwaitingApproval ||
-        hasOlderAwaitingApproval ||
-        (userExpanded ?? defaultExpanded);
+        hasGroupAwaitingApproval || (userExpanded ?? defaultExpanded);
 
     const latestNeedsExpandedBody =
         latest?.toolName === 'runSql' ||
@@ -1009,9 +1009,9 @@ export const LiveActivityCard: FC<Props> = ({
                                 {olderGroups.map((group) => {
                                     if (isGroupAwaitingApproval(group)) {
                                         return (
-                                            <Box key={group.keyId}>
+                                            <Fragment key={group.keyId}>
                                                 {renderCallDescriptions(group)}
-                                            </Box>
+                                            </Fragment>
                                         );
                                     }
                                     if (!earlierOpen) return null;

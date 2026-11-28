@@ -11,6 +11,8 @@ import {
     type LiveActivityToolGroup,
 } from './LiveActivityCard';
 
+vi.mock('../../../../../../api');
+
 const buildComposerToolGroups = (
     toolName: 'query' | 'runComposerQueries',
 ): LiveActivityToolGroup[] => [
@@ -43,8 +45,6 @@ const buildComposerToolGroups = (
 ];
 
 const composerToolGroups = buildComposerToolGroups('runComposerQueries');
-
-vi.mock('../../../../../../api');
 
 describe.each(['query', 'runComposerQueries'] as const)(
     'LiveActivityCard composer queries (%s)',
@@ -393,12 +393,35 @@ describe('LiveActivityCard approval behind a later call', () => {
     });
     const chartRun: LiveActivityToolGroup = {
         keyId: 'chart-run',
-        toolName: 'runSavedChart',
+        toolName: 'runContentQuery',
         calls: [
             {
                 toolCallId: 'chart-run',
-                toolName: 'runSavedChart',
-                toolArgs: { chartUuid: 'chart' },
+                toolName: 'runContentQuery',
+                toolArgs: {
+                    source: { type: 'chart', chartSlug: 'revenue' },
+                },
+            },
+        ],
+    };
+    const composerEdit: LiveActivityToolGroup = {
+        keyId: 'composer-edit',
+        toolName: 'editContent',
+        calls: [
+            {
+                toolCallId: 'composer-edit',
+                toolName: 'editContent',
+                toolArgs: {
+                    type: 'composer_chart',
+                    slug: 'payments',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/pipeline/nodes/0/sql',
+                            value: 'select 1',
+                        },
+                    ],
+                },
             },
         ],
     };
@@ -408,15 +431,15 @@ describe('LiveActivityCard approval behind a later call', () => {
         mockedLightdashApi.mockReset();
     });
 
-    it('keeps the approval of a call followed by another call in the same step', () => {
+    it('keeps the approval of an edit followed by a chart run in the same step', () => {
         renderWithProviders(
             <Provider store={store}>
                 <LiveActivityCard
                     isLive
-                    toolGroups={[sqlGroup('gated', 'select 1'), chartRun]}
+                    toolGroups={[composerEdit, chartRun]}
                     approval={{
                         ...thread,
-                        pendingToolCallIds: ['gated'],
+                        pendingToolCallIds: ['composer-edit'],
                         decidedToolCallIds: [],
                     }}
                 />
@@ -426,6 +449,7 @@ describe('LiveActivityCard approval behind a later call', () => {
         expect(screen.getByText('awaiting approval')).toBeVisible();
         expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
         expect(screen.getByRole('button', { name: 'Reject' })).toBeVisible();
+        expect(screen.queryByText(/^Edited/)).not.toBeInTheDocument();
     });
 
     it('sends each decision for two approvals pending in one step', async () => {
@@ -474,8 +498,8 @@ describe('LiveActivityCard approval behind a later call', () => {
         );
     });
 
-    it('collapses once both calls are decided and the turn ends', () => {
-        const toolGroups = [sqlGroup('gated', 'select 1'), chartRun];
+    it('collapses once the edit is decided and the turn ends', () => {
+        const toolGroups = [composerEdit, chartRun];
         const { rerender } = renderWithProviders(
             <Provider store={store}>
                 <LiveActivityCard
@@ -483,12 +507,13 @@ describe('LiveActivityCard approval behind a later call', () => {
                     toolGroups={toolGroups}
                     approval={{
                         ...thread,
-                        pendingToolCallIds: ['gated'],
+                        pendingToolCallIds: ['composer-edit'],
                         decidedToolCallIds: [],
                     }}
                 />
             </Provider>,
         );
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
 
         rerender(
             <Provider store={store}>
@@ -498,7 +523,7 @@ describe('LiveActivityCard approval behind a later call', () => {
                     approval={{
                         ...thread,
                         pendingToolCallIds: [],
-                        decidedToolCallIds: ['gated'],
+                        decidedToolCallIds: ['composer-edit'],
                     }}
                 />
             </Provider>,
