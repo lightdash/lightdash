@@ -170,7 +170,7 @@ const toComposerChartItem = (
     chartSource: 'composer',
     spaceUuid: chart.spaceUuid,
     viewsCount: 0,
-    href: `${siteUrl}/projects/${chart.projectUuid}/composer-charts/${chart.uuid}`,
+    href: `${siteUrl}/projects/${chart.projectUuid}/composer-charts/${chart.slug}`,
     space: toSpaceMetadata(chart.space),
     description: toDescription(chart.description, toolDescriptionMaxChars),
     verification: null,

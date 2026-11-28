@@ -42,7 +42,7 @@ export const getFavoriteItemUrl = (
                 item.data.slug,
             );
         case ResourceViewItemType.COMPOSER_CHART:
-            return `/projects/${projectUuid}/${FAVORITE_ROUTE_SEGMENT[item.type]}/${item.data.uuid}`;
+            return `/projects/${projectUuid}/${FAVORITE_ROUTE_SEGMENT[item.type]}/${item.data.slug}`;
         default:
             return assertUnreachable(item, `Unknown favorite item type`);
     }

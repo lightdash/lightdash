@@ -63,6 +63,7 @@ type FormValues = {
 
 export type SavedComposerChartLink = {
     composerChartUuid: string;
+    composerChartSlug: string;
     /** Null when a space owns the chart. */
     dashboardUuid: string | null;
 };
@@ -243,11 +244,15 @@ export const SaveComposerChartModal: FC<Props> = ({
                 icon: IconArrowRight,
                 onClick: () =>
                     navigate(
-                        `/projects/${projectUuid}/composer-charts/${composerChart.uuid}`,
+                        `/projects/${projectUuid}/composer-charts/${composerChart.slug}`,
                     ),
             },
         });
-        return { composerChartUuid: composerChart.uuid, dashboardUuid: null };
+        return {
+            composerChartUuid: composerChart.uuid,
+            composerChartSlug: composerChart.slug,
+            dashboardUuid: null,
+        };
     };
 
     const getDestination = async (values: FormValues): Promise<Dashboard> => {
@@ -337,6 +342,7 @@ export const SaveComposerChartModal: FC<Props> = ({
         });
         return {
             composerChartUuid: composerChart.uuid,
+            composerChartSlug: composerChart.slug,
             dashboardUuid: dashboard.uuid,
         };
     };

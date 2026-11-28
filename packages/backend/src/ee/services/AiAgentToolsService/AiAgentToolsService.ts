@@ -2319,9 +2319,9 @@ export class AiAgentToolsService extends BaseService {
 
     private static getComposerChartUrl(
         context: AiAgentToolsRuntimeContext,
-        uuid: string,
+        slug: string,
     ) {
-        return `/projects/${context.projectUuid}/composer-charts/${uuid}`;
+        return `/projects/${context.projectUuid}/composer-charts/${slug}`;
     }
 
     private static getScheduledDeliveryUrl(
@@ -3442,7 +3442,7 @@ export class AiAgentToolsService extends BaseService {
                     content: composerChart,
                     href: AiAgentToolsService.getComposerChartUrl(
                         context,
-                        composerChartUuid,
+                        composerChart.slug,
                     ),
                 },
                 composerChartUuid,
@@ -7691,7 +7691,7 @@ export class AiAgentToolsService extends BaseService {
                                 slug: item.slug,
                                 href: AiAgentToolsService.getComposerChartUrl(
                                     context,
-                                    item.uuid,
+                                    item.slug,
                                 ),
                                 chartSource: 'composer',
                             };

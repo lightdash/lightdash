@@ -49,6 +49,7 @@ const parseStoredArtifact = <
     return {
         savedComposerChartUuid: null,
         savedComposerChartDashboardUuid: null,
+        savedComposerChartSlug: null,
         ...artifact,
         artifactType,
         chartConfig: parseStoredChartConfig(artifact.chartConfig),
@@ -679,6 +680,7 @@ describe('Slack AI agent blocks', () => {
                     savedDashboardUuid: null,
                     savedComposerChartUuid: null,
                     savedComposerChartDashboardUuid: null,
+                    savedComposerChartSlug: null,
                     createdAt: new Date(),
                     versionNumber: 1,
                     versionUuid: 'version-1',
@@ -799,6 +801,7 @@ describe('Slack AI agent blocks', () => {
                     savedDashboardUuid: null,
                     savedComposerChartUuid: null,
                     savedComposerChartDashboardUuid: null,
+                    savedComposerChartSlug: null,
                     createdAt: new Date(),
                     versionNumber: 1,
                     versionUuid: 'version-1',

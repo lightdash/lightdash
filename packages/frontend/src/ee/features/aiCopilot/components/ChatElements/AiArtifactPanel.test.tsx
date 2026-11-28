@@ -632,6 +632,7 @@ describe('composer artifact', () => {
                     chartConfig: barConfig,
                     savedComposerChartUuid: 'composer-chart-uuid',
                     savedComposerChartDashboardUuid: 'dashboard-uuid',
+                    savedComposerChartSlug: 'orders-vs-amounts',
                 },
                 isLoading: false,
                 error: null,
@@ -671,6 +672,7 @@ describe('composer artifact', () => {
                     chartConfig: barConfig,
                     savedComposerChartUuid: 'composer-chart-uuid',
                     savedComposerChartDashboardUuid: null,
+                    savedComposerChartSlug: 'orders-vs-amounts',
                 },
                 isLoading: false,
                 error: null,
@@ -691,7 +693,7 @@ describe('composer artifact', () => {
             });
             expect(view).toHaveAttribute(
                 'href',
-                '/projects/project/composer-charts/composer-chart-uuid',
+                '/projects/project/composer-charts/orders-vs-amounts',
             );
             expect(view).toHaveAttribute('target', '_blank');
             expect(

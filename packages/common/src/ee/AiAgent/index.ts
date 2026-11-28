@@ -1311,6 +1311,7 @@ export type AiArtifact = {
     /** Null when unsaved or the composer chart was deleted. */
     savedComposerChartUuid: string | null;
     savedComposerChartDashboardUuid: string | null;
+    savedComposerChartSlug: string | null;
     createdAt: Date;
     versionNumber: number;
     versionUuid: string;

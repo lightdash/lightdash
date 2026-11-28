@@ -74,12 +74,26 @@ export function useInfiniteDeletedContent(
     });
 }
 
-/**
- * `isChartType` is presentation-only (custom chart types restore to the
- * builder route, not the app viewer) — it is stripped before the API call.
- */
-export type RestoreDeletedContentItem = DeletedContentItem & {
-    isChartType?: boolean;
+type ComposerChartDeletedItem = Extract<
+    DeletedContentItem,
+    { contentType: ContentType.COMPOSER_CHART }
+>;
+
+/** `isChartType` picks the builder route and `slug` the chart page link. */
+export type RestoreDeletedContentItem =
+    | (Exclude<DeletedContentItem, ComposerChartDeletedItem> & {
+          isChartType?: boolean;
+      })
+    | (ComposerChartDeletedItem & { slug: string });
+
+const toDeletedContentItem = (
+    item: RestoreDeletedContentItem,
+): DeletedContentItem => {
+    if (item.contentType === ContentType.COMPOSER_CHART) {
+        return { uuid: item.uuid, contentType: item.contentType };
+    }
+    const { isChartType: _isChartType, ...rest } = item;
+    return rest;
 };
 
 export function useRestoreDeletedContent(projectUuid: string) {
@@ -89,8 +103,12 @@ export function useRestoreDeletedContent(projectUuid: string) {
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<undefined, ApiError, RestoreDeletedContentItem>({
-        mutationFn: ({ isChartType, ...item }) =>
-            restoreDeletedContent(lightdashApi, projectUuid, item),
+        mutationFn: (item) =>
+            restoreDeletedContent(
+                lightdashApi,
+                projectUuid,
+                toDeletedContentItem(item),
+            ),
         onSuccess: async (_data, item) => {
             showToastSuccess({
                 title: 'Content restored',
@@ -105,7 +123,7 @@ export function useRestoreDeletedContent(projectUuid: string) {
                                   navigate(
                                       item.contentType === ContentType.CHART
                                           ? `/projects/${projectUuid}/saved/${item.uuid}`
-                                          : `/projects/${projectUuid}/composer-charts/${item.uuid}`,
+                                          : `/projects/${projectUuid}/composer-charts/${item.slug}`,
                                   ),
                           }
                         : item.contentType === ContentType.DASHBOARD

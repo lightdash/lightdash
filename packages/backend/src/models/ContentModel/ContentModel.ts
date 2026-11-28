@@ -302,6 +302,7 @@ export class ContentModel {
                         (row.metadata.chart_config as ChartConfig | null) ??
                             null,
                     ),
+                    slug: row.slug,
                 };
             case ContentType.DASHBOARD:
                 return {

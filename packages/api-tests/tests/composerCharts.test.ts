@@ -1983,7 +1983,7 @@ describe('Composer charts', () => {
                 expect(viewerFinds).toContain(`chartUuid="${shown.uuid}"`);
                 expect(viewerFinds).toMatch(
                     new RegExp(
-                        `chartUuid="${shown.uuid}"[^>]*chartSource="composer"[^>]*href="[^"]*/projects/${projectUuid}/composer-charts/${shown.uuid}"`,
+                        `chartUuid="${shown.uuid}"[^>]*chartSource="composer"[^>]*href="[^"]*/projects/${projectUuid}/composer-charts/${shown.slug}"`,
                     ),
                 );
                 expect(await found(adminMcp, hidden.name)).toContain(
@@ -2142,15 +2142,16 @@ describe('Composer charts', () => {
                         dashboardSlug: null,
                         spaceSlug,
                     });
-                    const uuid = mcpText(created).match(
-                        /\/composer-charts\/([0-9a-f-]{36})/,
+                    const slug = mcpText(created).match(
+                        /\/composer-charts\/([^"/#?\s]+)/,
                     )?.[1];
-                    expect(uuid).toBeDefined();
+                    expect(slug).toBeDefined();
                     const stored = (
                         await admin.get<Body<ComposerChart>>(
-                            `${chartsUrl}/${uuid}`,
+                            `${chartsUrl}/${slug}`,
                         )
                     ).body.results;
+                    expect(stored.slug).toBe(slug);
                     expect(stored).toMatchObject({
                         name,
                         owner: { type: 'space', spaceUuid: privateSpace.uuid },
@@ -2389,6 +2390,43 @@ describe('Composer charts', () => {
                 { failOnStatusCode: false },
             );
             expect(unknown.status).toBe(404);
+        });
+
+        it('opens a chart whose slug looks like a uuid by that slug, and by its uuid', async () => {
+            const space = await createSpace();
+            const name = randomUUID();
+            const created = await postChart({
+                ...composerSpaceChartBody(space.uuid),
+                name,
+            });
+            expect(created.status).toBe(201);
+            const chart = created.body.results;
+            expect(chart.slug).toBe(name);
+
+            const viewer = await loginAsViewer();
+            for (const id of [chart.slug, chart.uuid]) {
+                const read = await viewer.get<Body<ComposerChartWithDetails>>(
+                    `${chartsUrl}/${id}`,
+                );
+                expect(read.status).toBe(200);
+                expect(read.body.results.uuid).toBe(chart.uuid);
+            }
+        });
+
+        it("never gives a chart another chart's uuid as its slug", async () => {
+            const { space, chart: first } = await createSpaceChart();
+            const created = await postChart({
+                ...composerSpaceChartBody(space.uuid),
+                name: first.uuid,
+            });
+            expect(created.status).toBe(201);
+            const second = created.body.results;
+            expect(second.slug).not.toBe(first.uuid);
+
+            const bySlug = await admin.get<Body<ComposerChartWithDetails>>(
+                `${chartsUrl}/${second.slug}`,
+            );
+            expect(bySlug.body.results.uuid).toBe(second.uuid);
         });
 
         it("lists the parameters its nodes reference for the page's parameter bar", async () => {

@@ -121,7 +121,7 @@ export const getResourceUrl = (
                 item.data.slug,
             );
         case ResourceViewItemType.COMPOSER_CHART:
-            return `/projects/${projectUuid}/composer-charts/${item.data.uuid}`;
+            return `/projects/${projectUuid}/composer-charts/${item.data.slug}`;
         default:
             return assertUnreachable(item, `Can't get URL for ${itemType}`);
     }

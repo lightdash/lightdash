@@ -430,10 +430,16 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                         break;
                                     case ContentType.DASHBOARD:
                                     case ContentType.DOCUMENT:
+                                        restoreContent({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                        });
+                                        break;
                                     case ContentType.COMPOSER_CHART:
                                         restoreContent({
                                             uuid: item.uuid,
                                             contentType: item.contentType,
+                                            slug: item.slug,
                                         });
                                         break;
                                     case ContentType.SPACE:

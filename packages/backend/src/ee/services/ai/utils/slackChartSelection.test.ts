@@ -50,6 +50,7 @@ const artifact = (
     savedDashboardUuid: null,
     savedComposerChartUuid: null,
     savedComposerChartDashboardUuid: null,
+    savedComposerChartSlug: null,
     createdAt: new Date('2026-09-28T10:00:00Z'),
     versionNumber: 1,
     versionUuid,

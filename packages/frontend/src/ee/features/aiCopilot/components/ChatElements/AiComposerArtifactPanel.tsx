@@ -217,7 +217,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 label: 'View on dashboard',
             }
           : {
-                to: `/projects/${projectUuid}/composer-charts/${savedChart.composerChartUuid}`,
+                to: `/projects/${projectUuid}/composer-charts/${savedChart.composerChartSlug}`,
                 icon: IconTableShortcut,
                 label: 'View saved chart',
             };

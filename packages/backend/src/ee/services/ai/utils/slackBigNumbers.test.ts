@@ -29,6 +29,7 @@ const composerArtifact = (
     savedDashboardUuid: null,
     savedComposerChartUuid: null,
     savedComposerChartDashboardUuid: null,
+    savedComposerChartSlug: null,
     createdAt: new Date(),
     versionNumber: 1,
     versionUuid,
