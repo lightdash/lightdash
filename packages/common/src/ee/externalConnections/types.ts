@@ -139,6 +139,9 @@ export const getHubspotReadScopes = (object: HubspotObject): string[] => {
     }
 };
 
+/** Reads owners, whose names label owner fields; without it they show IDs. */
+export const HUBSPOT_OWNERS_SCOPE = 'crm.objects.owners.read';
+
 /** The private app's token picks the HubSpot account, so nothing else is set. */
 export type HubspotApiSource = {
     connector: ApiConnectorType.HUBSPOT;
@@ -437,6 +440,19 @@ export type HubspotPipelineObject = (typeof HUBSPOT_PIPELINE_OBJECTS)[number];
 
 export const getHubspotPipelinesPath = (object: string) =>
     `/crm/v3/pipelines/${object}`;
+
+/** The account's users who can own records, with their teams. */
+export const HUBSPOT_OWNERS_PATH = '/crm/v3/owners';
+
+/** Every path a HubSpot source calls. */
+export const HUBSPOT_PATH_PREFIXES = [
+    ...HUBSPOT_OBJECTS.flatMap((object) => [
+        getHubspotPropertiesPath(object),
+        getHubspotSearchPath(object),
+    ]),
+    ...HUBSPOT_PIPELINE_OBJECTS.map(getHubspotPipelinesPath),
+    HUBSPOT_OWNERS_PATH,
+];
 /** Every Salesforce call goes to this REST API version, so responses keep one shape. */
 export const SALESFORCE_API_VERSION = 'v62.0';
 

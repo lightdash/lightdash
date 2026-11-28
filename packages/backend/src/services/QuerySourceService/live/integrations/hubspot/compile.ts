@@ -287,7 +287,8 @@ const toFilters = ({
 
 /**
  * A label field's filter as one on its property: labels turn back into the
- * internal values HubSpot filters by, and values it doesn't know stay as they are.
+ * internal values HubSpot filters by, every value sharing a label (stages
+ * named alike in two pipelines), and values it doesn't know stay as they are.
  */
 const toPropertyRule = (
     rule: FilterRule,
@@ -296,17 +297,21 @@ const toPropertyRule = (
     if (!valueLabels) {
         return rule;
     }
-    const byLabel = new Map(
-        Object.entries(valueLabels).map(([value, label]) => [
-            label.toLowerCase(),
-            value,
-        ]),
-    );
+    const byLabel = new Map<string, string[]>();
+    Object.entries(valueLabels).forEach(([value, label]) => {
+        const key = label.toLowerCase();
+        byLabel.set(key, [...(byLabel.get(key) ?? []), value]);
+    });
     return {
         ...rule,
-        values: (rule.values ?? []).map(
-            (value) => byLabel.get(String(value).toLowerCase()) ?? value,
-        ),
+        values: [
+            ...new Set(
+                (rule.values ?? []).flatMap(
+                    (value) =>
+                        byLabel.get(String(value).toLowerCase()) ?? [value],
+                ),
+            ),
+        ],
     };
 };
 

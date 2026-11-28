@@ -4,6 +4,7 @@ import {
     FilterOperator,
     getHubspotPropertiesPath,
     HUBSPOT_OBJECTS,
+    HUBSPOT_OWNERS_PATH,
     MetricType,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -67,7 +68,7 @@ export const HUBSPOT_DEALS_EXPLORE: LiveExploreDefinition = {
     name: 'deals',
     label: 'Deals',
     description: 'Deals in HubSpot, one row per record, with their properties.',
-    aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipeline and stage IDs map to labels via the Pipeline stages explore.`,
+    aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipelines and stages also come as two fields, the ID and the name HubSpot shows, and so do owners and teams once the token can read owners (otherwise they show IDs only), so no merge is needed for names; the Pipeline stages explore adds stage order, probability and whether a stage is closed.`,
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
@@ -126,7 +127,7 @@ export const HUBSPOT_CONTACTS_EXPLORE: LiveExploreDefinition = {
     label: 'Contacts',
     description:
         'Contacts in HubSpot, one row per record, with their properties.',
-    aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipeline and stage IDs map to labels via the Pipeline stages explore.`,
+    aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipelines and stages also come as two fields, the ID and the name HubSpot shows, and so do owners and teams once the token can read owners (otherwise they show IDs only), so no merge is needed for names; the Pipeline stages explore adds stage order, probability and whether a stage is closed.`,
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
@@ -185,7 +186,7 @@ export const HUBSPOT_COMPANIES_EXPLORE: LiveExploreDefinition = {
     label: 'Companies',
     description:
         'Companies in HubSpot, one row per record, with their properties.',
-    aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipeline and stage IDs map to labels via the Pipeline stages explore.`,
+    aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipelines and stages also come as two fields, the ID and the name HubSpot shows, and so do owners and teams once the token can read owners (otherwise they show IDs only), so no merge is needed for names; the Pipeline stages explore adds stage order, probability and whether a stage is closed.`,
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
@@ -244,7 +245,7 @@ export const HUBSPOT_TICKETS_EXPLORE: LiveExploreDefinition = {
     label: 'Tickets',
     description:
         'Tickets in HubSpot, one row per record, with their properties.',
-    aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipeline and stage IDs map to labels via the Pipeline stages explore.`,
+    aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipelines and stages also come as two fields, the ID and the name HubSpot shows, and so do owners and teams once the token can read owners (otherwise they show IDs only), so no merge is needed for names; the Pipeline stages explore adds stage order, probability and whether a stage is closed.`,
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
@@ -302,7 +303,7 @@ export const HUBSPOT_LEADS_EXPLORE: LiveExploreDefinition = {
     name: 'leads',
     label: 'Leads',
     description: 'Leads in HubSpot, one row per record, with their properties.',
-    aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipeline and stage IDs map to labels via the Pipeline stages explore.`,
+    aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipelines and stages also come as two fields, the ID and the name HubSpot shows, and so do owners and teams once the token can read owners (otherwise they show IDs only), so no merge is needed for names; the Pipeline stages explore adds stage order, probability and whether a stage is closed.`,
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
@@ -585,11 +586,93 @@ const propertiesSchema = z.object({
             options: z
                 .array(z.object({ label: z.string(), value: z.string() }))
                 .optional(),
+            /** OWNER for owner properties, custom HubSpot user ones included. */
+            referencedObjectType: z.string().nullable().optional(),
         }),
     ),
 });
 
 type HubspotProperty = z.infer<typeof propertiesSchema>['results'][number];
+
+const ownerSchema = z.object({
+    id: z.string(),
+    email: z.string().nullable().optional(),
+    firstName: z.string().nullable().optional(),
+    lastName: z.string().nullable().optional(),
+    teams: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
+});
+
+/** Owner and team names by ID, from the owners a scan read. */
+export type HubspotOwnerLabels = {
+    owners: Record<string, string>;
+    teams: Record<string, string>;
+};
+
+/**
+ * Names by owner ID and team ID. An owner shows their full name, or their
+ * email without one; owners who share a name also show their email, so
+ * filtering by a name finds one owner. Active owners come first and win.
+ */
+export const toHubspotOwnerLabels = (owners: unknown): HubspotOwnerLabels => {
+    const parsed = (Array.isArray(owners) ? owners : []).flatMap((owner) => {
+        const result = ownerSchema.safeParse(owner);
+        return result.success ? [result.data] : [];
+    });
+    const byId = new Map<string, (typeof parsed)[number]>();
+    parsed.forEach((owner) => {
+        if (!byId.has(owner.id)) {
+            byId.set(owner.id, owner);
+        }
+    });
+    const unique = [...byId.values()];
+    const toName = ({
+        id,
+        email,
+        firstName,
+        lastName,
+    }: (typeof unique)[number]) =>
+        [firstName, lastName]
+            .filter((part) => part?.trim())
+            .join(' ')
+            .trim() ||
+        email?.trim() ||
+        id;
+    const nameCounts = new Map<string, number>();
+    unique.forEach((owner) => {
+        const name = toName(owner);
+        nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1);
+    });
+    return {
+        owners: Object.fromEntries(
+            unique.map((owner) => {
+                const name = toName(owner);
+                const shared =
+                    (nameCounts.get(name) ?? 0) > 1 &&
+                    owner.email?.trim() &&
+                    name !== owner.email.trim();
+                return [owner.id, shared ? `${name} (${owner.email})` : name];
+            }),
+        ),
+        teams: Object.fromEntries(
+            unique.flatMap(({ teams }) =>
+                (teams ?? []).map(({ id, name }) => [id, name]),
+            ),
+        ),
+    };
+};
+
+const OWNER_OBJECT_TYPE = 'OWNER';
+/** Properties that hold team IDs; HubSpot marks none of them like owners. */
+const TEAM_PROPERTIES = new Set([
+    'hubspot_team_id',
+    'hs_all_team_ids',
+    'hs_all_accessible_team_ids',
+    'hs_assigned_team_ids',
+    'hs_shared_team_ids',
+]);
+
+const isOwnerProperty = ({ referencedObjectType }: HubspotProperty) =>
+    referencedObjectType === OWNER_OBJECT_TYPE;
 
 const describeProperty = ({ label, description }: HubspotProperty) => {
     // HubSpot's own descriptions often end without a full stop
@@ -622,6 +705,19 @@ const hintProperty = ({ name, type, fieldType, options }: HubspotProperty) => {
         .join(' ');
 };
 
+/** How to filter an owner or team field by ID. */
+const hintIds = ({ name, label, fieldType }: HubspotProperty) =>
+    [
+        `Values are HubSpot ${
+            TEAM_PROPERTIES.has(name) ? 'team' : 'owner'
+        } IDs; the "${label}" field shows names.`,
+        fieldType === 'checkbox'
+            ? 'Several IDs are separated by semicolons.'
+            : '',
+    ]
+        .filter(Boolean)
+        .join(' ');
+
 /**
  * Labels by internal value for a dropdown whose labels differ from its
  * values, such as deal stages and ticket pipeline stages; none otherwise.
@@ -639,16 +735,19 @@ const toValueLabels = ({
 };
 
 /** How to filter a label field: the labels it shows, which filters take. */
-const hintLabels = (property: HubspotProperty) => {
-    const options = property.options ?? [];
+const hintLabels = (
+    property: HubspotProperty,
+    valueLabels: Record<string, string>,
+) => {
+    const labels = [...new Set(Object.values(valueLabels))];
     const listed = PIPELINE_PROPERTIES.has(property.name)
-        ? options
-        : options.slice(0, MAX_LISTED_OPTIONS);
-    const more = options.length - listed.length;
+        ? labels
+        : labels.slice(0, MAX_LISTED_OPTIONS);
+    const more = labels.length - listed.length;
     return [
-        `Filter with these labels: ${listed
-            .map(({ label }) => label)
-            .join(', ')}${more > 0 ? ` and ${more} more` : ''}.`,
+        `Filter with these labels: ${listed.join(', ')}${
+            more > 0 ? ` and ${more} more` : ''
+        }.`,
         property.fieldType === 'checkbox'
             ? 'Checkbox values are separated by semicolons.'
             : '',
@@ -658,13 +757,31 @@ const hintLabels = (property: HubspotProperty) => {
         .join(' ');
 };
 
+/** Names by ID for an owner or team property; none without any. */
+const toIdLabels = (
+    property: HubspotProperty,
+    { owners, teams }: HubspotOwnerLabels,
+): Record<string, string> | null => {
+    if (isOwnerProperty(property)) {
+        return Object.keys(owners).length > 0 ? owners : null;
+    }
+    if (TEAM_PROPERTIES.has(property.name)) {
+        return Object.keys(teams).length > 0 ? teams : null;
+    }
+    return null;
+};
+
+const NO_OWNER_LABELS: HubspotOwnerLabels = { owners: {}, teams: {} };
+
 /**
  * Adds a dimension per property of the object, people's own before
- * HubSpot's hs_ ones. Unknown types and unreadable lists add nothing.
+ * HubSpot's hs_ ones. Owner and team properties get names from the owners
+ * a scan read. Unknown types and unreadable lists add nothing.
  */
 export const withHubspotPropertyFields = <D extends LiveExploreDefinition>(
     definition: D,
     properties: unknown,
+    ownerLabels: HubspotOwnerLabels = NO_OWNER_LABELS,
 ): D => {
     const parsed = propertiesSchema.safeParse(properties);
     if (!parsed.success) {
@@ -687,7 +804,10 @@ export const withHubspotPropertyFields = <D extends LiveExploreDefinition>(
     ]);
     const dimensions = scanned.flatMap(
         (property): LiveDimensionDefinition[] => {
-            const aiHint = hintProperty(property);
+            const idLabels = toIdLabels(property, ownerLabels);
+            const aiHint = idLabels
+                ? hintIds(property)
+                : hintProperty(property);
             const raw: LiveDimensionDefinition = {
                 name: toDimensionName(property.name),
                 apiName: property.name,
@@ -697,7 +817,7 @@ export const withHubspotPropertyFields = <D extends LiveExploreDefinition>(
                 ...PROPERTY_RULES[property.type],
             };
             const labelName = `${raw.name}_label`;
-            const valueLabels = toValueLabels(property);
+            const valueLabels = idLabels ?? toValueLabels(property);
             if (!valueLabels || names.has(labelName)) {
                 return [raw];
             }
@@ -712,8 +832,10 @@ export const withHubspotPropertyFields = <D extends LiveExploreDefinition>(
                     name: labelName,
                     apiName: `${property.name}${HUBSPOT_LABEL_SUFFIX}`,
                     label: property.label,
-                    description: `${property.label} as HubSpot shows it, using the option's label rather than its internal value.`,
-                    aiHint: hintLabels(property),
+                    description: idLabels
+                        ? `${property.label} as HubSpot shows it, using the name rather than the ID.`
+                        : `${property.label} as HubSpot shows it, using the option's label rather than its internal value.`,
+                    aiHint: hintLabels(property, valueLabels),
                     type: DimensionType.STRING,
                     filterOperators: HUBSPOT_CHOICE_FILTERS,
                     valueLabels,
@@ -727,12 +849,75 @@ export const withHubspotPropertyFields = <D extends LiveExploreDefinition>(
     };
 };
 
+const OWNERS_PAGE_SIZE = 500;
+/** Owner pages read per scan for each of active and archived owners. */
+const MAX_OWNER_PAGES = 10;
+
+const ownersPageSchema = z.object({
+    results: z.array(z.unknown()),
+    paging: z
+        .object({ next: z.object({ after: z.string() }).optional() })
+        .optional(),
+});
+
+/** Every owner, active or archived (deactivated users), as HubSpot returns them. */
+const readOwners = async (
+    runtime: LiveRuntime,
+    archived: boolean,
+): Promise<unknown[]> => {
+    const owners: unknown[] = [];
+    let after: string | undefined;
+    for (let page = 0; page < MAX_OWNER_PAGES; page += 1) {
+        // Pages follow each other: each needs the cursor before it
+        // eslint-disable-next-line no-await-in-loop
+        const { results, paging } = await runtime.fetch(
+            {
+                method: 'GET',
+                path: HUBSPOT_OWNERS_PATH,
+                query: {
+                    limit: String(OWNERS_PAGE_SIZE),
+                    archived: String(archived),
+                    ...(after ? { after } : {}),
+                },
+                body: undefined,
+            },
+            ownersPageSchema,
+        );
+        owners.push(...results);
+        after = paging?.next?.after;
+        if (!after) {
+            break;
+        }
+    }
+    return owners;
+};
+
+/**
+ * Active owners, then archived ones, whose names label owner fields. A token
+ * without the owners scope reads none, so owner fields keep their IDs.
+ */
+const scanHubspotOwners = async (
+    runtime: LiveRuntime,
+): Promise<unknown[] | undefined> => {
+    try {
+        return [
+            ...(await readOwners(runtime, false)),
+            ...(await readOwners(runtime, true)),
+        ];
+    } catch (error) {
+        if (isUnreadableObjectError(error)) {
+            return undefined;
+        }
+        throw error;
+    }
+};
+
 /**
  * Reads each object's properties, which become its explore's fields: one
  * call per object. An object the token can't read is left out, so the others
- * still build and querying it says which scope is missing. Any other
- * failure, such as a timeout or rate limit, fails the scan and keeps the
- * last one.
+ * still build and querying it says which scope is missing. Then reads the
+ * owners, whose names label owner fields. Any other failure, such as a
+ * timeout or rate limit, fails the scan and keeps the last one.
  */
 export const scanHubspotProperties = async ({
     runtime,
@@ -758,7 +943,9 @@ export const scanHubspotProperties = async ({
     if (failure !== undefined || rejected.length === lists.length) {
         throw failure ?? rejected[0];
     }
+    const owners = await scanHubspotOwners(runtime);
     return {
+        ...(owners ? { owners } : {}),
         properties: Object.fromEntries(
             HUBSPOT_OBJECTS.flatMap((object, index) => {
                 const list = lists[index];
@@ -780,25 +967,31 @@ export const hubspotModel: LiveModel<ApiConnectorType.HUBSPOT> =
                 z.string(),
                 propertiesSchema.optional().catch(undefined),
             ),
+            // Active owners first; absent without the owners scope
+            owners: z.array(ownerSchema.optional().catch(undefined)).optional(),
         }),
-        extend: ({ properties }) => ({
-            fields: Object.fromEntries(
-                HUBSPOT_EXPLORES.map((definition) => [
-                    definition.name,
-                    pickLiveFields(
-                        withFieldsOffByDefault(
-                            definition,
-                            withHubspotPropertyFields(
+        extend: ({ properties, owners }) => {
+            const ownerLabels = toHubspotOwnerLabels(owners);
+            return {
+                fields: Object.fromEntries(
+                    HUBSPOT_EXPLORES.map((definition) => [
+                        definition.name,
+                        pickLiveFields(
+                            withFieldsOffByDefault(
                                 definition,
-                                readHubspotProperties(
-                                    properties,
-                                    definition.name,
+                                withHubspotPropertyFields(
+                                    definition,
+                                    readHubspotProperties(
+                                        properties,
+                                        definition.name,
+                                    ),
+                                    ownerLabels,
                                 ),
+                                isHubspotSystemField,
                             ),
-                            isHubspotSystemField,
                         ),
-                    ),
-                ]),
-            ),
-        }),
+                    ]),
+                ),
+            };
+        },
     });

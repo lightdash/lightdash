@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
     getHubspotReadScopes,
     HUBSPOT_OBJECTS,
+    HUBSPOT_OWNERS_SCOPE,
     isSentrySlug,
     isSupabaseTableName,
     SENTRY_MAX_PROJECTS,
@@ -218,7 +219,10 @@ export const LIVE_INTEGRATION_CATALOG: {
         description:
             'Deals, contacts, companies, tickets and leads from your CRM',
         setup: 'token',
-        scopes: HUBSPOT_OBJECTS.flatMap(getHubspotReadScopes),
+        scopes: [
+            ...HUBSPOT_OBJECTS.flatMap(getHubspotReadScopes),
+            HUBSPOT_OWNERS_SCOPE,
+        ],
         settings: z.object({
             connector: z.literal(ApiConnectorType.HUBSPOT),
         }),

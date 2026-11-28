@@ -32,6 +32,7 @@ describe('hubspotConnection', () => {
                 '/crm/v3/objects/leads/search',
                 '/crm/v3/pipelines/deals',
                 '/crm/v3/pipelines/tickets',
+                '/crm/v3/owners',
             ],
         });
     });
@@ -44,6 +45,7 @@ describe('hubspotConnection', () => {
                 'crm.objects.companies.read',
                 'tickets',
                 'crm.objects.leads.read',
+                'crm.objects.owners.read',
             ]),
         );
     });

@@ -17,6 +17,7 @@ import { summarizeHubspotTest } from './connection';
 import {
     HUBSPOT_DEAL_PIPELINES,
     HUBSPOT_DEAL_PROPERTIES,
+    HUBSPOT_OWNERS,
     HUBSPOT_TICKET_PIPELINES,
     hubspotDeal,
     hubspotSearchPage,
@@ -330,8 +331,8 @@ describe('hubspotIntegration count', () => {
     });
 });
 
-describe('hubspotIntegration discover and test', () => {
-    it('reads each object’s properties, one call per object', async () => {
+describe('hubspotIntegration scan and test', () => {
+    it('reads each object’s properties, one call per object, then the owners', async () => {
         const { source, send } = connect(
             'deals',
             response(HUBSPOT_DEAL_PROPERTIES),
@@ -339,20 +340,113 @@ describe('hubspotIntegration discover and test', () => {
             response({ results: [] }),
             response({ results: [] }),
             response({ results: [] }),
+            response({ results: HUBSPOT_OWNERS.slice(0, 4) }),
+            response({ results: HUBSPOT_OWNERS.slice(4) }),
         );
 
-        const explores = await source.discover();
+        const scan = await source.scan();
 
+        expect(scan).toMatchObject({
+            properties: {
+                deals: { results: expect.any(Array) },
+                contacts: { results: [] },
+            },
+        });
+        // Only what names owners is kept
+        expect(scan).toHaveProperty(
+            'owners',
+            HUBSPOT_OWNERS.map(({ id, email, firstName, lastName }) =>
+                expect.objectContaining({ id, email, firstName, lastName }),
+            ),
+        );
         expect(
-            getExploresWithDiscoveredFields(HUBSPOT_EXPLORES, explores),
-        ).toEqual(['deals']);
+            (scan as { owners: object[] }).owners.every(
+                (owner) => !('userId' in owner || 'archived' in owner),
+            ),
+        ).toBe(true);
         expect(send.mock.calls.map(([request]) => request.path)).toEqual([
             '/crm/v3/properties/deals',
             '/crm/v3/properties/contacts',
             '/crm/v3/properties/companies',
             '/crm/v3/properties/tickets',
             '/crm/v3/properties/leads',
+            '/crm/v3/owners',
+            '/crm/v3/owners',
         ]);
+        expect(
+            send.mock.calls.slice(5).map(([request]) => request.query),
+        ).toEqual([
+            { limit: '500', archived: 'false' },
+            { limit: '500', archived: 'true' },
+        ]);
+    });
+
+    it('follows owner pages until HubSpot stops giving a cursor', async () => {
+        const { source, send } = connect(
+            'deals',
+            ...Array.from({ length: 5 }, () => response({ results: [] })),
+            response({
+                results: [HUBSPOT_OWNERS[0]],
+                paging: { next: { after: 'page-2' } },
+            }),
+            response({ results: [HUBSPOT_OWNERS[1]] }),
+            response({ results: [] }),
+        );
+
+        const scan = await source.scan();
+
+        expect(
+            (scan as { owners: { id: string }[] }).owners.map(({ id }) => id),
+        ).toEqual(['101', '102']);
+        expect(
+            send.mock.calls.slice(5).map(([request]) => request.query),
+        ).toEqual([
+            { limit: '500', archived: 'false' },
+            { limit: '500', archived: 'false', after: 'page-2' },
+            { limit: '500', archived: 'true' },
+        ]);
+    });
+
+    it('scans without owners when the token lacks the owners scope', async () => {
+        const { source } = connect(
+            'deals',
+            response(HUBSPOT_DEAL_PROPERTIES),
+            ...Array.from({ length: 4 }, () => response({ results: [] })),
+            response(
+                {
+                    status: 'error',
+                    message:
+                        "This app hasn't been granted all required scopes to make this call.",
+                    category: 'MISSING_SCOPES',
+                    errors: [
+                        {
+                            context: {
+                                requiredGranularScopes: [
+                                    'crm.objects.owners.read',
+                                ],
+                            },
+                        },
+                    ],
+                },
+                403,
+            ),
+        );
+
+        const scan = await source.scan();
+
+        expect(scan).not.toHaveProperty('owners');
+        expect(scan).toHaveProperty('properties.deals');
+    });
+
+    it('fails the scan when reading owners is rate limited, keeping the last one', async () => {
+        const { source } = connect(
+            'deals',
+            ...Array.from({ length: 5 }, () => response({ results: [] })),
+            response({ message: 'Too many requests' }, 429),
+        );
+        await expect(source.discover()).rejects.toBeInstanceOf(
+            TooManyRequestsError,
+        );
     });
 
     it('leaves out an object the token can’t read and still scans the others', async () => {
@@ -363,6 +457,8 @@ describe('hubspotIntegration discover and test', () => {
             response({ results: [] }),
             response({ results: [] }),
             response(MISSING_LEADS_SCOPE, 403),
+            response({ results: [] }),
+            response({ results: [] }),
         );
 
         const explores = await source.discover();
