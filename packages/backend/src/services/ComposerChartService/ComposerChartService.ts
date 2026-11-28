@@ -579,6 +579,8 @@ export class ComposerChartService extends BaseService {
             slug: string;
             /** Owner of a new or revived chart; null only for a live chart a dashboard owns. */
             owner: ComposerChartOwner | null;
+            /** The live chart the caller read and means to update; null creates or revives. */
+            liveUuid: string | null;
         },
     ): Promise<string> {
         const existing = await this.composerChartModel.findIdentityBySlug(
@@ -586,6 +588,9 @@ export class ComposerChartService extends BaseService {
             data.slug,
         );
         const live = existing && !existing.deleted ? existing : null;
+        if (data.liveUuid !== null && live?.uuid !== data.liveUuid) {
+            throw new NotFoundError('Composer chart not found');
+        }
         // A revived chart also keeps its kind of owner
         if (
             existing &&

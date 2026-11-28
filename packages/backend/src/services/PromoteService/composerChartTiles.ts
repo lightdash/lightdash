@@ -186,6 +186,8 @@ export const upsertComposerCharts = async (
                 {
                     slug: data.slug,
                     owner: await getOwner(change),
+                    liveUuid:
+                        action === PromotionAction.UPDATE ? data.uuid : null,
                     name: data.name,
                     description: data.description,
                     pipeline,

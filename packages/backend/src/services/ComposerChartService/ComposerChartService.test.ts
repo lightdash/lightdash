@@ -710,7 +710,7 @@ describe('ComposerChartService.writeFromCode owner', () => {
         spaceUuid: _s,
         ...body
     } = createBody(PIPELINES.sql);
-    const write = { ...body, slug: 'orders' };
+    const write = { ...body, slug: 'orders', liveUuid: null };
 
     test('creates a chart the space owns with this slug, checked on the space', async () => {
         const { service, composerChartModel, spacePermissionService } = setup();
@@ -754,6 +754,7 @@ describe('ComposerChartService.writeFromCode owner', () => {
         await service.writeFromCode(sessionAccount(ability), projectUuid, {
             ...write,
             owner: { type: 'space', spaceUuid: 'path-matched-space' },
+            liveUuid: 'chart-uuid',
         });
         expect(composerChartModel.writeFromCode).toHaveBeenCalledWith(
             expect.objectContaining({ existing: live, owner: live.owner }),
@@ -822,6 +823,7 @@ describe('ComposerChartService.writeFromCode, agent edit of a space chart', () =
             ...body,
             slug: 'orders',
             owner,
+            liveUuid: 'chart-uuid',
         });
 
     test('writes a version checked on the space', async () => {
@@ -835,6 +837,17 @@ describe('ComposerChartService.writeFromCode, agent edit of a space chart', () =
         expect(composerChartModel.writeFromCode).toHaveBeenCalledWith(
             expect.objectContaining({ owner }),
         );
+    });
+
+    test('is refused when the chart was deleted after the caller read it', async () => {
+        const { service, composerChartModel } = setupLive();
+        composerChartModel.findIdentityBySlug.mockResolvedValue({
+            uuid: 'chart-uuid',
+            deleted: true,
+            owner,
+        });
+        await expect(edit(service)).rejects.toThrow(NotFoundError);
+        expect(composerChartModel.writeFromCode).not.toHaveBeenCalled();
     });
 
     test.each([

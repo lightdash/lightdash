@@ -345,6 +345,7 @@ describe('promoting a dashboard with composer charts', () => {
                     type: 'dashboard',
                     dashboardUuid: upstreamDashboardUuid,
                 },
+                liveUuid: null,
                 name: 'Revenue',
                 description: null,
                 pipeline,

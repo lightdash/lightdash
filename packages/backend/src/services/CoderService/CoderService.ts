@@ -3883,6 +3883,7 @@ export class CoderService extends BaseService {
                     {
                         slug,
                         owner: writeOwner,
+                        liveUuid: live?.uuid ?? null,
                         name: file.name,
                         description: file.description ?? null,
                         pipeline: file.pipeline,
