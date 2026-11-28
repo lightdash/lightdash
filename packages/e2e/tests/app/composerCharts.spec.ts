@@ -390,7 +390,9 @@ test.describe('Composer charts in spaces', () => {
                 .getByRole('dialog')
                 .getByRole('textbox')
                 .dispatchEvent('keydown', { key: 'Escape', bubbles: true });
-            await page.getByText('Add', { exact: true }).click();
+            await page
+                .getByRole('button', { name: 'Add', exact: true })
+                .click();
 
             const saved = page.waitForResponse(
                 (res) =>
