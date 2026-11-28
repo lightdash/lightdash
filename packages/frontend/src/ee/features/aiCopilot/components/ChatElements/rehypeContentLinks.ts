@@ -126,6 +126,15 @@ const URL_MATCHERS: UrlMatcher[] = [
         }),
     },
     {
+        pattern: /\/projects\/[^/]+\/composer-charts\/([^/#?]+)/,
+        contentType: 'chart-link',
+        schedulable: false,
+        extractData: (match) => ({
+            'data-chart-uuid': match[1],
+            'data-chart-source': 'composer-chart',
+        }),
+    },
+    {
         pattern: /\/projects\/[^/]+\/apps\/([^/]+)\/view/,
         contentType: 'data-app-link',
         schedulable: false,
