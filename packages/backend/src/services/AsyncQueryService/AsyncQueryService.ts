@@ -2208,21 +2208,17 @@ export class AsyncQueryService extends ProjectService {
                 }
             }
             const composerSource = parameters?.composerChartSource;
-            const composerKey = composerSource
-                ? `composer:${composerSource.composerChartUuid}:${composerSource.dashboardUuid}`
-                : null;
-            if (
-                composerSource &&
-                composerKey &&
-                !checkedContent.has(composerKey)
-            ) {
-                assertRegisteredAccount(fresh);
-                await this.getComposerChartService().assertCanViewRunSource(
-                    fresh,
-                    projectUuid,
-                    composerSource,
-                );
-                checkedContent.add(composerKey);
+            if (composerSource) {
+                const key = `composer:${composerSource.composerChartUuid}:${composerSource.dashboardUuid}`;
+                if (!checkedContent.has(key)) {
+                    assertRegisteredAccount(fresh);
+                    await this.getComposerChartService().assertCanViewRunSource(
+                        fresh,
+                        projectUuid,
+                        composerSource,
+                    );
+                    checkedContent.add(key);
+                }
             }
             if (chartUuid && !checkedContent.has(`chart:${chartUuid}`)) {
                 await this.assertSavedChartQuerySourceAccess(
