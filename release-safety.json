@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.440.0",
-  "previousVersion": "3.439.0",
-  "releaseDate": "2026-11-28T09:08:28.058Z",
+  "version": "3.443.0",
+  "previousVersion": "3.442.0",
+  "releaseDate": "2026-11-28T10:11:40.769Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261127200000_add_composer_chart_search_vector.ts",
-        "edition": "core",
-        "tables": [
-          "composer_charts"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -33,11 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "PATCH /api/v1/projects/{projectUuid}/favorites — added the new `composer_chart` enum value to the `results/contentType` response property for the response status `200`",
-        "POST /api/v2/content/bulk-action/{projectUuid}/delete — added the new `composer_chart` enum value to the `results/skipped/items/contentType` response property for the response status `200`"
-      ],
-      "advisoryCount": 2
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
