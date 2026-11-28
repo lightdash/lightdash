@@ -12,6 +12,8 @@ interface CollapsableCardProps {
     minHeight?: number;
     toggleTooltip?: string;
     title: string;
+    /** Shown in place of the title, such as tabs; clicks on it do not toggle the card. */
+    titleElement?: React.ReactNode;
     headingRef?: Ref<HTMLDivElement>;
     headerElement?: React.ReactNode;
     rightHeaderElement?: React.ReactNode;
@@ -40,6 +42,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     toggleTooltip,
     disabled = false,
     title,
+    titleElement,
     headingRef,
     headerElement,
     rightHeaderElement,
@@ -124,14 +127,23 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                         </Button>
                     </Tooltip>
                     <Group className={classes.leftHeader} gap="xs" wrap="wrap">
-                        <Title
-                            className={classes.title}
-                            order={5}
-                            fw={500}
-                            fz="sm"
-                        >
-                            {title}
-                        </Title>
+                        {titleElement ? (
+                            <Group
+                                className={classes.title}
+                                onClick={(e: MouseEvent) => e.stopPropagation()}
+                            >
+                                {titleElement}
+                            </Group>
+                        ) : (
+                            <Title
+                                className={classes.title}
+                                order={5}
+                                fw={500}
+                                fz="sm"
+                            >
+                                {title}
+                            </Title>
+                        )}
                         <Group
                             className={classes.headerElement}
                             gap="xs"

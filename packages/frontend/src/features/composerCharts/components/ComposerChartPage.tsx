@@ -17,7 +17,6 @@ import {
     Box,
     Group,
     Menu,
-    Paper,
     SegmentedControl,
     Stack,
     Tooltip,
@@ -27,6 +26,7 @@ import * as Sentry from '@sentry/react';
 import {
     IconChartHistogram,
     IconDots,
+    IconDownload,
     IconEdit,
     IconFolderSymlink,
     IconHierarchy2,
@@ -38,6 +38,8 @@ import {
 import { useCallback, useMemo, useState, type FC, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../components/common/ChartDownload/chartDownloadUtils';
+import CollapsableCard from '../../../components/common/CollapsableCard/CollapsableCard';
+import { COLLAPSABLE_CARD_ACTION_ICON_PROPS } from '../../../components/common/CollapsableCard/constants';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import ErrorState from '../../../components/common/ErrorState';
 import InlineErrorState from '../../../components/common/InlineErrorState';
@@ -56,6 +58,7 @@ import TransferItemsModal from '../../../components/common/TransferItemsModal/Tr
 import ExportDataModal from '../../../components/DashboardTiles/ExportDataModal';
 import ExportImageModal from '../../../components/DashboardTiles/ExportImageModal';
 import { type EChartsReact } from '../../../components/EChartsReactWrapper';
+import explorerClasses from '../../../components/Explorer/Explorer.module.css';
 import { TitleBreadCrumbs } from '../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { NO_CELL_LIMITED_SCOPES } from '../../../components/ExportResults/exportCellEstimate';
 import { AskAiAgentButton } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
@@ -63,7 +66,7 @@ import { useRefreshComposerChartOnAgentEdit } from '../../../ee/features/aiCopil
 import { useContentAction } from '../../../hooks/useContent';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
-import { Parameters } from '../../parameters';
+import { ParameterSelection } from '../../parameters';
 import { useCanWriteComposerChart } from '../hooks/useCanWriteComposerChart';
 import {
     COMPOSER_CHART_SENTRY_TAGS,
@@ -108,6 +111,9 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
         useServerFeatureFlag(FeatureFlags.ComposerCharts).data?.enabled ===
         true;
     const [view, setView] = useState<View>(View.CHART);
+    // As on a saved chart: the chart starts open, the parameters closed
+    const [isChartOpen, setIsChartOpen] = useState(true);
+    const [isParametersOpen, setIsParametersOpen] = useState(false);
     const [picks, setPicks] = useState<ParametersValuesMap>({});
     const { runQuery, run, refresh } = useComposerChartPageRun({
         projectUuid,
@@ -154,6 +160,9 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
         [],
     );
     const handleClearParameters = useCallback(() => setPicks({}), []);
+    const hasParameters =
+        Object.keys(parametersQuery.data?.parameterDefinitions ?? {}).length >
+        0;
 
     const { user } = useApp();
     const canExportData = !!user.data?.ability?.can(
@@ -299,7 +308,7 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                 <MantineIcon icon={IconRefresh} />
                             </ActionIcon>
                         </Tooltip>
-                        {(canExportData || canWrite) && (
+                        {canWrite && (
                             <Menu position="bottom-end" withArrow>
                                 <Menu.Target>
                                     <Tooltip
@@ -316,71 +325,34 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                     </Tooltip>
                                 </Menu.Target>
                                 <Menu.Dropdown>
-                                    {canExportData && (
-                                        <>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconTableExport}
-                                                    />
-                                                }
-                                                disabled={!exportQueryUuid}
-                                                onClick={openExport}
-                                            >
-                                                Download data
-                                            </Menu.Item>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconPhoto}
-                                                    />
-                                                }
-                                                disabled={!canExportImage}
-                                                onClick={openImageExport}
-                                            >
-                                                Export image
-                                            </Menu.Item>
-                                        </>
-                                    )}
-                                    {canWrite && canExportData && (
-                                        <Menu.Divider />
-                                    )}
-                                    {canWrite && (
-                                        <>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconEdit}
-                                                    />
-                                                }
-                                                onClick={openRename}
-                                            >
-                                                Rename
-                                            </Menu.Item>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconFolderSymlink}
-                                                    />
-                                                }
-                                                onClick={openMove}
-                                            >
-                                                Move
-                                            </Menu.Item>
-                                            <Menu.Divider />
-                                            <Menu.Item
-                                                color="red"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconTrash}
-                                                    />
-                                                }
-                                                onClick={openDelete}
-                                            >
-                                                Delete
-                                            </Menu.Item>
-                                        </>
-                                    )}
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconEdit} />
+                                        }
+                                        onClick={openRename}
+                                    >
+                                        Rename
+                                    </Menu.Item>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconFolderSymlink}
+                                            />
+                                        }
+                                        onClick={openMove}
+                                    >
+                                        Move
+                                    </Menu.Item>
+                                    <Menu.Divider />
+                                    <Menu.Item
+                                        color="red"
+                                        leftSection={
+                                            <MantineIcon icon={IconTrash} />
+                                        }
+                                        onClick={openDelete}
+                                    >
+                                        Delete
+                                    </Menu.Item>
                                 </Menu.Dropdown>
                             </Menu>
                         )}
@@ -388,11 +360,46 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                 </PageHeader>
             }
         >
-            <Stack p="lg" flex={1} miw={0} className={styles.root}>
-                <Paper className={styles.pane}>
-                    <Box className={styles.paneHeader}>
+            <Stack className={explorerClasses.stack}>
+                {(parametersQuery.isError || hasParameters) && (
+                    <CollapsableCard
+                        title="Parameters"
+                        isOpen={isParametersOpen}
+                        onToggle={setIsParametersOpen}
+                    >
+                        <Box m="md" data-testid="composer-chart-parameters">
+                            {parametersQuery.isError ? (
+                                <InlineErrorState
+                                    message="Parameters could not be loaded"
+                                    onRetry={() => parametersQuery.refetch()}
+                                />
+                            ) : (
+                                <ParameterSelection
+                                    parameters={
+                                        parametersQuery.data
+                                            ?.parameterDefinitions
+                                    }
+                                    parameterValues={parameterValues}
+                                    onParameterChange={handleParameterChange}
+                                    showClearAll
+                                    onClearAll={handleClearParameters}
+                                    cols={2}
+                                    projectUuid={projectUuid}
+                                    // Controls wait for the first run, which says the values in use
+                                    isLoading={!run && runQuery.isLoading}
+                                />
+                            )}
+                        </Box>
+                    </CollapsableCard>
+                )}
+                <CollapsableCard
+                    title="Chart"
+                    isVisualizationCard
+                    isOpen={isChartOpen}
+                    onToggle={setIsChartOpen}
+                    titleElement={
                         <SegmentedControl
-                            size="sm"
+                            size="xs"
                             value={view}
                             onChange={(value) => setView(value as View)}
                             data={[
@@ -420,64 +427,72 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                 },
                             ]}
                         />
-                        <Group gap="xs" data-testid="composer-chart-parameters">
-                            {parametersQuery.isError && (
-                                <InlineErrorState
-                                    p="xs"
-                                    message="Parameters could not be loaded"
-                                    onRetry={() => parametersQuery.refetch()}
-                                />
-                            )}
-                            <Parameters
-                                isEditMode={false}
-                                parameters={
-                                    parametersQuery.data?.parameterDefinitions
-                                }
-                                parameterValues={parameterValues}
-                                onParameterChange={handleParameterChange}
-                                onClearAll={handleClearParameters}
-                                // Controls wait for the first run, which says the values in use
-                                isLoading={
-                                    parametersQuery.isInitialLoading ||
-                                    (!run && runQuery.isLoading)
-                                }
-                                isError={parametersQuery.isError}
+                    }
+                    rightHeaderElement={
+                        canExportData && (
+                            <Menu position="bottom-end" withArrow>
+                                <Menu.Target>
+                                    <Tooltip label="Export">
+                                        <ActionIcon
+                                            {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
+                                            aria-label="Export"
+                                        >
+                                            <MantineIcon icon={IconDownload} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconTableExport}
+                                            />
+                                        }
+                                        disabled={!exportQueryUuid}
+                                        onClick={openExport}
+                                    >
+                                        Download data
+                                    </Menu.Item>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconPhoto} />
+                                        }
+                                        disabled={!canExportImage}
+                                        onClick={openImageExport}
+                                    >
+                                        Export image
+                                    </Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                        )
+                    }
+                >
+                    {view === View.CHART &&
+                        (errorMessage !== null ? (
+                            <ErrorState
+                                error={runError ?? toErrorDetail(errorMessage)}
                             />
-                        </Group>
-                    </Box>
-                    <Box
-                        className={styles.paneBody}
-                        data-padded={view === View.CHART}
-                    >
-                        {view === View.CHART &&
-                            (errorMessage !== null ? (
-                                <ErrorState
-                                    error={
-                                        runError ?? toErrorDetail(errorMessage)
-                                    }
-                                />
-                            ) : isDrawn ? (
-                                <Box className={styles.chart}>
-                                    {renderChart(false)}
-                                </Box>
-                            ) : (
-                                <EmptyStateLoader title="Loading chart" />
-                            ))}
-                        {view === View.LINEAGE && (
-                            <ComposerRunParametersContext.Provider
-                                value={run?.usedParameterValuesByNodeId ?? {}}
-                            >
-                                <ComposerTileLineage
-                                    projectUuid={projectUuid}
-                                    pipeline={chart.pipeline}
-                                    run={run}
-                                    runError={runError?.message ?? null}
-                                    chart={renderChart(true)}
-                                />
-                            </ComposerRunParametersContext.Provider>
-                        )}
-                    </Box>
-                </Paper>
+                        ) : isDrawn ? (
+                            <Box className={styles.chart}>
+                                {renderChart(false)}
+                            </Box>
+                        ) : (
+                            <EmptyStateLoader title="Loading chart" />
+                        ))}
+                    {view === View.LINEAGE && (
+                        <ComposerRunParametersContext.Provider
+                            value={run?.usedParameterValuesByNodeId ?? {}}
+                        >
+                            <ComposerTileLineage
+                                projectUuid={projectUuid}
+                                pipeline={chart.pipeline}
+                                run={run}
+                                runError={runError?.message ?? null}
+                                chart={renderChart(true)}
+                            />
+                        </ComposerRunParametersContext.Provider>
+                    )}
+                </CollapsableCard>
             </Stack>
             {exportQueryUuid && run && (
                 <ExportDataModal
