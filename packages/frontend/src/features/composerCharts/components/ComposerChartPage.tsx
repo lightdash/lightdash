@@ -382,7 +382,8 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                     }
                                     parameterValues={parameterValues}
                                     onParameterChange={handleParameterChange}
-                                    showClearAll
+                                    // Clear all removes picks; with none, it would change nothing
+                                    showClearAll={Object.keys(picks).length > 0}
                                     onClearAll={handleClearParameters}
                                     cols={2}
                                     projectUuid={projectUuid}
