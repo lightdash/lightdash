@@ -860,9 +860,9 @@ describe('Composer charts', () => {
     });
 
     describe('chart permissions', () => {
-        // Tracked as soon as each exists, so a failed setup still cleans up
+        // Tracked before each request that could leave them behind
         const roleUuids: string[] = [];
-        const assignedUserUuids: string[] = [];
+        const userUuids: string[] = [];
 
         const roleUser = async (scopes: string[]): Promise<ApiClient> => {
             const role = await admin.post<Body<{ roleUuid: string }>>(
@@ -879,29 +879,44 @@ describe('Composer charts', () => {
             const user =
                 await client.get<Body<{ userUuid: string }>>('/api/v1/user');
             expect(user.status).toBe(200);
+            userUuids.push(user.body.results.userUuid);
             const assigned = await admin.post(
                 `/api/v2/projects/${projectUuid}/roles/assignments/user/${user.body.results.userUuid}`,
                 { roleId: role.body.results.roleUuid },
             );
             expect(assigned.status).toBe(200);
-            assignedUserUuids.push(user.body.results.userUuid);
             return loginWithEmail(email);
         };
 
+        // A role still assigned cannot be deleted, so every user is unassigned
+        // first; an assignment a timed-out test left in flight can land late
         afterAll(async () => {
-            // A role still assigned cannot be deleted
-            for (const userUuid of assignedUserUuids) {
-                const unassigned = await admin.delete(
-                    `/api/v2/projects/${projectUuid}/roles/assignments/user/${userUuid}`,
-                );
-                expect(unassigned.status).toBe(200);
-            }
+            const leftover: string[] = [];
             for (const roleUuid of roleUuids) {
-                const deleted = await admin.delete(
-                    `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles/${roleUuid}`,
-                );
-                expect(deleted.status).toBe(200);
+                for (let attempt = 1; ; attempt += 1) {
+                    await Promise.all(
+                        userUuids.map((userUuid) =>
+                            admin.delete(
+                                `/api/v2/projects/${projectUuid}/roles/assignments/user/${userUuid}`,
+                                { failOnStatusCode: false },
+                            ),
+                        ),
+                    );
+                    const deleted = await admin.delete(
+                        `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles/${roleUuid}`,
+                        { failOnStatusCode: false },
+                    );
+                    if (deleted.status === 200) break;
+                    if (attempt === 3) {
+                        leftover.push(roleUuid);
+                        break;
+                    }
+                    await new Promise((resolve) => {
+                        setTimeout(resolve, 2000);
+                    });
+                }
             }
+            expect(leftover).toEqual([]);
         });
 
         const createViewableDashboard = async () => {
