@@ -26,9 +26,10 @@ const tile = (
 });
 
 describe('duplicateComposerChartTiles', () => {
-    test("copies the dashboard's own charts and keeps showing a space's chart and a deleted one", async () => {
+    test("copies the dashboard's own charts, keeps showing a space's live chart and empties a trashed or deleted one", async () => {
         const composerChartModel = {
             findOwnedByDashboard: vi.fn(async () => ['owned-chart']),
+            findLiveInSpaces: vi.fn(async () => ['space-chart']),
             duplicate: vi.fn(async () => 'copied-chart'),
         };
 
@@ -37,6 +38,7 @@ describe('duplicateComposerChartTiles', () => {
             [
                 tile('owned-tile', 'owned-chart'),
                 tile('space-tile', 'space-chart'),
+                tile('trashed-tile', 'trashed-chart'),
                 tile('deleted-tile', null),
             ],
             { dashboardUuid: 'source-dashboard' },
@@ -45,7 +47,7 @@ describe('duplicateComposerChartTiles', () => {
 
         expect(composerChartModel.findOwnedByDashboard).toHaveBeenCalledWith(
             'source-dashboard',
-            ['owned-chart', 'space-chart'],
+            ['owned-chart', 'space-chart', 'trashed-chart'],
         );
         expect(composerChartModel.duplicate).toHaveBeenCalledTimes(1);
         expect(composerChartModel.duplicate).toHaveBeenCalledWith(
@@ -60,6 +62,7 @@ describe('duplicateComposerChartTiles', () => {
         ).toEqual([
             ['owned-tile', 'copied-chart'],
             ['space-tile', 'space-chart'],
+            ['trashed-tile', null],
             ['deleted-tile', null],
         ]);
         copies.forEach(({ from, tile: copy }) =>

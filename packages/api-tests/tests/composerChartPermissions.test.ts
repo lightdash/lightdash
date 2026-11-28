@@ -20,6 +20,7 @@ import {
 import {
     apiClientSend,
     composerChartBody,
+    composerTile,
     createComposerDashboard,
     createComposerSpaceChart,
 } from '../helpers/composerDashboard';
@@ -171,19 +172,56 @@ describe('Composer chart permissions', () => {
         };
     };
 
-    it('lets a role that views charts but not dashboards read and run a dashboard chart', async () => {
-        const { dashboard, chart, tileUuid } = await createViewableDashboard();
-        const client = await roleUser(['view:SavedChart']);
-
-        const read = await client.get(`${chartsUrl}/${chart.uuid}`);
-        expect(read.status).toBe(200);
-        const run = await client.post<Body<ComposerChartRunResults>>(
-            tileRunUrl,
-            runRequest(chart.uuid, dashboard.uuid, tileUuid),
+    it('runs a tile of a space chart only for a role that views both the chart and the dashboard, with dashboard-controls on or off', async () => {
+        const { space, chart } = await createComposerSpaceChart(
+            apiClientSend(admin),
         );
-        expect(run.status).toBe(200);
-        const [{ queryUuid }] = run.body.results.queries;
-        expect((await pollRows(client, queryUuid)).length).toBeGreaterThan(0);
+        tracker.trackSpace(space.uuid);
+        const dashboard = await createDashboard();
+        const saved = await admin.patch<Body<Dashboard>>(
+            `/api/v1/dashboards/${dashboard.uuid}`,
+            {
+                tiles: [composerTile(chart.uuid)],
+                filters: dashboard.filters,
+                tabs: dashboard.tabs,
+            },
+        );
+        expect(saved.status).toBe(200);
+        const [tile] = saved.body.results.tiles;
+        const chartsOnly = await roleUser(['view:SavedChart']);
+        const both = await roleUser(['view:SavedChart', 'view:Dashboard']);
+        expect(
+            (await chartsOnly.get(`${chartsUrl}/${chart.uuid}`)).status,
+        ).toBe(200);
+
+        const controlsUrl = `/api/v2/feature-flag/${FeatureFlags.DashboardControls}`;
+        try {
+            for (const enabled of [false, true]) {
+                expect(
+                    (await admin.post(controlsUrl, { enabled })).status,
+                ).toBe(200);
+                const effective =
+                    await chartsOnly.get<Body<{ enabled: boolean }>>(
+                        controlsUrl,
+                    );
+                expect(effective.body.results.enabled).toBe(enabled);
+                const run = (client: ApiClient) =>
+                    client.post<Body<ComposerChartRunResults>>(
+                        tileRunUrl,
+                        runRequest(chart.uuid, dashboard.uuid, tile.uuid),
+                        { failOnStatusCode: false },
+                    );
+                expect((await run(chartsOnly)).status).toBe(403);
+                const ran = await run(both);
+                expect(ran.status).toBe(200);
+                const [{ queryUuid }] = ran.body.results.queries;
+                expect(
+                    (await pollRows(both, queryUuid)).length,
+                ).toBeGreaterThan(0);
+            }
+        } finally {
+            expect((await admin.delete(controlsUrl)).status).toBe(200);
+        }
     });
 
     it('refuses a role that views dashboards but not charts, as for a classic tile', async () => {

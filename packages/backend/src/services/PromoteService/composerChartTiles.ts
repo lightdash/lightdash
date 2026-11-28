@@ -2,6 +2,7 @@ import {
     AlreadyExistsError,
     assertUnreachable,
     isDashboardComposerChartTile,
+    NotSupportedError,
     PromotionAction,
     type DashboardTile,
     type PromotedComposerChart,
@@ -44,6 +45,11 @@ export const getComposerChartChanges = async (
     for (const chartUuid of getComposerChartUuids(tiles)) {
         /* eslint-disable no-await-in-loop */
         const source = await composerChartModel.get(chartUuid);
+        if (source.owner.type === 'space') {
+            throw new NotSupportedError(
+                `This dashboard cannot be promoted yet because it shows the composer chart "${source.slug}", which is saved in a space`,
+            );
+        }
         const promoted: PromotedComposerChart = {
             uuid: source.uuid,
             oldUuid: source.uuid,

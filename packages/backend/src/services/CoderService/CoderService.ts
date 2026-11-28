@@ -2274,15 +2274,22 @@ export class CoderService extends BaseService {
                 };
             });
         dashboard.tiles.filter(isDashboardComposerChartTile).forEach((tile) => {
-            const composerTile = toComposerChartTileAsCode(tile, {
-                tabSlug: tile.tabUuid
-                    ? getDashboardTabSlug(dashboardWithSortedTabs, tile.tabUuid)
-                    : null,
-                tileSlug:
-                    controlTileSlugs?.get(tile.uuid) ??
-                    CoderService.getTileSlugForTileUuid(dashboard, tile.uuid),
-            });
-            if (composerTile) tilesWithoutUuids.push(composerTile);
+            tilesWithoutUuids.push(
+                toComposerChartTileAsCode(tile, {
+                    tabSlug: tile.tabUuid
+                        ? getDashboardTabSlug(
+                              dashboardWithSortedTabs,
+                              tile.tabUuid,
+                          )
+                        : null,
+                    tileSlug:
+                        controlTileSlugs?.get(tile.uuid) ??
+                        CoderService.getTileSlugForTileUuid(
+                            dashboard,
+                            tile.uuid,
+                        ),
+                }),
+            );
         });
         tilesWithoutUuids.sort(
             (left, right) =>
@@ -2428,12 +2435,7 @@ export class CoderService extends BaseService {
         tilesAsCode: DashboardTileAsCode[],
         tabUuidsBySlug: ReadonlyMap<string, string> = new Map(),
     ): Promise<{ tiles: DashboardTileWithSlug[]; warnings: string[] }> {
-        // A composer tile whose chart is gone is left out until a tile can hold no chart
-        const tiles = CoderService.withoutTileChartQuery(tilesAsCode).filter(
-            (tile) =>
-                tile.type !== DashboardTileTypes.COMPOSER_CHART ||
-                tile.properties.chartSlug !== null,
-        );
+        const tiles = CoderService.withoutTileChartQuery(tilesAsCode);
         const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
             if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
                 return acc;
@@ -6057,21 +6059,49 @@ export class CoderService extends BaseService {
             }
             return [...acc, tile.properties.chartSlug];
         }, []);
-        if (chartSlugs.length === 0) return;
+        const composerChartSlugs = tiles.flatMap((tile) =>
+            tile.type === DashboardTileTypes.COMPOSER_CHART &&
+            tile.properties.chartSlug !== null
+                ? [tile.properties.chartSlug]
+                : [],
+        );
+        if (chartSlugs.length === 0 && composerChartSlugs.length === 0) return;
 
-        const [charts, sqlChartRows] = await Promise.all([
-            this.savedChartModel.find({
-                slugs: chartSlugs,
-                projectUuid,
-                excludeChartsSavedInDashboard: false,
-                includeOrphanChartsWithinDashboard: true,
-            }),
-            this.savedSqlModel.find({
-                slugs: chartSlugs,
-                projectUuid,
-            }),
+        const [charts, sqlChartRows, composerCharts] = await Promise.all([
+            chartSlugs.length === 0
+                ? []
+                : this.savedChartModel.find({
+                      slugs: chartSlugs,
+                      projectUuid,
+                      excludeChartsSavedInDashboard: false,
+                      includeOrphanChartsWithinDashboard: true,
+                  }),
+            chartSlugs.length === 0
+                ? []
+                : this.savedSqlModel.find({
+                      slugs: chartSlugs,
+                      projectUuid,
+                  }),
+            composerChartSlugs.length === 0
+                ? []
+                : this.composerChartModel.findBySlugs(
+                      projectUuid,
+                      composerChartSlugs,
+                  ),
         ]);
         const referencedCharts = [
+            // A dashboard's own chart is checked with the dashboard
+            ...composerCharts.flatMap(({ slug, uuid, owner }) =>
+                owner.type === 'space'
+                    ? [
+                          {
+                              slug,
+                              spaceUuid: owner.spaceUuid,
+                              metadata: { composerChartUuid: uuid, owner },
+                          },
+                      ]
+                    : [],
+            ),
             ...charts.map((chart) => ({
                 slug: chart.slug,
                 spaceUuid: chart.spaceUuid,
@@ -6366,7 +6396,12 @@ export class CoderService extends BaseService {
                 ? [tile.properties.chartSlug]
                 : [],
         );
-        if (slugs.length === 0) return tiles;
+        if (
+            !tiles.some(
+                (tile) => tile.type === DashboardTileTypes.COMPOSER_CHART,
+            )
+        )
+            return tiles;
         const charts = await this.composerChartModel.findBySlugs(
             project.projectUuid,
             slugs,
@@ -6379,16 +6414,15 @@ export class CoderService extends BaseService {
                 organizationUuid: project.organizationUuid,
             }),
             shownTilesByChartUuid: (existingDashboard?.tiles ?? []).reduce(
-                (counts, tile) =>
-                    isDashboardComposerChartTile(tile) &&
-                    tile.properties.composerChartUuid
-                        ? counts.set(
-                              tile.properties.composerChartUuid,
-                              (counts.get(tile.properties.composerChartUuid) ??
-                                  0) + 1,
-                          )
-                        : counts,
-                new Map<string, number>(),
+                (counts, tile) => {
+                    if (!isDashboardComposerChartTile(tile)) return counts;
+                    const { composerChartUuid } = tile.properties;
+                    return counts.set(
+                        composerChartUuid,
+                        (counts.get(composerChartUuid) ?? 0) + 1,
+                    );
+                },
+                new Map<string | null, number>(),
             ),
         });
     }

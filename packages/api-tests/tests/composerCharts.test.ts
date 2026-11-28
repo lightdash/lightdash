@@ -2592,6 +2592,365 @@ describe('Composer charts', () => {
             );
         });
 
+        describe('on a dashboard', () => {
+            const codeUrl = `/api/v1/projects/${projectUuid}/code`;
+
+            const showOn = async (chartUuid: string) => {
+                const dashboard = await createDashboard();
+                const saved = await addComposerTile(dashboard, chartUuid);
+                expect(saved.status).toBe(200);
+                return saved.body.results;
+            };
+
+            const versionUuid = async (chartUuid: string) =>
+                (await getChart(chartUuid)).body.results.versionUuid;
+
+            // Soft delete, when on, leaves the chart in Recently deleted
+            const deleteSpacePermanently = async (spaceUuid: string) => {
+                expect(
+                    (
+                        await admin.delete(
+                            `/api/v1/projects/${projectUuid}/spaces/${spaceUuid}`,
+                        )
+                    ).status,
+                ).toBe(200);
+                const health =
+                    await admin.get<Body<{ softDelete: { enabled: boolean } }>>(
+                        '/api/v1/health',
+                    );
+                if (health.body.results.softDelete.enabled) {
+                    expect(
+                        (
+                            await admin.delete(
+                                `/api/v2/content/${projectUuid}/permanent`,
+                                {
+                                    body: {
+                                        item: {
+                                            uuid: spaceUuid,
+                                            contentType: ContentType.SPACE,
+                                        },
+                                    },
+                                },
+                            )
+                        ).status,
+                    ).toBe(200);
+                }
+            };
+
+            it("shows a space's chart without a view check at insert, and a viewer who cannot see the space gets the denied tile", async () => {
+                const privateSpace = await createSpace(false);
+                const created = await postChart(
+                    composerSpaceChartBody(privateSpace.uuid),
+                );
+                expect(created.status).toBe(201);
+                const chart = created.body.results;
+                const dashboard = await createDashboard();
+
+                const editor = await loginAsEditor();
+                const added = await editor.patch<Body<Dashboard>>(
+                    `/api/v1/dashboards/${dashboard.uuid}`,
+                    {
+                        tiles: [composerTileFor(chart.uuid)],
+                        filters: dashboard.filters,
+                        tabs: dashboard.tabs,
+                    },
+                );
+                expect(added.status).toBe(200);
+                const [tile] = added.body.results.tiles;
+                expect(tile.properties).toMatchObject({
+                    composerChartUuid: chart.uuid,
+                    chartName: chart.name,
+                });
+
+                const run = (client: ApiClient) =>
+                    client.post<Body<ComposerChartRunResults>>(
+                        tileRunUrl,
+                        runRequest(chart.uuid, dashboard.uuid, tile.uuid),
+                        { failOnStatusCode: false },
+                    );
+                expect((await run(editor)).status).toBe(403);
+                const ran = await run(admin);
+                expect(ran.status).toBe(200);
+                const [{ queryUuid }] = ran.body.results.queries;
+                expect(
+                    (await pollRows(admin, queryUuid)).length,
+                ).toBeGreaterThan(0);
+                expect(await versionUuid(chart.uuid)).toBe(chart.versionUuid);
+            });
+
+            it("refuses another dashboard's chart, a missing chart and a chart in a deleted space", async () => {
+                const { chart: foreign } = await createDashboardWithSqlChart();
+                const { space, chart } = await createSpaceChart();
+                const dashboard = await createDashboard();
+
+                expect(
+                    (await addComposerTile(dashboard, foreign.uuid)).status,
+                ).toBe(404);
+                expect(
+                    (await addComposerTile(dashboard, randomUUID())).status,
+                ).toBe(404);
+                expect(
+                    (
+                        await admin.delete(
+                            `/api/v1/projects/${projectUuid}/spaces/${space.uuid}`,
+                        )
+                    ).status,
+                ).toBe(200);
+                expect(
+                    (await addComposerTile(dashboard, chart.uuid)).status,
+                ).toBe(404);
+            });
+
+            it('duplicate, rollback and orphan cleanup leave the space chart alone', async () => {
+                const { chart } = await createSpaceChart();
+                const dashboard = await showOn(chart.uuid);
+
+                const copy = await duplicate(dashboard);
+                expect(composerChartUuidsOn(copy)).toEqual([chart.uuid]);
+
+                expect((await saveTiles(dashboard, [])).status).toBe(200);
+                expect((await getChart(chart.uuid)).status).toBe(200);
+                expect(
+                    (
+                        await admin.post(
+                            `/api/v1/dashboards/${dashboard.uuid}/rollback/${dashboard.versionUuid}`,
+                            {},
+                        )
+                    ).status,
+                ).toBe(200);
+                expect(
+                    composerChartUuidsOn(await getDashboard(dashboard.uuid)),
+                ).toEqual([chart.uuid]);
+
+                expect((await getChart(chart.uuid)).body.results).toMatchObject(
+                    {
+                        owner: chart.owner,
+                        versionUuid: chart.versionUuid,
+                    },
+                );
+            });
+
+            it('a dashboard file and an MCP dashboard patch name a space chart by slug, which the uploader must be able to view', async () => {
+                const { chart } = await createSpaceChart();
+                const dashboard = await createDashboard();
+                const download = await admin.get<
+                    Body<{ dashboards: DashboardAsCode[] }>
+                >(`${codeUrl}/dashboards?ids=${dashboard.slug}`);
+                const [file] = download.body.results.dashboards;
+                const naming = (chartSlug: string) => ({
+                    ...file,
+                    tiles: [
+                        {
+                            type: DashboardTileTypes.COMPOSER_CHART,
+                            x: 0,
+                            y: 0,
+                            h: 6,
+                            w: 12,
+                            tabSlug: null,
+                            properties: { title: 'From code', chartSlug },
+                        },
+                    ],
+                });
+
+                const privateSpace = await createSpace(false);
+                const hidden = await postChart(
+                    composerSpaceChartBody(privateSpace.uuid),
+                );
+                expect(hidden.status).toBe(201);
+                const editor = await loginAsEditor();
+                const refused = await editor.post<{
+                    error: { message: string };
+                }>(
+                    `${codeUrl}/dashboards/${file.slug}`,
+                    naming(hidden.body.results.slug),
+                    { failOnStatusCode: false },
+                );
+                expect(refused.status).toBe(403);
+                expect(refused.body.error.message).toContain(
+                    hidden.body.results.slug,
+                );
+
+                const uploaded = await admin.post(
+                    `${codeUrl}/dashboards/${file.slug}`,
+                    naming(chart.slug),
+                );
+                expect(uploaded.status).toBe(200);
+                expect(
+                    composerChartUuidsOn(await getDashboard(dashboard.uuid)),
+                ).toEqual([chart.uuid]);
+
+                const { chart: second } = await createSpaceChart();
+                const mcp = await openMcpSession(admin);
+                try {
+                    const edited = await mcp('edit_content', {
+                        projectUuid,
+                        slug: dashboard.slug,
+                        type: 'dashboard',
+                        patch: [
+                            {
+                                op: 'add',
+                                path: '/tiles/-',
+                                value: {
+                                    type: DashboardTileTypes.COMPOSER_CHART,
+                                    x: 0,
+                                    y: 6,
+                                    h: 6,
+                                    w: 12,
+                                    tabSlug: null,
+                                    properties: {
+                                        title: 'From the agent',
+                                        chartSlug: second.slug,
+                                    },
+                                },
+                            },
+                        ],
+                    });
+                    if (edited.isError) throw new Error(mcpText(edited));
+                } finally {
+                    for (const { client, uuid } of personalAccessTokens.splice(
+                        0,
+                    )) {
+                        await client.delete(
+                            `/api/v1/user/me/personal-access-tokens/${uuid}`,
+                        );
+                    }
+                }
+                expect(
+                    composerChartUuidsOn(await getDashboard(dashboard.uuid)),
+                ).toEqual([chart.uuid, second.uuid]);
+                expect(await versionUuid(chart.uuid)).toBe(chart.versionUuid);
+            });
+
+            // Skipped when SOFT_DELETE_ENABLED is off (delete is permanent)
+            it("keeps the tile through a save and a rollback while the chart's space is in Recently deleted, and runs it once restored", async (ctx) => {
+                const health =
+                    await admin.get<Body<{ softDelete: { enabled: boolean } }>>(
+                        '/api/v1/health',
+                    );
+                if (!health.body.results.softDelete.enabled) {
+                    // oxlint-disable-next-line vitest-js/no-disabled-tests -- runtime skip when soft delete is disabled on the server
+                    ctx.skip();
+                }
+                const { space, chart } = await createSpaceChart();
+                const dashboard = await showOn(chart.uuid);
+                expect(
+                    (
+                        await admin.delete(
+                            `/api/v1/projects/${projectUuid}/spaces/${space.uuid}`,
+                        )
+                    ).status,
+                ).toBe(200);
+
+                const trashed = await getDashboard(dashboard.uuid);
+                expect((await saveTiles(trashed, trashed.tiles)).status).toBe(
+                    200,
+                );
+                expect(
+                    (
+                        await admin.post(
+                            `/api/v1/dashboards/${dashboard.uuid}/rollback/${dashboard.versionUuid}`,
+                            {},
+                        )
+                    ).status,
+                ).toBe(200);
+                expect(
+                    composerChartUuidsOn(await getDashboard(dashboard.uuid)),
+                ).toEqual([chart.uuid]);
+
+                expect(
+                    (
+                        await admin.post(
+                            `/api/v2/content/${projectUuid}/restore`,
+                            {
+                                item: {
+                                    uuid: space.uuid,
+                                    contentType: ContentType.SPACE,
+                                },
+                            },
+                        )
+                    ).status,
+                ).toBe(200);
+                const [tile] = (await getDashboard(dashboard.uuid)).tiles;
+                const ran = await admin.post<Body<ComposerChartRunResults>>(
+                    tileRunUrl,
+                    runRequest(chart.uuid, dashboard.uuid, tile.uuid),
+                );
+                expect(ran.status).toBe(200);
+            });
+
+            it('a permanently deleted space chart leaves a tile that saves, rolls back and round-trips as code', async () => {
+                const { space, chart } = await createSpaceChart();
+                const dashboard = await showOn(chart.uuid);
+                const firstVersion = dashboard.versionUuid;
+                expect(
+                    (await saveTiles(dashboard, dashboard.tiles)).status,
+                ).toBe(200);
+                await deleteSpacePermanently(space.uuid);
+
+                const emptied = await getDashboard(dashboard.uuid);
+                expect(emptied.tiles).toHaveLength(1);
+                expect(emptied.tiles[0].properties).toMatchObject({
+                    title: 'Orders',
+                    composerChartUuid: null,
+                    chartName: null,
+                });
+
+                const saved = await saveTiles(emptied, [
+                    ...emptied.tiles,
+                    {
+                        uuid: randomUUID(),
+                        type: DashboardTileTypes.MARKDOWN,
+                        x: 0,
+                        y: 9,
+                        h: 3,
+                        w: 12,
+                        tabUuid: null,
+                        properties: { title: 'Note', content: 'kept' },
+                    },
+                ]);
+                expect(saved.status).toBe(200);
+                expect(
+                    (
+                        await admin.post(
+                            `/api/v1/dashboards/${dashboard.uuid}/rollback/${firstVersion}`,
+                            {},
+                        )
+                    ).status,
+                ).toBe(200);
+                expect(
+                    composerChartUuidsOn(await getDashboard(dashboard.uuid)),
+                ).toEqual([null]);
+
+                const download = await admin.get<
+                    Body<{ dashboards: DashboardAsCode[] }>
+                >(`${codeUrl}/dashboards?ids=${dashboard.slug}`);
+                const [file] = download.body.results.dashboards;
+                expect(file.tiles).toEqual([
+                    expect.objectContaining({
+                        type: DashboardTileTypes.COMPOSER_CHART,
+                        properties: {
+                            title: 'Orders',
+                            hideTitle: false,
+                            chartSlug: null,
+                        },
+                    }),
+                ]);
+                expect(
+                    (
+                        await admin.post(`${codeUrl}/dashboards/${file.slug}`, {
+                            ...file,
+                            name: `${file.name} renamed`,
+                        })
+                    ).status,
+                ).toBe(200);
+                const reuploaded = await getDashboard(dashboard.uuid);
+                expect(composerChartUuidsOn(reuploaded)).toEqual([null]);
+                expect(reuploaded.tiles[0].properties).toMatchObject({
+                    title: 'Orders',
+                });
+            });
+        });
+
         describe('rename and move', () => {
             const contentUrl = `/api/v2/content/${projectUuid}/move`;
 

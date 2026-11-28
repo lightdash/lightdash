@@ -22,25 +22,40 @@ const getComposerChartUuids = (tiles: DashboardTile[]) =>
             .flatMap((tile) => tile.properties.composerChartUuid ?? []),
     );
 
-// Copies each owned chart's current pipeline, so it skips the author checks; a space's
-// chart stays referenced. One at a time: composer slugs take no lock, so parallel copies collide.
+// Copies each owned chart's current pipeline, so it skips the author checks; a space's live
+// chart stays referenced, a trashed one leaves an empty tile. One at a time: composer slugs take no lock.
 export const duplicateComposerChartTiles = async (
     composerChartModel: Pick<
         ComposerChartModel,
-        'findOwnedByDashboard' | 'duplicate'
+        'findOwnedByDashboard' | 'findLiveInSpaces' | 'duplicate'
     >,
     tiles: DashboardTile[],
     source: { dashboardUuid: UUID },
     target: { dashboardUuid: string; userUuid: string },
 ): Promise<{ from: string; tile: DashboardComposerChartTile }[]> => {
-    const owned = new Set(
-        await composerChartModel.findOwnedByDashboard(source.dashboardUuid, [
-            ...getComposerChartUuids(tiles),
-        ]),
-    );
+    const chartUuids = [...getComposerChartUuids(tiles)];
+    const [owned, referenced] = (
+        await Promise.all([
+            composerChartModel.findOwnedByDashboard(
+                source.dashboardUuid,
+                chartUuids,
+            ),
+            composerChartModel.findLiveInSpaces(chartUuids),
+        ])
+    ).map((uuids) => new Set(uuids));
     const copies: { from: string; tile: DashboardComposerChartTile }[] = [];
     for (const tile of tiles.filter(isDashboardComposerChartTile)) {
         const { composerChartUuid } = tile.properties;
+        let copiedChartUuid: string | null = null;
+        if (composerChartUuid && owned.has(composerChartUuid)) {
+            // eslint-disable-next-line no-await-in-loop
+            copiedChartUuid = await composerChartModel.duplicate(
+                composerChartUuid,
+                target,
+            );
+        } else if (composerChartUuid && referenced.has(composerChartUuid)) {
+            copiedChartUuid = composerChartUuid;
+        }
         copies.push({
             from: tile.uuid,
             tile: {
@@ -48,14 +63,7 @@ export const duplicateComposerChartTiles = async (
                 uuid: uuidv4(),
                 properties: {
                     ...tile.properties,
-                    composerChartUuid:
-                        composerChartUuid && owned.has(composerChartUuid)
-                            ? // eslint-disable-next-line no-await-in-loop
-                              await composerChartModel.duplicate(
-                                  composerChartUuid,
-                                  target,
-                              )
-                            : composerChartUuid,
+                    composerChartUuid: copiedChartUuid,
                 },
             },
         });

@@ -16,7 +16,8 @@ const serialFiles = [
     // Assigns a temporary custom role on the seed project (projectPermissions).
     'tests/chartCustomSqlSavePermissions.test.ts',
     // Assigns temporary custom roles on the seed project, which a parallel
-    // preview creation would copy and leave the roles undeletable.
+    // preview creation would copy and leave the roles undeletable; toggles
+    // the org's dashboard-controls flag.
     'tests/composerChartPermissions.test.ts',
     // Toggles the org AI setting and a user attribute other files could read.
     'tests/dataAppAnalysisIsolation.test.ts',

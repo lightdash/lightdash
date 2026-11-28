@@ -40,6 +40,7 @@ import {
     type ComposerChartPipelineNode,
     type ComposerChartRunRequest,
     type ComposerChartRunResults,
+    type ComposerChartRunSource,
     type ComposerChartWithDetails,
     type ComposerStoredChart,
     type CreateComposerChart,
@@ -673,6 +674,45 @@ export class ComposerChartService extends BaseService {
             composerChartUuid,
         );
         return { organizationUuid, owner };
+    }
+
+    // A tile run reads its dashboard's filters and parameters, so it needs view on it too
+    private async assertCanViewDashboard(
+        account: RegisteredAccount,
+        projectUuid: string,
+        dashboardUuid: string,
+    ) {
+        const access = await this.getOwnerAccess(account, projectUuid, {
+            type: 'dashboard',
+            dashboardUuid,
+        });
+        if (
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('Dashboard', {
+                    ...access,
+                    metadata: { dashboardUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError("You don't have access to this dashboard");
+        }
+    }
+
+    /** View on a run's chart and, for a tile run, on the dashboard it ran on. */
+    async assertCanViewRunSource(
+        account: RegisteredAccount,
+        projectUuid: string,
+        { composerChartUuid, dashboardUuid }: ComposerChartRunSource,
+    ): Promise<void> {
+        await this.assertCanView(account, projectUuid, composerChartUuid);
+        if (dashboardUuid !== null) {
+            await this.assertCanViewDashboard(
+                account,
+                projectUuid,
+                dashboardUuid,
+            );
+        }
     }
 
     /** Answers with the flag off, so a chart stays readable (spec 5). */
@@ -1372,6 +1412,7 @@ export class ComposerChartService extends BaseService {
                 tile.properties.composerChartUuid === composerChartUuid,
         );
         if (!shown) throw notOnTile;
+        await this.assertCanViewDashboard(account, projectUuid, dashboardUuid);
         const chart = await this.composerChartModel.get(composerChartUuid);
         const exploreByNodeId = await this.getNodeExplores(
             account,
