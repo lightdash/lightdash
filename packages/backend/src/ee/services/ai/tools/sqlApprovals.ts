@@ -134,7 +134,13 @@ export const findSameTurnSqlApproval = (
     const approved = decisions.flatMap((decision) => {
         if (
             decision.decision !== 'approved' ||
-            !isNativeSqlApprovalToolCall(decision.toolName, decision.toolArgs)
+            !isNativeSqlApprovalToolCall(
+                decision.toolName,
+                decision.toolArgs,
+            ) ||
+            // Its patch SQL is wider than the new SQL its approval asked about.
+            (decision.toolName === 'editContent' &&
+                isComposerChartContentArgs(decision.toolArgs))
         ) {
             return [];
         }
@@ -145,7 +151,7 @@ export const findSameTurnSqlApproval = (
                   {
                       sql: approvedSql,
                       decidedByUserUuid: decision.decidedByUserUuid,
-                      // Composer SQL is read back from the whole call, not only what was approved, so it never covers a node.
+                      // A pipeline approval is never split into its nodes.
                       coversNode:
                           !isComposerQueryToolName(decision.toolName) &&
                           !isComposerChartContentArgs(decision.toolArgs),

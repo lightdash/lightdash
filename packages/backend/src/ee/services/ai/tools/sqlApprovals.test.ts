@@ -341,7 +341,7 @@ describe('findSameTurnSqlApproval', () => {
             ).toEqual({ decidedByUserUuid: 'user-uuid' });
         });
 
-        it('does not cover a node with an earlier composer chart edit', () => {
+        it('never reuses a composer chart edit approval', () => {
             const editApproved: SqlApprovalDecisionOnCall = {
                 ...runSqlApproved,
                 toolCallId: 'edit-0',
@@ -355,9 +355,21 @@ describe('findSameTurnSqlApproval', () => {
                             path: '/pipeline/nodes/0/sql',
                             value: 'select 1',
                         },
+                        {
+                            op: 'replace',
+                            path: '/pipeline/nodes/1/sql',
+                            value: 'select * from payments',
+                        },
                     ],
                 },
             };
+            expect(
+                findSameTurnSqlApproval([editApproved], {
+                    toolCallId: 'run-sql-2',
+                    sql: 'select 1\n\nselect * from payments',
+                    nodeSql: null,
+                }),
+            ).toBeNull();
             expect(
                 findSameTurnSqlApproval(
                     [editApproved],
