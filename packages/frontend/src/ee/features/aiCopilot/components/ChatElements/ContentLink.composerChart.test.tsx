@@ -69,8 +69,17 @@ describe('Composer chart content links', () => {
         const link = screen.getByRole('link', { name: /Orders by status/ });
         expect(link).toHaveAttribute('href', COMPOSER_CHART_HREF);
         expect(link).toHaveAttribute('target', '_blank');
+        // Records whether the chip let the browser navigate, then stops jsdom navigating
+        let navigated: boolean | null = null;
+        const record = (e: Event) => {
+            navigated = !e.defaultPrevented;
+            e.preventDefault();
+        };
+        document.addEventListener('click', record);
         fireEvent.click(link);
+        document.removeEventListener('click', record);
 
+        expect(navigated).toBe(true);
         expect(store.getState().aiArtifact.preview).toBeNull();
     });
 });
