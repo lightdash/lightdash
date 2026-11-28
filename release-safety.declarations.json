@@ -426,6 +426,26 @@
                     "mcp": []
                 }
             }
+        },
+        "spk-3175-drop-api-source-call-counters-and-leases": {
+            "reason": "Drops the empty api_source_call_counters and api_source_call_leases tables. Live data source rate limits have used api_source_rate_buckets, api_source_rate_pacing and api_source_rate_slots since 3.375.0, and nothing writes the old tables. The previous release still deletes old rows from them in the daily rate counter cleanup job. A scheduler on the previous release that runs that job during a rolling update fails it on the missing tables after its other deletes have run, and retries it up to three times; the job succeeds again once the scheduler is updated. Queries and rate limiting are unaffected.",
+            "requiredStop": false,
+            "migration": "packages/backend/src/ee/database/migrations/20261127180000_drop_api_source_call_counters_and_leases.ts"
+        },
+        "composer-tile-as-code-chart-slug-nullable": {
+            "reason": "The dashboard-as-code type now allows chartSlug: null on a composer chart tile, so the two dashboard download responses show that property as nullable. Only the schema widens: this release still leaves a composer tile whose chart is gone out of the download, so no response carries a null slug and an old CLI or an old server pod in a rolling update reads exactly what it read before.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The Lightdash CLI download is the only client of these dashboard-as-code endpoints, and this release never sends it a null composer chartSlug; the nullable type lets new CLIs and servers read such a tile before a later release writes one.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/code/dashboards",
+                        "GET /api/v1/projects/{projectUuid}/dashboards/code"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }

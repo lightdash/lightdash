@@ -4,16 +4,13 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
 import {
-    type LiveCalls,
+    assertMaxRows,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-    type LiveScanResult,
-} from '../../types';
-
-export const GA4_DATA_ORIGIN = 'https://analyticsdata.googleapis.com';
+} from '../../sdk';
+import { getGa4ReportPath } from './api';
 
 // One report returns up to 250,000 rows; results stay at the size of other
 // api sources. The connector asks for one more than the limit to detect
@@ -82,12 +79,6 @@ const responseSchema = z.object({
 
 export type Ga4Request = z.infer<typeof ga4RequestSchema>;
 
-export const getGa4ReportPath = (propertyId: string) =>
-    `/v1beta/properties/${propertyId}:runReport`;
-
-export const getGa4MetadataPath = (propertyId: string) =>
-    `/v1beta/properties/${propertyId}/metadata`;
-
 // GA4 names custom fields like customEvent:plan; columns need plain names.
 export const toGa4ColumnName = (name: string) =>
     name.replace(/[^A-Za-z0-9_]/g, '_');
@@ -104,32 +95,16 @@ const toNumber = (value: string | undefined) => {
     return Number.isFinite(number) ? number : null;
 };
 
-/** Reads the property's dimensions and metrics, including its custom ones. */
-export const scanGa4Metadata = async ({
-    settings: { propertyId },
-    calls,
-}: {
-    settings: { propertyId: string };
-    calls: LiveCalls;
-}): Promise<LiveScanResult> => {
-    const response = await calls.send({
-        method: 'GET',
-        path: getGa4MetadataPath(propertyId),
-        body: null,
-    });
-    return { ga4Metadata: response.body };
-};
-
 /** Runs one report, asking for one row more than the limit. */
 export const runGa4Query = async ({
     settings: { propertyId },
     request: { limit: requestLimit, ...request },
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<ApiConnectorType.GA4, Ga4Request>): Promise<LiveRunResult> => {
     assertMaxRows(limit, GA4_MAX_QUERY_ROWS);
     const rowLimit = Math.min(limit, requestLimit ?? limit);
-    const report = await calls.fetch(
+    const report = await runtime.fetch(
         {
             method: 'POST',
             path: getGa4ReportPath(propertyId),

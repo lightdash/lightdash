@@ -8,16 +8,14 @@ import {
 import {
     getActiveFilterRules,
     getApiName,
+    getLiveDateRange,
     getLiveExplore,
+    splitDateRangeFilter,
+    toAbsoluteDateRange,
     toFieldCombinationIssue,
     toLiveQueryError,
     type LiveCompiledRequest,
-} from '../../explores/definition';
-import {
-    getLiveDateRange,
-    splitDateRangeFilter,
-    toAbsoluteDateRange,
-} from '../../query/dateRange';
+} from '../../sdk';
 
 const refuse = ({
     fieldId,

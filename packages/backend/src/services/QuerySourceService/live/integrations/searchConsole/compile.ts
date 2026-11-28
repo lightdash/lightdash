@@ -7,18 +7,16 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import {
+    escapeRe2,
     getApiName,
+    getLiveDateRange,
     getLiveExplore,
     getLiveRequestLimit,
-    type LiveCompiledRequest,
-} from '../../explores/definition';
-import {
-    getLiveDateRange,
+    refuseLiveQuery,
     splitDateRangeFilter,
     toAbsoluteDateRange,
-} from '../../query/dateRange';
-import { escapeRe2 } from '../../query/escapeRe2';
-import { refuseLiveQuery } from '../../query/refuse';
+    type LiveCompiledRequest,
+} from '../../sdk';
 
 const anyOf = (values: string[]) => {
     const escaped = values.map(escapeRe2);
