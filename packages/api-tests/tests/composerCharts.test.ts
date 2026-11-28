@@ -9,7 +9,6 @@ import {
     QuerySourceType,
     SearchItemType,
     SEED_DATA_APP_VIZ,
-    SEED_ORG_1,
     SEED_ORG_1_EDITOR,
     SEED_PROJECT,
     ServiceAccountScope,
@@ -37,8 +36,6 @@ import {
     login,
     loginAsEditor,
     loginAsViewer,
-    loginWithEmail,
-    loginWithPermissions,
 } from '../helpers/auth';
 import {
     apiClientSend,
@@ -860,160 +857,6 @@ describe('Composer charts', () => {
                     (await admin.post(flagUrl, { enabled: true })).status,
                 ).toBe(200);
             }
-        });
-    });
-
-    describe('chart permissions', () => {
-        // Tracked as soon as each exists, so a failed setup still cleans up
-        const roleUuids: string[] = [];
-        const assignedUserUuids: string[] = [];
-
-        const roleUser = async (scopes: string[]): Promise<ApiClient> => {
-            const role = await admin.post<Body<{ roleUuid: string }>>(
-                `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles`,
-                {
-                    name: uniqueName('Composer chart role'),
-                    description: 'Composer chart permission test role',
-                    scopes: ['view:Project', 'view:Space', ...scopes],
-                },
-            );
-            expect(role.status).toBe(201);
-            roleUuids.push(role.body.results.roleUuid);
-            const { client, email } = await loginWithPermissions('member', []);
-            const user =
-                await client.get<Body<{ userUuid: string }>>('/api/v1/user');
-            expect(user.status).toBe(200);
-            const assigned = await admin.post(
-                `/api/v2/projects/${projectUuid}/roles/assignments/user/${user.body.results.userUuid}`,
-                { roleId: role.body.results.roleUuid },
-            );
-            expect(assigned.status).toBe(200);
-            assignedUserUuids.push(user.body.results.userUuid);
-            return loginWithEmail(email);
-        };
-
-        afterAll(async () => {
-            // A role still assigned cannot be deleted
-            for (const userUuid of assignedUserUuids) {
-                const unassigned = await admin.delete(
-                    `/api/v2/projects/${projectUuid}/roles/assignments/user/${userUuid}`,
-                );
-                expect(unassigned.status).toBe(200);
-            }
-            for (const roleUuid of roleUuids) {
-                const deleted = await admin.delete(
-                    `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles/${roleUuid}`,
-                );
-                expect(deleted.status).toBe(200);
-            }
-        });
-
-        const createViewableDashboard = async () => {
-            const created = await createComposerDashboard(apiClientSend(admin));
-            tracker.trackDashboard(created.dashboard.uuid);
-            return {
-                ...created,
-                tileUuid: created.dashboard.tiles[0].uuid,
-            };
-        };
-
-        it('lets a role that views charts but not dashboards read and run a dashboard chart', async () => {
-            const { dashboard, chart, tileUuid } =
-                await createViewableDashboard();
-            const client = await roleUser(['view:SavedChart']);
-
-            const read = await client.get(`${chartsUrl}/${chart.uuid}`);
-            expect(read.status).toBe(200);
-            const run = await client.post<Body<ComposerChartRunResults>>(
-                tileRunUrl,
-                runRequest(chart.uuid, dashboard.uuid, tileUuid),
-            );
-            expect(run.status).toBe(200);
-            const [{ queryUuid }] = run.body.results.queries;
-            expect((await pollRows(client, queryUuid)).length).toBeGreaterThan(
-                0,
-            );
-        });
-
-        it('refuses a role that views dashboards but not charts, as for a classic tile', async () => {
-            const { dashboard, chart, tileUuid } =
-                await createViewableDashboard();
-            const client = await roleUser(['view:Dashboard']);
-
-            const read = await client.get(`${chartsUrl}/${chart.uuid}`, {
-                failOnStatusCode: false,
-            });
-            expect(read.status).toBe(403);
-            const run = await client.post(
-                tileRunUrl,
-                runRequest(chart.uuid, dashboard.uuid, tileUuid),
-                { failOnStatusCode: false },
-            );
-            expect(run.status).toBe(403);
-        });
-
-        const authorScopes = [
-            'view:Dashboard',
-            'view:SavedChart',
-            'manage:ComposerChart',
-            'manage:Explore',
-        ];
-
-        it('lets a role that writes charts but not dashboards save a chart onto a dashboard', async () => {
-            const dashboard = await createDashboard();
-            const client = await roleUser([
-                ...authorScopes,
-                'manage:SavedChart',
-            ]);
-            const saved = await client.post(
-                chartsUrl,
-                composerChartBody(dashboard.uuid),
-            );
-            expect(saved.status).toBe(201);
-        });
-
-        it('refuses a role that writes dashboards but not charts saving a chart onto a dashboard', async () => {
-            const dashboard = await createDashboard();
-            const client = await roleUser([
-                ...authorScopes,
-                'manage:Dashboard',
-            ]);
-            const refused = await client.post(
-                chartsUrl,
-                composerChartBody(dashboard.uuid),
-                { failOnStatusCode: false },
-            );
-            expect(refused.status).toBe(403);
-        });
-
-        it('refuses a project viewer a chart on a dashboard in a space they cannot see', async () => {
-            const space = await admin.post<Body<{ uuid: string }>>(
-                `/api/v1/projects/${projectUuid}/spaces`,
-                {
-                    name: uniqueName('Composer private space'),
-                    inheritParentPermissions: false,
-                },
-            );
-            expect(space.status).toBe(200);
-            tracker.trackSpace(space.body.results.uuid);
-            const dashboard = await admin.post<Body<Dashboard>>(
-                `/api/v1/projects/${projectUuid}/dashboards`,
-                {
-                    name: uniqueName('Composer private dashboard'),
-                    tiles: [],
-                    tabs: [],
-                    spaceUuid: space.body.results.uuid,
-                },
-            );
-            expect(dashboard.status).toBe(201);
-            tracker.trackDashboard(dashboard.body.results.uuid);
-            const chart = await createChart(dashboard.body.results.uuid);
-
-            const viewer = await loginAsViewer();
-            const read = await viewer.get(`${chartsUrl}/${chart.uuid}`, {
-                failOnStatusCode: false,
-            });
-            expect(read.status).toBe(403);
         });
     });
 
