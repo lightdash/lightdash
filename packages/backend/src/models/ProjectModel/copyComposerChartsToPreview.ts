@@ -83,16 +83,23 @@ export const copyComposerChartsToPreview = async (
         ])
         .whereIn('composer_chart_uuid', [...previewUuidBySource.keys()])
         .select('*');
-    if (tiles.length === 0) return;
-    await trx(DashboardTileComposerChartsTableName).insert(
-        tiles.map((tile) => ({
-            ...tile,
-            dashboard_version_id: previewDashboardVersionIdBySource.get(
-                tile.dashboard_version_id,
-            )!,
-            composer_chart_uuid: previewUuidBySource.get(
-                tile.composer_chart_uuid,
-            )!,
-        })),
-    );
+    const copies = tiles.flatMap((tile) => {
+        const previewChartUuid =
+            tile.composer_chart_uuid &&
+            previewUuidBySource.get(tile.composer_chart_uuid);
+        return previewChartUuid
+            ? [
+                  {
+                      ...tile,
+                      dashboard_version_id:
+                          previewDashboardVersionIdBySource.get(
+                              tile.dashboard_version_id,
+                          )!,
+                      composer_chart_uuid: previewChartUuid,
+                  },
+              ]
+            : [];
+    });
+    if (copies.length === 0) return;
+    await trx(DashboardTileComposerChartsTableName).insert(copies);
 };

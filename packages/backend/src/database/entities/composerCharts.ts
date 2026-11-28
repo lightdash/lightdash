@@ -70,7 +70,8 @@ export type ComposerChartVersionsTable = Knex.CompositeTableType<
 type DbDashboardTileComposerChart = {
     dashboard_version_id: number;
     dashboard_tile_uuid: string;
-    composer_chart_uuid: string;
+    /** Null once its chart is permanently deleted */
+    composer_chart_uuid: string | null;
     title: string | null;
     hide_title: boolean;
 };
