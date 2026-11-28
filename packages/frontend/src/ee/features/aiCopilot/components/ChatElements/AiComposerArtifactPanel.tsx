@@ -29,6 +29,7 @@ import {
     IconExternalLink,
     IconLayoutDashboard,
     IconTableExport,
+    IconTableShortcut,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useId, useMemo, useState, type FC, type RefObject } from 'react';
@@ -205,6 +206,21 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         description,
         savedComposerChart,
     });
+    const savedChart =
+        composerSave?.kind === 'saved' ? composerSave.chart : null;
+    const savedLink = !savedChart
+        ? null
+        : savedChart.dashboardUuid
+          ? {
+                to: `/projects/${projectUuid}/dashboards/${savedChart.dashboardUuid}`,
+                icon: IconLayoutDashboard,
+                label: 'View on dashboard',
+            }
+          : {
+                to: `/projects/${projectUuid}/composer-charts/${savedChart.composerChartUuid}`,
+                icon: IconTableShortcut,
+                label: 'View saved chart',
+            };
     const storedVizConfig =
         config.schemaVersion === 1 ? (config.vizConfig ?? null) : null;
     // v2 draws the presented node through the runQuery chart builders; nothing to edit.
@@ -412,18 +428,16 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                                         : 'Save'}
                                 </Menu.Item>
                             )}
-                            {composerSave?.kind === 'saved' && (
+                            {savedLink && (
                                 <Menu.Item
                                     component={Link}
-                                    to={`/projects/${projectUuid}/dashboards/${composerSave.dashboardUuid}`}
+                                    to={savedLink.to}
                                     target="_blank"
                                     leftSection={
-                                        <MantineIcon
-                                            icon={IconLayoutDashboard}
-                                        />
+                                        <MantineIcon icon={savedLink.icon} />
                                     }
                                 >
-                                    View on dashboard
+                                    {savedLink.label}
                                 </Menu.Item>
                             )}
                             {composerSave?.kind === 'save' && (

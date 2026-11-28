@@ -108,6 +108,39 @@ describe('AiAgentModel.createOrUpdateArtifact concurrency (PostgreSQL)', () => {
         expect(versions).toEqual([1, 2, 3, 4, 5, 6, 7]);
     });
 
+    it('drops the saved composer chart while it is trashed and returns it on restore', async () => {
+        const artifact = await writeChart(await createThread(), 'saved');
+        const composerChartUuid = randomUUID();
+        await database.raw(
+            'INSERT INTO composer_charts (composer_chart_uuid) VALUES (?)',
+            [composerChartUuid],
+        );
+        await model.updateArtifactVersion(artifact.versionUuid, {
+            savedComposerChartUuid: composerChartUuid,
+        });
+        const savedLink = async () => {
+            const read = await model.getArtifact(
+                artifact.artifactUuid,
+                artifact.versionUuid,
+            );
+            return [
+                read.savedComposerChartUuid,
+                read.savedComposerChartDashboardUuid,
+            ];
+        };
+        const setDeletedAt = (deletedAt: Date | null) =>
+            database.raw(
+                'UPDATE composer_charts SET deleted_at = ? WHERE composer_chart_uuid = ?',
+                [deletedAt, composerChartUuid],
+            );
+
+        expect(await savedLink()).toEqual([composerChartUuid, null]);
+        await setDeletedAt(new Date());
+        expect(await savedLink()).toEqual([null, null]);
+        await setDeletedAt(null);
+        expect(await savedLink()).toEqual([composerChartUuid, null]);
+    });
+
     it('creates one artifact when parallel writes start a thread', async () => {
         const threadUuid = await createThread();
 
