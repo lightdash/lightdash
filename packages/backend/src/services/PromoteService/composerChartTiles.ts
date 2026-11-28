@@ -1,6 +1,5 @@
 import {
     AlreadyExistsError,
-    assertUnreachable,
     isDashboardComposerChartTile,
     PromotionAction,
     UnexpectedServerError,
@@ -69,44 +68,26 @@ export const getComposerChartChanges = async (
             upstream.projectUuid,
             source.slug,
         );
+        // Live or trashed, the slug's chart must have the same kind of owner
         if (
-            identity?.deleted &&
-            promoted.spacePath !== null &&
-            identity.owner.type === 'dashboard'
+            identity &&
+            identity.owner.type !==
+                (promoted.spacePath === null ? 'dashboard' : 'space')
         ) {
             throw new AlreadyExistsError(
-                `Composer chart "${source.slug}" already belongs to a dashboard in the upstream project`,
+                `Composer chart "${source.slug}" already belongs to a ${identity.owner.type} in the upstream project`,
             );
         }
         if (!identity || identity.deleted) {
             changes.push({ action: PromotionAction.CREATE, data: promoted });
         } else {
-            const { owner } = await composerChartModel.getOwner(identity.uuid);
-            switch (owner.type) {
-                case 'dashboard':
-                    if (promoted.spacePath !== null) {
-                        throw new AlreadyExistsError(
-                            `Composer chart "${source.slug}" already belongs to a dashboard in the upstream project`,
-                        );
-                    }
-                    if (owner.dashboardUuid !== upstream.dashboardUuid) {
-                        throw new AlreadyExistsError(
-                            `Composer chart "${source.slug}" already belongs to another dashboard in the upstream project`,
-                        );
-                    }
-                    break;
-                case 'space':
-                    if (promoted.spacePath === null) {
-                        throw new AlreadyExistsError(
-                            `Composer chart "${source.slug}" already belongs to a space in the upstream project`,
-                        );
-                    }
-                    break;
-                default:
-                    return assertUnreachable(
-                        owner,
-                        'Unknown composer chart owner',
-                    );
+            if (
+                identity.owner.type === 'dashboard' &&
+                identity.owner.dashboardUuid !== upstream.dashboardUuid
+            ) {
+                throw new AlreadyExistsError(
+                    `Composer chart "${source.slug}" already belongs to another dashboard in the upstream project`,
+                );
             }
             const current = await composerChartModel.get(identity.uuid);
             const unchanged =

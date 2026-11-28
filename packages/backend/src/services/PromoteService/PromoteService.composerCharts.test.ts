@@ -718,14 +718,28 @@ describe('promoting a dashboard showing a chart a space owns', () => {
         expect(dashboardModel.addVersion).not.toHaveBeenCalled();
     });
 
-    test("refuses to revive a dashboard's trashed chart into a space", async () => {
-        const { service, dashboardModel, composerChartService } = setup({
-            sourceChart: referenced,
-            upstreamChart: upstreamSpaceChart(),
-            upstreamChartOwner: {
+    test.each([
+        [
+            "a dashboard's trashed chart into a space",
+            referenced,
+            {
                 type: 'dashboard',
                 dashboardUuid: upstreamDashboardUuid,
-            },
+            } as ComposerChartOwner,
+        ],
+        [
+            "a space's trashed chart onto the dashboard",
+            composerChart({}),
+            {
+                type: 'space',
+                spaceUuid: upstreamSharedSpaceUuid,
+            } as ComposerChartOwner,
+        ],
+    ])('refuses to revive %s', async (_, sourceChart, upstreamChartOwner) => {
+        const { service, dashboardModel, composerChartService } = setup({
+            sourceChart,
+            upstreamChart: upstreamSpaceChart(),
+            upstreamChartOwner,
             upstreamChartDeleted: true,
         });
 
