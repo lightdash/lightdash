@@ -248,7 +248,7 @@ export class ComposerChartModel {
                 .first();
             if (!space) {
                 throw new ConflictError(
-                    "Restore the space first: this composer chart's space is deleted.",
+                    "This composer chart's space is deleted. Restore the space first.",
                 );
             }
             const count = await trx(ComposerChartsTableName)

@@ -782,7 +782,7 @@ export class ComposerChartService extends BaseService {
                 return deleted.owner.spaceUuid;
             case 'dashboard':
                 throw new ParameterError(
-                    'This composer chart belongs to a dashboard. It is restored and deleted with that dashboard.',
+                    'This composer chart belongs to a dashboard. You can only restore or delete it with that dashboard.',
                 );
             default:
                 return assertUnreachable(
