@@ -81052,6 +81052,19 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "UpdateComposerChart": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "A rename of a space-owned chart: no new version, the slug unchanged. An omitted field keeps its value."
+            },
             "ComposerChartParameters": {
                 "properties": {
                     "parameterDefinitions": {
@@ -82265,7 +82278,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.442.0",
+        "version": "3.443.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -130042,6 +130055,65 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}": {
+            "patch": {
+                "operationId": "updateComposerChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Renames a composer chart that a space owns, or changes its description.\nDoes not create a new version and keeps the slug. Omitted fields keep\ntheir current value. Requires permission to save charts in the chart's\nspace. Returns 400 for a composer chart that a dashboard owns, because\nthat chart is edited through its dashboard.",
+                "summary": "Update composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "composerChartUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateComposerChart"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}/parameters": {

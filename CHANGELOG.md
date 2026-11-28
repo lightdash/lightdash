@@ -1,3 +1,10 @@
+# [3.443.0](https://github.com/lightdash/lightdash/compare/3.442.0...3.443.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** rename and move a space-owned composer chart ([#33607](https://github.com/lightdash/lightdash/issues/33607)) ([f8ca6a2](https://github.com/lightdash/lightdash/commit/f8ca6a2290410927fb688d8d8cff64340dba1156))
+
 # [3.442.0](https://github.com/lightdash/lightdash/compare/3.441.0...3.442.0) (2026-11-28)
 
 
