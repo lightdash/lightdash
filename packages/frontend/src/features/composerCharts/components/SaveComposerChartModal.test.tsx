@@ -61,7 +61,12 @@ const bodyOf = (url: string, method: string) => {
     const call = mockedLightdashApi.mock.calls
         .map(([args]) => args as ApiCall)
         .find((args) => args.url === url && args.method === method);
-    return call?.body ? JSON.parse(call.body) : undefined;
+    if (!call?.body) return undefined;
+    try {
+        return JSON.parse(call.body);
+    } catch {
+        return undefined;
+    }
 };
 
 const renderModal = (onSaved = vi.fn().mockResolvedValue(undefined)) => {
@@ -121,12 +126,12 @@ describe('SaveComposerChartModal to a space', () => {
                 dashboardUuid: null,
             }),
         );
-        expect(
-            bodyOf('/projects/project/composer-charts', 'POST'),
-        ).toMatchObject({ spaceUuid: 'team', name: 'Orders by week' });
-        expect(
-            bodyOf('/projects/project/composer-charts', 'POST'),
-        ).not.toHaveProperty('dashboardUuid');
+        const chartBody = bodyOf('/projects/project/composer-charts', 'POST');
+        expect(chartBody).toMatchObject({
+            spaceUuid: 'team',
+            name: 'Orders by week',
+        });
+        expect(chartBody).not.toHaveProperty('dashboardUuid');
         expect(mocks.showToastSuccess).toHaveBeenCalledWith(
             expect.objectContaining({
                 title: 'Chart saved to "Team"',

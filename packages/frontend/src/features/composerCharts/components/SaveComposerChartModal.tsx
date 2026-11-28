@@ -412,7 +412,11 @@ export const SaveComposerChartModal: FC<Props> = ({
                     </Group>
                 ) : (
                     <Button
-                        disabled={!form.values.name}
+                        disabled={
+                            !form.values.name ||
+                            (destination === SaveDestination.Space &&
+                                !chartSpaces)
+                        }
                         onClick={goToDestination}
                     >
                         Next

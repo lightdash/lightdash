@@ -206,6 +206,21 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         description,
         savedComposerChart,
     });
+    const savedChart =
+        composerSave?.kind === 'saved' ? composerSave.chart : null;
+    const savedLink = !savedChart
+        ? null
+        : savedChart.dashboardUuid
+          ? {
+                to: `/projects/${projectUuid}/dashboards/${savedChart.dashboardUuid}`,
+                icon: IconLayoutDashboard,
+                label: 'View on dashboard',
+            }
+          : {
+                to: `/projects/${projectUuid}/composer-charts/${savedChart.composerChartUuid}`,
+                icon: IconTableShortcut,
+                label: 'View saved chart',
+            };
     const storedVizConfig =
         config.schemaVersion === 1 ? (config.vizConfig ?? null) : null;
     // v2 draws the presented node through the runQuery chart builders; nothing to edit.
@@ -413,34 +428,18 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                                         : 'Save'}
                                 </Menu.Item>
                             )}
-                            {composerSave?.kind === 'saved' &&
-                                (composerSave.saved.dashboardUuid ? (
-                                    <Menu.Item
-                                        component={Link}
-                                        to={`/projects/${projectUuid}/dashboards/${composerSave.saved.dashboardUuid}`}
-                                        target="_blank"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconLayoutDashboard}
-                                            />
-                                        }
-                                    >
-                                        View on dashboard
-                                    </Menu.Item>
-                                ) : (
-                                    <Menu.Item
-                                        component={Link}
-                                        to={`/projects/${projectUuid}/composer-charts/${composerSave.saved.composerChartUuid}`}
-                                        target="_blank"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconTableShortcut}
-                                            />
-                                        }
-                                    >
-                                        View saved chart
-                                    </Menu.Item>
-                                ))}
+                            {savedLink && (
+                                <Menu.Item
+                                    component={Link}
+                                    to={savedLink.to}
+                                    target="_blank"
+                                    leftSection={
+                                        <MantineIcon icon={savedLink.icon} />
+                                    }
+                                >
+                                    {savedLink.label}
+                                </Menu.Item>
+                            )}
                             {composerSave?.kind === 'save' && (
                                 <Menu.Item
                                     disabled={!!composerSave.disabledReason}
