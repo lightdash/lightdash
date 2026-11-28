@@ -132,6 +132,80 @@ describe('OrganizationSetup', () => {
         Object.values(toasterMocks).forEach((mock) => mock.mockReset());
     });
 
+    it.each([
+        {
+            choice: 'untouched',
+            domain: 'example.org',
+            clicks: 0,
+            enabled: false,
+        },
+        {
+            choice: 'explicitly enabled',
+            domain: 'example.org',
+            clicks: 1,
+            enabled: true,
+        },
+        {
+            choice: 'enabled then disabled',
+            domain: 'example.org',
+            clicks: 2,
+            enabled: false,
+        },
+        {
+            choice: 'unavailable for a public provider',
+            domain: 'gmail.com',
+            clicks: 0,
+            enabled: false,
+        },
+    ])('submits domain access $choice', async ({ domain, clicks, enabled }) => {
+        const user = userEvent.setup();
+        mockOrgApi('');
+        renderSetupPage({
+            user: {
+                isSetupComplete: false,
+                organizationName: '',
+                email: `demo@${domain}`,
+            },
+            health: { mode: LightdashMode.DEFAULT },
+        });
+
+        const nameInput = await screen.findByPlaceholderText('Acme Analytics');
+        await user.clear(nameInput);
+        await user.type(nameInput, 'Example');
+        if (domain === 'gmail.com') {
+            expect(
+                screen.queryByRole('checkbox', { name: /Let anyone/ }),
+            ).not.toBeInTheDocument();
+        } else {
+            const checkbox = screen.getByRole('checkbox', {
+                name: /Let anyone/,
+            });
+            expect(checkbox).not.toBeChecked();
+            for (let click = 0; click < clicks; click += 1) {
+                await user.click(checkbox);
+            }
+        }
+        await user.click(screen.getByRole('button', { name: 'Continue' }));
+        await selectRole(user);
+        await pickReferral(user, 'a podcast');
+
+        const scope = nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete', {
+                organizationName: 'Example',
+                firstName: 'David',
+                lastName: 'Attenborough',
+                jobTitle: 'Software Engineer',
+                howDidYouHearAboutUs: 'a podcast',
+                enableEmailDomainAccess: enabled,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            })
+            .reply(200);
+
+        await user.click(screen.getByRole('button', { name: 'Continue' }));
+        await waitFor(() => expect(scope.isDone()).toBe(true));
+    });
+
     it('does not ask invited members how they heard about us', async () => {
         const user = userEvent.setup();
 
@@ -260,7 +334,7 @@ describe('OrganizationSetup', () => {
                 lastName: 'Attenborough',
                 jobTitle: 'Software Engineer',
                 howDidYouHearAboutUs: 'a podcast',
-                enableEmailDomainAccess: true,
+                enableEmailDomainAccess: false,
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
             })
@@ -736,7 +810,7 @@ describe('OrganizationSetup', () => {
                 lastName: 'Attenborough',
                 jobTitle: 'Software Engineer',
                 howDidYouHearAboutUs: 'Podcast',
-                enableEmailDomainAccess: true,
+                enableEmailDomainAccess: false,
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
             })

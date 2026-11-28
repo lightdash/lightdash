@@ -158,7 +158,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
             lastName: user.lastName,
             jobTitle: '',
             howDidYouHearAboutUs: '',
-            enableEmailDomainAccess: canEnableEmailDomainAccess,
+            enableEmailDomainAccess: false,
             isMarketingOptedIn: true,
             isTrackingAnonymized: false,
         },
