@@ -79,10 +79,7 @@ type ComposerChartDeletedItem = Extract<
     { contentType: ContentType.COMPOSER_CHART }
 >;
 
-/**
- * `isChartType` and a composer chart's `slug` are presentation-only (the
- * builder route; the page link) — both are stripped before the API call.
- */
+/** `isChartType` picks the builder route and `slug` the chart page link. */
 export type RestoreDeletedContentItem =
     | (Exclude<DeletedContentItem, ComposerChartDeletedItem> & {
           isChartType?: boolean;
