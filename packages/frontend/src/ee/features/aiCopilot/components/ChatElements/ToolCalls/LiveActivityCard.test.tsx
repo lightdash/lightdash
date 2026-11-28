@@ -540,7 +540,15 @@ describe('LiveActivityCard approval behind a later call', () => {
     });
 
     it('shows a chart run behind a pending edit as still running', async () => {
-        const toolGroups = [composerEdit, chartRun];
+        const streamingChartRun: LiveActivityToolGroup = {
+            ...chartRun,
+            calls: chartRun.calls.map((call) => ({
+                ...call,
+                toolOutput: { result: 'partial' },
+                isPreliminary: true,
+            })),
+        };
+        const toolGroups = [composerEdit, streamingChartRun];
         const { rerender, container } = renderWithProviders(
             <Provider store={store}>
                 <LiveActivityCard

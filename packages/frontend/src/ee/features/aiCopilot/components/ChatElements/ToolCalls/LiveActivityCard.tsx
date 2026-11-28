@@ -54,6 +54,7 @@ import {
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
 import { stripMarkdown } from './utils/stripMarkdown';
+import { isToolCallSettled } from './utils/toolCallFailure';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { type ToolCallSummary } from './utils/types';
 
@@ -785,13 +786,7 @@ export const LiveActivityCard: FC<Props> = ({
     const isRunningBehindLead = (group: LiveActivityToolGroup) =>
         latest !== null &&
         toolGroups.indexOf(group) > toolGroups.indexOf(latest) &&
-        group.calls.some(
-            (call) =>
-                call.toolOutput === undefined &&
-                !toolResults?.some(
-                    (result) => result.toolCallId === call.toolCallId,
-                ),
-        );
+        group.calls.some((call) => !isToolCallSettled(call, toolResults));
     const olderCount = olderGroups.reduce(
         (sum, group) => sum + group.calls.length,
         0,
