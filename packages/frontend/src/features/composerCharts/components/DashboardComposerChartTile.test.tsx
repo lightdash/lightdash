@@ -265,7 +265,11 @@ describe('DashboardComposerChartTile with a stored series type this build does n
         drawMocks.chartType = ChartType.CARTESIAN;
         drawMocks.drawThrows = true;
         await openMenu();
+        expect(screen.getAllByTestId('composer-chart-error')).toHaveLength(1);
         fireEvent.click(screen.getByRole('menuitem', { name: 'View lineage' }));
-        expect(await screen.findByTestId('tile-icon-more')).toBeInTheDocument();
+        expect(
+            await screen.findAllByTestId('composer-chart-error'),
+        ).toHaveLength(2);
+        expect(screen.getByTestId('tile-icon-more')).toBeInTheDocument();
     });
 });

@@ -309,18 +309,17 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
         : {};
 
     // The Lineage panel draws the chart too, outside the tile body
-    const withChartBoundary = (chartNode: ReactNode) => (
+    const withChartBoundary = (
+        chartNode: ReactNode,
+        renderError: (message: string) => ReactNode,
+    ) => (
         <Sentry.ErrorBoundary
             beforeCapture={(scope) => scope.setTags(COMPOSER_CHART_SENTRY_TAGS)}
-            fallback={({ error }) => (
-                <TileError
-                    tileUuid={tile.uuid}
-                    minimal={minimal}
-                    message={
-                        error instanceof Error ? error.message : String(error)
-                    }
-                />
-            )}
+            fallback={({ error }) =>
+                renderError(
+                    error instanceof Error ? error.message : String(error),
+                )
+            }
         >
             {chartNode}
         </Sentry.ErrorBoundary>
@@ -401,6 +400,13 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                         onScreenshotError={handleScreenshotError}
                         setEchartsRef={setEchartRef}
                     />,
+                    (message) => (
+                        <TileError
+                            tileUuid={tile.uuid}
+                            minimal={minimal}
+                            message={message}
+                        />
+                    ),
                 )
             )}
             {chart && projectUuid && (
@@ -429,6 +435,12 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                                       onScreenshotReady={noop}
                                       onScreenshotError={noop}
                                   />,
+                                  (message) => (
+                                      <ComposerTileErrorState
+                                          message={message}
+                                          minimal={false}
+                                      />
+                                  ),
                               )
                             : null
                     }
