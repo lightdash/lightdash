@@ -74,6 +74,7 @@ import { ComposerChartVisualization } from './ComposerChartVisualization';
 import { ComposerTileLineage } from './ComposerTileLineage';
 
 const noop = () => {};
+const NO_RUN_PARAMETERS: Record<string, ParametersValuesMap> = {};
 
 const toErrorDetail = (message: string): ApiErrorDetail => ({
     name: 'Error',
@@ -429,7 +430,10 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                 >
                     <Box className={styles.lineage}>
                         <ComposerRunParametersContext.Provider
-                            value={run?.usedParameterValuesByNodeId ?? {}}
+                            value={
+                                run?.usedParameterValuesByNodeId ??
+                                NO_RUN_PARAMETERS
+                            }
                         >
                             <ComposerTileLineage
                                 projectUuid={projectUuid}
