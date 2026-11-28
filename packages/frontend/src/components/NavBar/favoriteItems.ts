@@ -18,6 +18,7 @@ const FAVORITE_ROUTE_SEGMENT: Record<ResourceViewItemType, string> = {
     [ResourceViewItemType.SPACE]: 'spaces',
     [ResourceViewItemType.DATA_APP]: 'apps',
     [ResourceViewItemType.DOCUMENT]: 'documents',
+    [ResourceViewItemType.COMPOSER_CHART]: 'composer-charts',
 };
 
 export const getFavoriteItemUrl = (
@@ -40,6 +41,8 @@ export const getFavoriteItemUrl = (
                 item.data.uuid,
                 item.data.slug,
             );
+        case ResourceViewItemType.COMPOSER_CHART:
+            return `/projects/${projectUuid}/${FAVORITE_ROUTE_SEGMENT[item.type]}/${item.data.uuid}`;
         default:
             return assertUnreachable(item, `Unknown favorite item type`);
     }
@@ -50,6 +53,7 @@ export const getFavoriteItemIcon = (item: ResourceViewItem) => {
         case ResourceViewItemType.DASHBOARD:
             return IconLayoutDashboard;
         case ResourceViewItemType.CHART:
+        case ResourceViewItemType.COMPOSER_CHART:
             return IconChartAreaLine;
         case ResourceViewItemType.SPACE:
             return IconFolder;

@@ -181,6 +181,10 @@ export type DeletedContentItem =
     | {
           uuid: string;
           contentType: ContentType.DATA_APP;
+      }
+    | {
+          uuid: string;
+          contentType: ContentType.COMPOSER_CHART;
       };
 
 export type ApiRestoreContentBody = {

@@ -25,6 +25,7 @@ type VerifiedContentGuardDeps = {
 const contentTypeLabel = (contentType: ContentType): string => {
     switch (contentType) {
         case ContentType.CHART:
+        case ContentType.COMPOSER_CHART:
             return 'chart';
         case ContentType.DASHBOARD:
             return 'dashboard';

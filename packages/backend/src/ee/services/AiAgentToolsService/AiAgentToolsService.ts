@@ -87,6 +87,7 @@ import {
     type AppExternalConnectionLink,
     type ChartAsCode,
     type ComposerChartAsCode,
+    type ComposerChartContent,
     type ComposerChartPipeline,
     type ComposerStoredChart,
     type ComposerStoredChartAsCode,
@@ -7180,6 +7181,12 @@ export class AiAgentToolsService extends BaseService {
                             agentSpaceAccess,
                             item.uuid,
                         ),
+                )
+                .filter(
+                    (
+                        item,
+                    ): item is Exclude<typeof item, ComposerChartContent> =>
+                        item.contentType !== ContentType.COMPOSER_CHART,
                 )
                 .map((item): AgentListContentItem => {
                     if (item.contentType === ContentType.SPACE) {

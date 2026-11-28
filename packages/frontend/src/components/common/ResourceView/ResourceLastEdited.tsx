@@ -1,5 +1,6 @@
 import {
     type ResourceViewChartItem,
+    type ResourceViewComposerChartItem,
     type ResourceViewDashboardItem,
     type ResourceViewDataAppItem,
     type ResourceViewDocumentItem,
@@ -14,7 +15,8 @@ interface ResourceLastEditedProps {
         | ResourceViewChartItem
         | ResourceViewDashboardItem
         | ResourceViewDocumentItem
-        | ResourceViewDataAppItem;
+        | ResourceViewDataAppItem
+        | ResourceViewComposerChartItem;
 }
 
 const ResourceLastEdited: FC<ResourceLastEditedProps> = ({

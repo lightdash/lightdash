@@ -76,7 +76,11 @@ export interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommo
 
 type ExistingResourceViewItem = Exclude<
     ResourceViewItem,
-    { type: ResourceViewItemType.DOCUMENT }
+    {
+        type:
+            | ResourceViewItemType.DOCUMENT
+            | ResourceViewItemType.COMPOSER_CHART;
+    }
 >;
 
 type ResourceAccessContext = {
@@ -611,11 +615,18 @@ const ExistingResourceViewActionMenu: FC<
     );
 };
 
-const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = (props) =>
-    props.item.type === ResourceViewItemType.DOCUMENT ? (
-        <DocumentResourceActionMenu {...props} item={props.item} />
-    ) : (
-        <ExistingResourceViewActionMenu {...props} item={props.item} />
-    );
+const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = (props) => {
+    switch (props.item.type) {
+        case ResourceViewItemType.DOCUMENT:
+            return <DocumentResourceActionMenu {...props} item={props.item} />;
+        // Composer chart actions arrive with the lifecycle work.
+        case ResourceViewItemType.COMPOSER_CHART:
+            return null;
+        default:
+            return (
+                <ExistingResourceViewActionMenu {...props} item={props.item} />
+            );
+    }
+};
 
 export default ResourceViewActionMenu;

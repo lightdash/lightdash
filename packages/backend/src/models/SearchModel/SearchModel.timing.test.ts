@@ -33,6 +33,7 @@ const emptyResults: SearchResults = {
     dashboardTabs: [],
     dataApps: [],
     documents: [],
+    composerCharts: [],
 };
 
 type SearchModelInternals = {
@@ -98,6 +99,7 @@ const installOrchestrationMocks = (
 
     Object.assign(model, {
         searchDocuments: vi.fn().mockResolvedValue([]),
+        searchComposerCharts: vi.fn().mockResolvedValue([]),
         searchSpaces,
         searchDashboards,
         searchSavedCharts,

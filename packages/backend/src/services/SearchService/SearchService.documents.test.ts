@@ -98,6 +98,7 @@ const setup = ({ granted = true } = {}) => {
         tables: [],
         pages: [],
         dataApps: [],
+        composerCharts: [],
     };
     const searchModel = { search: vi.fn().mockResolvedValue(results) };
     const service = new SearchService({
@@ -107,6 +108,7 @@ const setup = ({ granted = true } = {}) => {
         analytics: { track: vi.fn() } as never,
         spaceModel: {} as never,
         featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: true }),
             getDisabledLiveIntegrations: vi.fn().mockResolvedValue(new Set()),
         },
         userAttributesModel: {} as never,

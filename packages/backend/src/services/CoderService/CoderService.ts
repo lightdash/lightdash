@@ -5436,6 +5436,7 @@ export class CoderService extends BaseService {
             }
             case ContentType.SPACE:
             case ContentType.DOCUMENT:
+            case ContentType.COMPOSER_CHART:
                 throw new NotImplementedError(
                     `Slug renaming is not supported for resource type "${resourceType}" yet`,
                 );

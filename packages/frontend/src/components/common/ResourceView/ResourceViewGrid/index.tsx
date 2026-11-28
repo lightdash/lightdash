@@ -144,6 +144,8 @@ const ResourceCard: FC<ResourceCardProps> = ({
                     dragIcon={dragIcon}
                 />
             );
+        case ResourceViewItemType.COMPOSER_CHART:
+            return null;
         default:
             return assertUnreachable(item, `Resource type not supported`);
     }

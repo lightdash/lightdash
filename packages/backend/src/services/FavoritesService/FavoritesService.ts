@@ -4,6 +4,7 @@ import {
     ContentType,
     DirectAccessResourceType,
     ForbiddenError,
+    NotSupportedError,
     ParameterError,
     ResourceViewItemType,
     type FavoriteItems,
@@ -218,6 +219,10 @@ export class FavoritesService extends BaseService {
                 canViewContent = true;
                 break;
             }
+            case ContentType.COMPOSER_CHART:
+                throw new NotSupportedError(
+                    'Favoriting composer charts is not supported',
+                );
             default:
                 return assertUnreachable(
                     contentType,
