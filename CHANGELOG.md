@@ -1,3 +1,15 @@
+# [3.448.0](https://github.com/lightdash/lightdash/compare/3.447.0...3.448.0) (2026-11-28)
+
+
+### Bug Fixes
+
+* **composer-charts:** handle bad chart input from api and agent clients ([#33619](https://github.com/lightdash/lightdash/issues/33619)) ([4cb526e](https://github.com/lightdash/lightdash/commit/4cb526e25eefc15ad54ba1ba2b066260c0cb7e8a))
+
+
+### Features
+
+* **composer:** a composer tile keeps its place when its chart is permanently deleted ([#33614](https://github.com/lightdash/lightdash/issues/33614)) ([10c5043](https://github.com/lightdash/lightdash/commit/10c504309c93614185762b5709de841586b30204))
+
 # [3.447.0](https://github.com/lightdash/lightdash/compare/3.446.0...3.447.0) (2026-11-28)
 
 
