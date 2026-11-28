@@ -578,7 +578,7 @@ export class ComposerChartService extends BaseService {
             : data.owner;
         if (!owner) {
             throw new ParameterError(
-                `Composer chart "${data.slug}" needs a dashboard or a space to belong to`,
+                `Composer chart "${data.slug}" must belong to a dashboard or a space`,
             );
         }
         const { pipeline, chart } = await this.authorizeWrite(

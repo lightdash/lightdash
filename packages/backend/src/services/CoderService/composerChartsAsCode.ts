@@ -128,12 +128,12 @@ export const assertComposerChartOwnerTypeKept = (
         case 'dashboard':
             if (fileDashboardSlug !== null) return;
             throw new ComposerChartOwnerChangeError(
-                `Composer chart "${slug}" belongs to a dashboard, so a file with no dashboardSlug cannot move it to a space. Move it with "Move to space" in its tile menu, or with POST /api/v2/content/{projectUuid}/move.`,
+                `Composer chart "${slug}" belongs to a dashboard. You cannot move it to a space by uploading a file without dashboardSlug. Use "Move to space" in its tile menu, or call POST /api/v2/content/{projectUuid}/move.`,
             );
         case 'space':
             if (fileDashboardSlug === null) return;
             throw new ComposerChartOwnerChangeError(
-                `Composer chart "${slug}" belongs to a space, so a file cannot put it on dashboard "${fileDashboardSlug}". Remove dashboardSlug to keep it in a space; spaceSlug moves it between spaces.`,
+                `Composer chart "${slug}" belongs to a space. You cannot move it to dashboard "${fileDashboardSlug}" by uploading a file. Remove dashboardSlug to keep it in a space. Change spaceSlug to move it between spaces.`,
             );
         default:
             return assertUnreachable(existing, 'Unknown composer chart owner');
