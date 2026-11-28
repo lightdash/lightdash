@@ -3809,8 +3809,8 @@ export class CoderService extends BaseService {
         );
         const dashboardSlug = file.dashboardSlug ?? null;
         const live = existing && !existing.deleted ? existing : null;
-        // View first, so a slug in a hidden space says nothing about its chart
-        if (live?.owner.type === 'space') {
+        // View first, so a hidden chart's owner is never named
+        if (live && (live.owner.type === 'space' || dashboardSlug === null)) {
             await this.composerChartService.assertCanView(
                 account,
                 projectUuid,
@@ -3917,41 +3917,32 @@ export class CoderService extends BaseService {
     ): Promise<ComposerChartAsCode> {
         const stored = await this.composerChartModel.get(live.uuid);
         const { owner } = live;
-        switch (owner.type) {
-            case 'dashboard': {
-                const [current] = await this.getComposerChartsAsCode(
-                    projectUuid,
-                    [
-                        {
-                            ...stored,
-                            dashboardSlug: file.dashboardSlug,
-                            spaceSlug: '',
-                        },
-                    ],
-                );
-                return current;
+        const getSlugs = async () => {
+            switch (owner.type) {
+                case 'dashboard':
+                    return { dashboardSlug: file.dashboardSlug, spaceSlug: '' };
+                case 'space':
+                    return {
+                        dashboardSlug: null,
+                        spaceSlug: getContentAsCodePathFromLtreePath(
+                            (
+                                await this.spaceModel.getSpaceSummary(
+                                    owner.spaceUuid,
+                                )
+                            ).path,
+                        ),
+                    };
+                default:
+                    return assertUnreachable(
+                        owner,
+                        'Unknown composer chart owner',
+                    );
             }
-            case 'space': {
-                const space = await this.spaceModel.getSpaceSummary(
-                    owner.spaceUuid,
-                );
-                const [current] = await this.getComposerChartsAsCode(
-                    projectUuid,
-                    [
-                        {
-                            ...stored,
-                            dashboardSlug: null,
-                            spaceSlug: getContentAsCodePathFromLtreePath(
-                                space.path,
-                            ),
-                        },
-                    ],
-                );
-                return current;
-            }
-            default:
-                return assertUnreachable(owner, 'Unknown composer chart owner');
-        }
+        };
+        const [current] = await this.getComposerChartsAsCode(projectUuid, [
+            { ...stored, ...(await getSlugs()) },
+        ]);
+        return current;
     }
 
     /** Creates or revives a chart in the file's space, or writes a live one and moves it there; every check runs before any write. */
@@ -3990,24 +3981,15 @@ export class CoderService extends BaseService {
             );
             return space.uuid;
         };
-        const targetExists =
-            (await this.findAccessibleSpace(
-                projectUuid,
-                file.spaceSlug,
-                user,
-            )) !== undefined;
-
         if (live === null) {
-            if (!targetExists) {
-                await this.assertContentAccessForMissingSpace({
-                    user,
-                    auditedAbility,
-                    projectUuid,
-                    spaceSlug: file.spaceSlug,
-                    subjectType: 'SavedChart',
-                    errorMessage: `You don't have access to create charts in space "${file.spaceSlug}"`,
-                });
-            }
+            await this.assertContentAccessForMissingSpace({
+                user,
+                auditedAbility,
+                projectUuid,
+                spaceSlug: file.spaceSlug,
+                subjectType: 'SavedChart',
+                errorMessage: `You don't have access to create charts in space "${file.spaceSlug}"`,
+            });
             await this.composerChartService.preflightWrite(account, project, {
                 pipeline: file.pipeline,
                 chart,
@@ -4045,25 +4027,23 @@ export class CoderService extends BaseService {
         }
         let targetSpaceUuid: string | null = null;
         if (file.spaceSlug !== current.spaceSlug) {
-            if (!targetExists) {
-                await this.assertContentAccessForMissingSpace({
-                    user,
-                    auditedAbility,
-                    projectUuid,
-                    spaceSlug: file.spaceSlug,
-                    subjectType: 'SavedChart',
-                    action: 'update',
-                    metadata: { composerChartUuid: live.uuid },
-                    errorMessage: `You don't have access to update chart "${slug}"`,
-                });
-                // Write on the source before a missing target is created
-                await this.composerChartService.preflightSpaceChartEdit(
-                    account,
-                    projectUuid,
-                    live.uuid,
-                    { targetSpaceUuid: null },
-                );
-            }
+            await this.assertContentAccessForMissingSpace({
+                user,
+                auditedAbility,
+                projectUuid,
+                spaceSlug: file.spaceSlug,
+                subjectType: 'SavedChart',
+                action: 'update',
+                metadata: { composerChartUuid: live.uuid },
+                errorMessage: `You don't have access to update chart "${slug}"`,
+            });
+            // Write on the source before a missing target is created
+            await this.composerChartService.preflightSpaceChartEdit(
+                account,
+                projectUuid,
+                live.uuid,
+                { targetSpaceUuid: null },
+            );
             targetSpaceUuid = await getOrCreateSpace();
             await this.composerChartService.preflightSpaceChartEdit(
                 account,

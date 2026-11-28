@@ -279,6 +279,7 @@ describe('CoderService composer chart upsert for the agent', () => {
             },
             composerChartService: {
                 isEnabled: vi.fn(async () => true),
+                assertCanView: vi.fn(async () => ({})),
                 writeFromCode,
             },
         } as AnyType);
@@ -580,22 +581,35 @@ describe('CoderService composer chart upload into a space', () => {
         expect(chartService.moveToSpace).not.toHaveBeenCalled();
     });
 
-    it('refuses a chart in a space the uploader cannot view before naming its owner', async () => {
-        const { upload, chartService } = setup({
-            existing: liveInJaffle,
-            composerChartService: {
-                assertCanView: vi.fn(async () => {
-                    throw new ForbiddenError(
-                        "You don't have permission to view this composer chart",
-                    );
-                }),
+    it.each([
+        ['a space chart, onto a dashboard', liveInJaffle, 'ops'],
+        [
+            'a dashboard chart, into a space',
+            {
+                ...liveInJaffle,
+                owner: { type: 'dashboard', dashboardUuid: 'd' },
             },
-        });
-        await expect(
-            upload({ ...spaceFile('jaffle'), dashboardSlug: 'ops' }),
-        ).rejects.toThrow('view this composer chart');
-        expect(chartService.writeFromCode).not.toHaveBeenCalled();
-    });
+            null,
+        ],
+    ])(
+        'refuses %s the uploader cannot view before naming its owner',
+        async (_, existing, dashboardSlug) => {
+            const { upload, chartService } = setup({
+                existing,
+                composerChartService: {
+                    assertCanView: vi.fn(async () => {
+                        throw new ForbiddenError(
+                            "You don't have permission to view this composer chart",
+                        );
+                    }),
+                },
+            });
+            await expect(
+                upload({ ...spaceFile('jaffle'), dashboardSlug }),
+            ).rejects.toThrow('view this composer chart');
+            expect(chartService.writeFromCode).not.toHaveBeenCalled();
+        },
+    );
 
     it.each([
         ['a new chart', null, spaceFile()],
