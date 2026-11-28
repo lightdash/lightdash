@@ -1,0 +1,107 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": null,
+    "title": "Multi-step turn by slug: read, edit, then answer with a chip",
+    "covers": [
+      "#33606",
+      "#33612",
+      "content link chips"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "Add a description to the Emulator space payments chart saying what it counts.",
+    "expect": [
+      "three model steps: readContent, editContent, text",
+      "the description saves without a new version",
+      "the chip opens the chart, showing the description"
+    ],
+    "readBack": [
+      "composer_charts.description set",
+      "three tool-call rows in order"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "read",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "readContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "readContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-space-payments"
+          }
+        }
+      ]
+    },
+    {
+      "id": "edit",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "editContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "editContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-space-payments",
+            "patch": [
+              {
+                "op": "replace",
+                "path": "/description",
+                "value": "Total payment amount per payment method."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "I added the description. [Emulator space payments](/projects/{{project}}/composer-charts/{{space_chart}})"
+        }
+      ]
+    }
+  ]
+}

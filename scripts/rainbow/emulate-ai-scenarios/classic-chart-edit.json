@@ -1,0 +1,84 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": null,
+    "title": "Twin: agent renames a classic chart",
+    "covers": [
+      "#33612 regression"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "Rename the Emulator classic payments chart to Revenue by payment method (emulator).",
+    "expect": [
+      "editContent saves; the chart's name changes",
+      "the chip opens the classic preview"
+    ],
+    "readBack": [
+      "saved_queries.name changed"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "edit",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "editContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "editContent",
+          "arguments": {
+            "type": "chart",
+            "slug": "emulator-classic-payments",
+            "patch": [
+              {
+                "op": "replace",
+                "path": "/name",
+                "value": "Revenue by payment method (emulator)"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "Renamed. [Emulator classic payments](/projects/{{project}}/saved/{{classic_chart}}/view)"
+        }
+      ]
+    }
+  ]
+}

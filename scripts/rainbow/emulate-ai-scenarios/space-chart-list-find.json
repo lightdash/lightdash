@@ -1,0 +1,104 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": null,
+    "title": "Agent lists and finds a space holding classic, SQL and composer charts; every link opens",
+    "covers": [
+      "#33606",
+      "#33549",
+      "content link chips"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "Which charts are in the Emulator scenarios space?",
+    "expect": [
+      "listContent items include Emulator space payments (chartSource composer, href /composer-charts/<uuid>), Emulator SQL payments (chartSource sql, href /sql-runner/emulator-sql-payments), Emulator classic payments (chartSource saved, href /saved/<uuid>/view) and the dashboard; no dashboard-owned composer chart",
+      "findContent returns Emulator space payments",
+      "four chips: the classic chip opens the side preview, the SQL and composer chips open their pages, the dashboard chip opens the dashboard"
+    ],
+    "readBack": [
+      "the two tool results as stored"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "list",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "listContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "listContent",
+          "arguments": {
+            "spaceSlug": "emulator-scenarios",
+            "page": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "find",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "findContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "findContent",
+          "arguments": {
+            "searchQueries": [
+              {
+                "label": "Emulator space payments"
+              }
+            ],
+            "spaceSlug": null,
+            "verifiedOnly": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "The Emulator scenarios space holds four items:\n\n- [Emulator space payments](/projects/{{project}}/composer-charts/{{space_chart}})\n- [Emulator SQL payments](/projects/{{project}}/sql-runner/emulator-sql-payments)\n- [Emulator classic payments](/projects/{{project}}/saved/{{classic_chart}}/view)\n- [Emulator dashboard](/projects/{{project}}/dashboards/{{dashboard}}/view)"
+        }
+      ]
+    }
+  ]
+}

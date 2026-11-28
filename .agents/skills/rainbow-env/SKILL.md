@@ -41,6 +41,19 @@ A `create_env` that changes the dependency layer rebuilds the parent and takes m
 - Outbound calls fail by policy unless `rainbow.toml` `[[egress.allow]]` admits the host; `egress` lists what was refused.
 - Live data sources: previews have Hydra, a test integration that needs no credentials or egress. How to add and drive one: `packages/backend/src/services/QuerySourceService/live/integrations/hydra/AGENTS.md`.
 
+## Emulated model scenarios
+
+`emulate-ai` (`rainbow.toml`) stands in for the model with fixed replies, so an agent turn calls the same tools every run. It proves what the app does with given tool calls, not what a real model would choose. Opt the env in once: `set_env` with `AI_DEFAULT_PROVIDER=openai` and `OPENAI_BASE_URL=http://localhost:4014/v1`; `unset` both to opt out.
+
+Each file in `scripts/rainbow/emulate-ai-scenarios/` is one scenario: its prompt, persona, approval decision and expected outcome, plus the replies. Replies are keyed on step order and tool names, never on prompt text. In the guest, from `/usr/app`:
+
+- `python3 scripts/rainbow/emulate-ai-scenarios/scenario.py list`
+- `... install <name>` rebuilds the fixtures (spaces `Emulator scenarios` and `Emulator private`, their charts, `Emulated scenarios agent` with SQL approval on), sets `composer-charts` as the scenario needs, loads its replies and prints the prompt. Then send the prompt in the UI as the named persona.
+- `... run <name>` installs and drives the turn through the API as the persona, answering any approval as the scenario says, and prints the tool calls and answer.
+- `... reset` restores `scripts/rainbow/emulate-ai.yaml` replies and the flag; `--clean` also removes the fixtures.
+
+Install again before every run: replies fire once each, and edits change the fixtures. A new scenario copies an existing file; `{{name}}` placeholders take the fixture uuids `install` prints.
+
 ## Exports
 
 Image and PDF exports, chart images and deliveries with images use the `headless-browser` service: browserless, the version production runs, on `localhost:3001`. It loads the app from `http://localhost:8080`. Read its log with `logs` and service `headless-browser`; the backend logs captures in `dev`.

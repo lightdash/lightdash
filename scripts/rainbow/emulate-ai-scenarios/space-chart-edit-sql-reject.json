@@ -1,0 +1,88 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": "rejected",
+    "title": "Agent edits a space-owned composer chart's SQL; the user rejects",
+    "covers": [
+      "#33612",
+      "SQL approval"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "Only count payments of at least 10 in the Emulator space payments chart.",
+    "expect": [
+      "the approval card shows the new SQL",
+      "after Reject, editContent reports rejected",
+      "the chart keeps its version and SQL",
+      "the answer streams and the thread ends idle"
+    ],
+    "readBack": [
+      "composer_chart_versions unchanged",
+      "ai_sql_approval row rejected"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "edit",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "editContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "editContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-space-payments",
+            "patch": [
+              {
+                "op": "replace",
+                "path": "/pipeline/nodes/0/sql",
+                "value": "SELECT payment_method, SUM(amount) AS total_amount FROM postgres.jaffle.payments WHERE amount >= 10 GROUP BY 1"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "Understood, I left the chart as it was."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": "approved",
+    "title": "A user who can only view a space asks the agent to save a chart into it and is refused",
+    "covers": [
+      "#33617"
+    ],
+    "persona": "editor",
+    "startFrom": "the agent's chat page",
+    "prompt": "Save a chart of payments of at least 20 by method in Emulator view only.",
+    "expect": [
+      "createContent (a semantic layer node, no warehouse SQL, so no approval) is refused for lack of edit rights",
+      "nothing is saved; the answer streams and the thread ends idle"
+    ],
+    "readBack": [
+      "no composer_charts row named Emulator created payments"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "create",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "createContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "createContent",
+          "arguments": {
+            "type": "composer_chart",
+            "content": {
+              "from": "json",
+              "name": "Emulator created payments",
+              "description": null,
+              "spaceSlug": "emulator-view-only",
+              "dashboardSlug": null,
+              "pipeline": {
+                "schemaVersion": 1,
+                "terminalNodeId": "payments",
+                "nodes": [
+                  {
+                    "nodeId": "payments",
+                    "title": "Payments",
+                    "sourceType": "semanticLayer",
+                    "exploreName": "payments",
+                    "dimensions": [
+                      "payments_payment_method"
+                    ],
+                    "metrics": [
+                      "payments_total_revenue"
+                    ]
+                  }
+                ]
+              },
+              "chart": {
+                "schemaVersion": 1,
+                "columns": [
+                  {
+                    "reference": "payments_payment_method",
+                    "fieldType": "dimension"
+                  },
+                  {
+                    "reference": "payments_total_revenue",
+                    "fieldType": "metric"
+                  }
+                ],
+                "chartConfig": {
+                  "type": "table",
+                  "config": {}
+                },
+                "pivotConfig": null,
+                "tableConfig": {
+                  "columnOrder": [
+                    "payments_payment_method",
+                    "payments_total_revenue"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "I can't save charts in that space for you."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": null,
+    "title": "Edit calls with invalid arguments fail, the turn recovers and nothing is saved",
+    "covers": [
+      "#33612",
+      "#33619"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "Turn the Emulator space payments chart into a sparkline.",
+    "expect": [
+      "the first editContent (type composer, not in the enum) fails input validation",
+      "the second editContent (unknown series type) is refused by validation",
+      "the third editContent (patch path that does not exist) is refused",
+      "no approval card; the answer streams; the thread ends idle"
+    ],
+    "readBack": [
+      "composer_chart_versions unchanged",
+      "three error tool results"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "bad-type",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "editContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "editContent",
+          "arguments": {
+            "type": "composer",
+            "slug": "emulator-space-payments",
+            "patch": [
+              {
+                "op": "replace",
+                "path": "/name",
+                "value": "Sparkline"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "bad-series",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "editContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "editContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-space-payments",
+            "patch": [
+              {
+                "op": "replace",
+                "path": "/chart/chartConfig/config/eChartsConfig",
+                "value": {
+                  "series": [
+                    {
+                      "type": "sparkline"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "bad-path",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "editContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "editContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-space-payments",
+            "patch": [
+              {
+                "op": "replace",
+                "path": "/pipeline/nodes/7/sql",
+                "value": "SELECT payment_method, SUM(amount) AS total_amount FROM postgres.jaffle.payments WHERE amount >= 10 GROUP BY 1"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "I couldn't make that change: composer charts have no sparkline type. The chart is unchanged."
+        }
+      ]
+    }
+  ]
+}

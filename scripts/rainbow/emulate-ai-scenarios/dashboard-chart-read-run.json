@@ -1,0 +1,125 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": null,
+    "title": "Twin: agent reads and runs a dashboard-owned composer chart",
+    "covers": [
+      "#33606 regression"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "What does the payments chart on the Emulator dashboard show?",
+    "expect": [
+      "readContent returns the chart with dashboardSlug emulator-dashboard and an href to the dashboard",
+      "runContentQuery with source chart is refused, naming source type dashboardChart",
+      "runContentQuery with source dashboardChart returns rows",
+      "the dashboard chip opens the dashboard and both tiles settle (the bad series tile shows its own state)"
+    ],
+    "readBack": [
+      "three tool results",
+      "a query_history row for the tile run"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "read",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "readContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "readContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-dashboard-payments"
+          }
+        }
+      ]
+    },
+    {
+      "id": "run-as-chart",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "runContentQuery"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "runContentQuery",
+          "arguments": {
+            "source": {
+              "type": "chart",
+              "chartType": "composer_chart",
+              "chartSlug": "emulator-dashboard-payments"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "run-as-tile",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "runContentQuery"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "runContentQuery",
+          "arguments": {
+            "source": {
+              "type": "dashboardChart",
+              "chartType": "composer_chart",
+              "chartSlug": "emulator-dashboard-payments",
+              "dashboardSlug": "emulator-dashboard"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "The dashboard's chart totals payment amounts by method: [Emulator dashboard](/projects/{{project}}/dashboards/{{dashboard}}/view)."
+        }
+      ]
+    }
+  ]
+}

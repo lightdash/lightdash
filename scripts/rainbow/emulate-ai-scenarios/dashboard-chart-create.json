@@ -1,0 +1,129 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": "approved",
+    "title": "Twin: agent creates a composer chart onto a dashboard",
+    "covers": [
+      "#33617 regression"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "Add a chart of payments of at least 20 by method to the Emulator dashboard.",
+    "expect": [
+      "approval card first",
+      "createContent adds a tile at the bottom of the dashboard",
+      "the chip opens the dashboard with three tiles"
+    ],
+    "readBack": [
+      "composer_charts row owned by the dashboard",
+      "a new dashboard tile"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "create",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "createContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "createContent",
+          "arguments": {
+            "type": "composer_chart",
+            "content": {
+              "from": "json",
+              "name": "Emulator created payments",
+              "description": null,
+              "dashboardSlug": "emulator-dashboard",
+              "spaceSlug": null,
+              "pipeline": {
+                "schemaVersion": 1,
+                "terminalNodeId": "payments",
+                "nodes": [
+                  {
+                    "nodeId": "payments",
+                    "title": "Payments",
+                    "sourceType": "sql",
+                    "sql": "SELECT payment_method, SUM(amount) AS total_amount FROM postgres.jaffle.payments WHERE amount >= 20 GROUP BY 1"
+                  }
+                ]
+              },
+              "chart": {
+                "schemaVersion": 1,
+                "columns": [
+                  {
+                    "reference": "payment_method",
+                    "fieldType": "dimension"
+                  },
+                  {
+                    "reference": "total_amount",
+                    "fieldType": "metric"
+                  }
+                ],
+                "chartConfig": {
+                  "type": "cartesian",
+                  "config": {
+                    "layout": {
+                      "xField": "payment_method",
+                      "yField": [
+                        "total_amount"
+                      ]
+                    },
+                    "eChartsConfig": {}
+                  }
+                },
+                "pivotConfig": null,
+                "tableConfig": {
+                  "columnOrder": [
+                    "payment_method",
+                    "total_amount"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "Added. [Emulator dashboard](/projects/{{project}}/dashboards/{{dashboard}}/view)"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": null,
+    "title": "Ask AI on the chart page and on the space row starts a thread with the chart pinned",
+    "covers": [
+      "#33606"
+    ],
+    "persona": "admin",
+    "startFrom": "Ask AI on the Emulator space payments page, then again from its row in Emulator scenarios",
+    "prompt": "Summarise this chart.",
+    "expect": [
+      "the thread opens with the chart pinned in its context",
+      "the model request (emulator _ai/calls) carries the pinned chart's uuid",
+      "readContent succeeds and the answer chip opens the same chart"
+    ],
+    "readBack": [
+      "the prompt's stored context names the composer chart",
+      "emulator _ai/calls messages"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "read",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "readContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "readContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-space-payments"
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "This chart totals payments by method: [Emulator space payments](/projects/{{project}}/composer-charts/{{space_chart}})."
+        }
+      ]
+    }
+  ]
+}

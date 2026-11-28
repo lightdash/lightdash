@@ -1,0 +1,160 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "off",
+    "decision": null,
+    "title": "With composer-charts off the agent's composer tools behave as before the effort",
+    "covers": [
+      "flag off"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "List the Emulator scenarios space and read its charts.",
+    "expect": [
+      "listContent shows the classic and SQL charts and the dashboard, and no composer chart",
+      "readContent composer_chart of the space-owned and the dashboard-owned chart: not found",
+      "runContentQuery dashboardChart composer: not found",
+      "readContent of the classic chart succeeds",
+      "compare with the same rule file on a revision before the effort (856ef2e3ed): same results for everything except the space-owned chart, which did not exist"
+    ],
+    "readBack": [
+      "five tool results"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "list",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "listContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "listContent",
+          "arguments": {
+            "spaceSlug": "emulator-scenarios",
+            "page": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "read-space",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "readContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "readContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-space-payments"
+          }
+        }
+      ]
+    },
+    {
+      "id": "read-dashboard",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "readContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "readContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-dashboard-payments"
+          }
+        }
+      ]
+    },
+    {
+      "id": "run-tile",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "runContentQuery"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "runContentQuery",
+          "arguments": {
+            "source": {
+              "type": "dashboardChart",
+              "chartType": "composer_chart",
+              "chartSlug": "emulator-dashboard-payments",
+              "dashboardSlug": "emulator-dashboard"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "read-classic",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "readContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "readContent",
+          "arguments": {
+            "type": "chart",
+            "slug": "emulator-classic-payments"
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "Composer charts are not available here. The classic chart is [Emulator classic payments](/projects/{{project}}/saved/{{classic_chart}}/view)."
+        }
+      ]
+    }
+  ]
+}
