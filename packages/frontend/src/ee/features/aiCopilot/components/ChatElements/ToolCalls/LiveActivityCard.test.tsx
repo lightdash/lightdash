@@ -2,13 +2,16 @@ import { QuerySourceType } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mockedLightdashApi } from '../../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { store } from '../../../store';
 import {
     LiveActivityCard,
     type LiveActivityToolGroup,
 } from './LiveActivityCard';
+
+vi.mock('../../../../../../api');
 
 const buildComposerToolGroups = (
     toolName: 'query' | 'runComposerQueries',
@@ -374,6 +377,249 @@ describe('LiveActivityCard runSql', () => {
             <LiveActivityCard isLive={false} toolGroups={sqlToolGroups} />,
         );
         expect(screen.getByRole('button', { expanded: false })).toBeVisible();
+    });
+});
+
+describe('LiveActivityCard approval behind a later call', () => {
+    const thread = {
+        projectUuid: 'project',
+        agentUuid: 'agent',
+        threadUuid: 'thread',
+    };
+    const sqlGroup = (id: string, sql: string): LiveActivityToolGroup => ({
+        keyId: id,
+        toolName: 'runSql',
+        calls: [{ toolCallId: id, toolName: 'runSql', toolArgs: { sql } }],
+    });
+    const chartRun: LiveActivityToolGroup = {
+        keyId: 'chart-run',
+        toolName: 'runContentQuery',
+        calls: [
+            {
+                toolCallId: 'chart-run',
+                toolName: 'runContentQuery',
+                toolArgs: {
+                    source: { type: 'chart', chartSlug: 'revenue' },
+                },
+            },
+        ],
+    };
+    const composerEdit: LiveActivityToolGroup = {
+        keyId: 'composer-edit',
+        toolName: 'editContent',
+        calls: [
+            {
+                toolCallId: 'composer-edit',
+                toolName: 'editContent',
+                toolArgs: {
+                    type: 'composer_chart',
+                    slug: 'payments',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/pipeline/nodes/0/sql',
+                            value: 'select 1',
+                        },
+                    ],
+                },
+            },
+        ],
+    };
+
+    afterEach(() => {
+        window.sessionStorage.clear();
+        mockedLightdashApi.mockReset();
+    });
+
+    it('keeps the approval of an edit followed by a chart run in the same step', () => {
+        renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={[composerEdit, chartRun]}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: ['composer-edit'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+
+        expect(screen.getByText('awaiting approval')).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Reject' })).toBeVisible();
+        expect(screen.queryByText(/^Edited/)).not.toBeInTheDocument();
+    });
+
+    it('sends each decision for two approvals pending in one step', async () => {
+        mockedLightdashApi.mockResolvedValue(undefined);
+        renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={[
+                        sqlGroup('first', 'select 1'),
+                        chartRun,
+                        sqlGroup('second', 'select 2'),
+                    ]}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: ['first', 'second'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+
+        const approveButtons = screen.getAllByRole('button', {
+            name: 'Approve',
+        });
+        expect(approveButtons).toHaveLength(2);
+        await userEvent.click(approveButtons[0]);
+        await userEvent.click(
+            screen.getAllByRole('button', { name: 'Reject' })[1],
+        );
+
+        await waitFor(() =>
+            expect(mockedLightdashApi).toHaveBeenCalledTimes(2),
+        );
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/project/aiAgents/agent/threads/thread/tool-calls/first/sql-approval',
+                body: JSON.stringify({ decision: 'approved' }),
+            }),
+        );
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/project/aiAgents/agent/threads/thread/tool-calls/second/sql-approval',
+                body: JSON.stringify({ decision: 'rejected' }),
+            }),
+        );
+    });
+
+    it('keeps a decision in flight when the newer approval resolves first', async () => {
+        mockedLightdashApi.mockReturnValue(new Promise(() => undefined));
+        const toolGroups = [
+            sqlGroup('first', 'select 1'),
+            chartRun,
+            sqlGroup('second', 'select 2'),
+        ];
+        const { rerender } = renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={toolGroups}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: ['first', 'second'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+        await userEvent.click(
+            screen.getAllByRole('button', { name: 'Approve' })[0],
+        );
+
+        rerender(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={toolGroups}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: ['first'],
+                        decidedToolCallIds: ['second'],
+                    }}
+                />
+            </Provider>,
+        );
+
+        expect(screen.getByRole('button', { name: 'Reject' })).toBeDisabled();
+    });
+
+    it('shows a chart run behind a pending edit as still running', async () => {
+        const streamingChartRun: LiveActivityToolGroup = {
+            ...chartRun,
+            calls: chartRun.calls.map((call) => ({
+                ...call,
+                toolOutput: { result: 'partial' },
+                isPreliminary: true,
+            })),
+        };
+        const toolGroups = [composerEdit, streamingChartRun];
+        const { rerender, container } = renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={toolGroups}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: [],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+        await userEvent.click(screen.getByRole('button', { expanded: false }));
+
+        rerender(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={toolGroups}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: ['composer-edit'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+        expect(container.querySelector('[data-status="done"]')).toBeNull();
+        expect(
+            container.querySelector('[data-status="running"]'),
+        ).not.toBeNull();
+    });
+
+    it('collapses once the edit is decided and the turn ends', () => {
+        const toolGroups = [composerEdit, chartRun];
+        const { rerender } = renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={toolGroups}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: ['composer-edit'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+
+        rerender(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive={false}
+                    toolGroups={toolGroups}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: [],
+                        decidedToolCallIds: ['composer-edit'],
+                    }}
+                />
+            </Provider>,
+        );
+
+        expect(screen.getByRole('button', { expanded: false })).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'Approve' }),
+        ).not.toBeInTheDocument();
     });
 });
 

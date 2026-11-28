@@ -22,7 +22,7 @@ import {
     IconNotes,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
-import { useContext, useState, type FC, type ReactNode } from 'react';
+import { Fragment, useContext, useState, type FC, type ReactNode } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type ComposerQueryNodeStatus } from '../../../../../../features/composerCharts/lineage/composerNodeStatus';
@@ -54,6 +54,7 @@ import {
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
 import { stripMarkdown } from './utils/stripMarkdown';
+import { isToolCallSettled } from './utils/toolCallFailure';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { type ToolCallSummary } from './utils/types';
 
@@ -757,17 +758,39 @@ export const LiveActivityCard: FC<Props> = ({
     // row, so every tool group (including the last) belongs in the expandable
     // body so its description (e.g. SQL) stays reachable.
     const showSummaryHeader = !isActive;
-    const latest = showSummaryHeader ? null : toolGroups[toolGroups.length - 1];
-    const latestAwaitingApproval =
-        latest?.calls.some((call) =>
+    const isGroupAwaitingApproval = (group: LiveActivityToolGroup) =>
+        group.calls.some((call) =>
             pendingApprovalIds.includes(call.toolCallId),
-        ) ?? false;
+        );
+    // A call fired alongside a gated one can land after it; the gated one still leads.
+    const latest = showSummaryHeader
+        ? null
+        : (toolGroups.findLast(isGroupAwaitingApproval) ??
+          toolGroups[toolGroups.length - 1]);
+    const latestAwaitingApproval =
+        latest !== null && isGroupAwaitingApproval(latest);
     const totalCalls = toolGroups.reduce(
         (sum, group) => sum + group.calls.length,
         0,
     );
-    const olderGroups = latest ? toolGroups.slice(0, -1) : toolGroups;
-    const olderCount = latest ? totalCalls - latest.calls.length : totalCalls;
+    // Pending calls share one parent, so a card stays mounted when the lead changes.
+    const leadGroups = latest
+        ? toolGroups.filter(
+              (group) => group === latest || isGroupAwaitingApproval(group),
+          )
+        : [];
+    const olderGroups = toolGroups.filter(
+        (group) => !leadGroups.includes(group),
+    );
+    // Only a group the approval lead moved ahead of can still be running in the history.
+    const isRunningBehindLead = (group: LiveActivityToolGroup) =>
+        latest !== null &&
+        toolGroups.indexOf(group) > toolGroups.indexOf(latest) &&
+        group.calls.some((call) => !isToolCallSettled(call, toolResults));
+    const olderCount = olderGroups.reduce(
+        (sum, group) => sum + group.calls.length,
+        0,
+    );
     const hasExpandableBody = olderCount > 0 || hasReasoning;
     // Auto-expand while approval is pending so the user sees it immediately.
     const expanded =
@@ -811,6 +834,73 @@ export const LiveActivityCard: FC<Props> = ({
         return stepLabels.finished;
     };
     const headerMeta = getHeaderMeta();
+
+    const renderCallDescriptions = (group: LiveActivityToolGroup) => {
+        if (!isToolName(group.toolName)) return null;
+        const renderableCalls = group.calls
+            .map((tc) => {
+                const callBuiltInToolName = isToolName(tc.toolName)
+                    ? tc.toolName
+                    : null;
+                if (!callBuiltInToolName) return null;
+                const hasNoDescription =
+                    TOOLS_WITHOUT_LATEST_DESCRIPTION.has(callBuiltInToolName);
+                const trace =
+                    callBuiltInToolName === 'discoverFields'
+                        ? (getDiscoverFieldsTraceFromCall(tc) ??
+                          getDiscoverFieldsTrace(
+                              toolResults?.find(
+                                  (r) => r.toolCallId === tc.toolCallId,
+                              ),
+                              toolCalls,
+                          ))
+                        : null;
+                // Skip the wrapper entirely when there's nothing to show,
+                // otherwise expanding the card animates an empty box open/closed.
+                if (hasNoDescription && !trace) return null;
+                const awaitingApproval = pendingApprovalIds.includes(
+                    tc.toolCallId,
+                );
+                return (
+                    <Box
+                        key={tc.toolCallId}
+                        className={styles.latestDescription}
+                    >
+                        {!hasNoDescription && (
+                            <ToolCallDescription
+                                toolName={callBuiltInToolName}
+                                toolCall={tc}
+                                toolResult={toolResults?.find(
+                                    (result) =>
+                                        result.toolCallId === tc.toolCallId,
+                                )}
+                                composerNodeStatuses={
+                                    isActive
+                                        ? getComposerNodeStatuses(
+                                              tc,
+                                              stepProgressMessages,
+                                              awaitingApproval,
+                                          )
+                                        : undefined
+                                }
+                                approval={
+                                    awaitingApproval && approval
+                                        ? {
+                                              ...approval,
+                                              toolCallId: tc.toolCallId,
+                                          }
+                                        : undefined
+                                }
+                            />
+                        )}
+                        {trace && <DiscoverFieldsTrace trace={trace} />}
+                    </Box>
+                );
+            })
+            .filter((node) => node !== null);
+        if (renderableCalls.length === 0) return null;
+        return <Stack gap={4}>{renderableCalls}</Stack>;
+    };
 
     return (
         <Box
@@ -973,7 +1063,11 @@ export const LiveActivityCard: FC<Props> = ({
                                             toolName={group.toolName}
                                             toolCalls={group.calls}
                                             display={group.display}
-                                            status="done"
+                                            status={
+                                                isRunningBehindLead(group)
+                                                    ? 'running'
+                                                    : 'done'
+                                            }
                                             toolResults={toolResults}
                                             mcpServers={mcpServers}
                                             extraBody={(() => {
@@ -996,91 +1090,11 @@ export const LiveActivityCard: FC<Props> = ({
                             })}
                         </Stack>
                     )}
-                    {(() => {
-                        if (!latest) return null;
-                        const latestBuiltInToolName = isToolName(
-                            latest.toolName,
-                        )
-                            ? latest.toolName
-                            : null;
-                        if (!latestBuiltInToolName) return null;
-
-                        const renderableCalls = latest.calls
-                            .map((tc) => {
-                                const callBuiltInToolName = isToolName(
-                                    tc.toolName,
-                                )
-                                    ? tc.toolName
-                                    : null;
-                                if (!callBuiltInToolName) return null;
-                                const hasNoDescription =
-                                    TOOLS_WITHOUT_LATEST_DESCRIPTION.has(
-                                        callBuiltInToolName,
-                                    );
-                                const trace =
-                                    callBuiltInToolName === 'discoverFields'
-                                        ? (getDiscoverFieldsTraceFromCall(tc) ??
-                                          getDiscoverFieldsTrace(
-                                              toolResults?.find(
-                                                  (r) =>
-                                                      r.toolCallId ===
-                                                      tc.toolCallId,
-                                              ),
-                                              toolCalls,
-                                          ))
-                                        : null;
-                                // Skip the wrapper entirely when there's
-                                // nothing to show, otherwise expanding the
-                                // card animates an empty box open/closed.
-                                if (hasNoDescription && !trace) return null;
-                                const awaitingApproval =
-                                    pendingApprovalIds.includes(tc.toolCallId);
-                                return (
-                                    <Box
-                                        key={tc.toolCallId}
-                                        className={styles.latestDescription}
-                                    >
-                                        {!hasNoDescription && (
-                                            <ToolCallDescription
-                                                toolName={callBuiltInToolName}
-                                                toolCall={tc}
-                                                toolResult={toolResults?.find(
-                                                    (result) =>
-                                                        result.toolCallId ===
-                                                        tc.toolCallId,
-                                                )}
-                                                composerNodeStatuses={
-                                                    isActive
-                                                        ? getComposerNodeStatuses(
-                                                              tc,
-                                                              stepProgressMessages,
-                                                              awaitingApproval,
-                                                          )
-                                                        : undefined
-                                                }
-                                                approval={
-                                                    awaitingApproval && approval
-                                                        ? {
-                                                              ...approval,
-                                                              toolCallId:
-                                                                  tc.toolCallId,
-                                                          }
-                                                        : undefined
-                                                }
-                                            />
-                                        )}
-                                        {trace && (
-                                            <DiscoverFieldsTrace
-                                                trace={trace}
-                                            />
-                                        )}
-                                    </Box>
-                                );
-                            })
-                            .filter((node) => node !== null);
-                        if (renderableCalls.length === 0) return null;
-                        return <Stack gap={4}>{renderableCalls}</Stack>;
-                    })()}
+                    {leadGroups.map((group) => (
+                        <Fragment key={group.keyId}>
+                            {renderCallDescriptions(group)}
+                        </Fragment>
+                    ))}
                     {extra}
                 </Stack>
             </Collapse>
