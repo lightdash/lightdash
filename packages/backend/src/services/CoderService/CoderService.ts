@@ -3981,15 +3981,30 @@ export class CoderService extends BaseService {
             );
             return space.uuid;
         };
-        // Slugs map to paths lossily; never guess between two spaces
+        // Slugs map to paths lossily; never guess between two spaces, or two parents of a new one
         const assertOneSpaceAtPath = async () => {
-            const spaces = await this.spaceModel.find({
-                projectUuid,
-                path: getLtreePathFromContentAsCodePath(file.spaceSlug),
-            });
+            const path = getLtreePathFromContentAsCodePath(file.spaceSlug);
+            let spaces = await this.spaceModel.find({ projectUuid, path });
+            if (spaces.length === 0) {
+                const ancestorUuid =
+                    await this.spaceModel.findClosestAncestorByPath({
+                        path,
+                        projectUuid,
+                    });
+                spaces = ancestorUuid
+                    ? await this.spaceModel.find({
+                          projectUuid,
+                          path: (
+                              await this.spaceModel.getSpaceSummary(
+                                  ancestorUuid,
+                              )
+                          ).path,
+                      })
+                    : [];
+            }
             if (spaces.length > 1) {
                 throw new ParameterError(
-                    `More than one space has the path "${file.spaceSlug}", so composer chart "${slug}" cannot be uploaded there. Rename one of those spaces.`,
+                    `More than one space has the path "${getContentAsCodePathFromLtreePath(spaces[0].path)}", so composer chart "${slug}" cannot be uploaded to "${file.spaceSlug}". Rename one of those spaces.`,
                 );
             }
         };

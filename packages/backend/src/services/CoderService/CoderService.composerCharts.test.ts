@@ -394,7 +394,12 @@ describe('CoderService composer chart upload into a space', () => {
                     uuid,
                     path: uuid === 'jaffle-uuid' ? 'jaffle' : SPACE_PATH,
                 })),
-                findClosestAncestorByPath: vi.fn(async () => null),
+                findClosestAncestorByPath: vi.fn(
+                    async ({ path }: { path: string }) =>
+                        spaces.find((space) =>
+                            path.startsWith(`${space.path}.`),
+                        )?.uuid ?? null,
+                ),
             },
             spacePermissionService: { can: vi.fn(async () => true) },
         } as AnyType);
@@ -567,21 +572,27 @@ describe('CoderService composer chart upload into a space', () => {
     it.each([
         ['creating', null],
         ['moving', liveInJaffle],
-    ])('refuses %s into a path two spaces share', async (_, existing) => {
-        const { upload, chartService, getOrCreateSpace } = setup({
-            existing,
-            spaces: [
-                { uuid: 'marketing-uuid', path: SPACE_PATH },
-                { uuid: 'other-marketing-uuid', path: SPACE_PATH },
-            ],
-        });
-        await expect(upload(spaceFile())).rejects.toThrow(
-            'More than one space has the path "marketing"',
-        );
-        expect(getOrCreateSpace).not.toHaveBeenCalled();
-        expect(chartService.writeFromCode).not.toHaveBeenCalled();
-        expect(chartService.moveToSpace).not.toHaveBeenCalled();
-    });
+    ])(
+        'refuses %s into a path two spaces share, or under one',
+        async (_, existing) => {
+            const { upload, chartService, getOrCreateSpace } = setup({
+                existing,
+                spaces: [
+                    { uuid: 'marketing-uuid', path: SPACE_PATH },
+                    { uuid: 'other-marketing-uuid', path: SPACE_PATH },
+                ],
+            });
+            await expect(upload(spaceFile())).rejects.toThrow(
+                'More than one space has the path "marketing"',
+            );
+            await expect(upload(spaceFile('marketing/new'))).rejects.toThrow(
+                'cannot be uploaded to "marketing/new"',
+            );
+            expect(getOrCreateSpace).not.toHaveBeenCalled();
+            expect(chartService.writeFromCode).not.toHaveBeenCalled();
+            expect(chartService.moveToSpace).not.toHaveBeenCalled();
+        },
+    );
 
     it('checks write on the chart before creating a missing target space', async () => {
         const { upload, chartService, getOrCreateSpace } = setup({
