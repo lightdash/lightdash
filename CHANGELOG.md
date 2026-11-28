@@ -1,3 +1,10 @@
+# [3.444.0](https://github.com/lightdash/lightdash/compare/3.443.0...3.444.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** delete a space-owned composer chart, naming the dashboards that show it ([#33609](https://github.com/lightdash/lightdash/issues/33609)) ([49e49cf](https://github.com/lightdash/lightdash/commit/49e49cf7785c89d6cbdcf0aeae83247f5f9edd5b))
+
 # [3.443.0](https://github.com/lightdash/lightdash/compare/3.442.0...3.443.0) (2026-11-28)
 
 
