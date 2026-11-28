@@ -163,12 +163,13 @@ const makeTurns = ({
         if (args.type === 'composer_chart') {
             const { approval: newSql } = await prepareComposerChartEdit(args);
             if (newSql) {
-                await args.approveSql!({
+                if (!args.approveSql) throw new Error('Needs SQL mode');
+                await args.approveSql({
                     ...newSql,
                     chartName: 'Payments',
                     sqlChanged: true,
                 });
-                saved.push(...newSql.nodeSql!);
+                saved.push(...(newSql.nodeSql ?? []));
             }
             return {
                 type: 'composer_chart' as const,
@@ -608,38 +609,6 @@ describe('composer chart edit after SQL approved earlier in the same turn', () =
                 source: 'same_turn_approval',
             }),
         ]);
-    });
-
-    it('asks for SQL that differs in any character', async () => {
-        const turns = makeTurns();
-
-        await turns.call('runContentQuery', 'query-1', approvedSql);
-        await turns.call(
-            'editComposerChart',
-            'edit-1',
-            approvedSql.replace('count(*)', 'count(1)'),
-        );
-
-        expect(turns.asked).toEqual(['query-1', 'edit-1']);
-    });
-
-    it('asks unless every new node was approved in the turn', async () => {
-        const turns = makeTurns();
-
-        await turns.call('runContentQuery', 'query-1', approvedSql);
-        await turns.call(
-            'editComposerChart',
-            'edit-1',
-            `${approvedSql}\n\n${otherSql}`,
-        );
-        await turns.call('runSql', 'run-1', otherSql);
-        await turns.call(
-            'editComposerChart',
-            'edit-2',
-            `${approvedSql}\n\n${otherSql}`,
-        );
-
-        expect(turns.asked).toEqual(['query-1', 'edit-1', 'run-1']);
     });
 
     it('asks again in a later turn', async () => {

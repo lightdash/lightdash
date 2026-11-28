@@ -113,11 +113,7 @@ export type SqlApprovalDecisionOnCall = {
 
 export type SameTurnSqlApproval = { decidedByUserUuid: string | null };
 
-/**
- * SQL a call asks the user to approve. A composer chart edit also lists each
- * new node's SQL, so approvals of those exact statements earlier in the turn
- * cover it; null for every other call.
- */
+/** SQL a call asks the user to approve; `nodeSql` lists a composer chart edit's new node SQL, null for other calls. */
 export type SqlApprovalRequest = { sql: string; nodeSql: string[] | null };
 
 /** A request for SQL that no earlier approval covers node by node. */
