@@ -10,6 +10,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
+import { fromSession } from '../../auth/account';
 import { CoderService } from './CoderService';
 import { ComposerChartOwnerChangeError } from './composerChartsAsCode';
 
@@ -295,7 +296,7 @@ describe('CoderService composer chart upsert for the agent', () => {
         await expect(
             service.upsertComposerChart(
                 viewer,
-                account,
+                fromSession(viewer),
                 PROJECT_UUID,
                 'visible',
                 editedFile(),
@@ -308,7 +309,7 @@ describe('CoderService composer chart upsert for the agent', () => {
         const { service, writeFromCode } = makeUpsertService();
         await service.upsertComposerChart(
             viewer,
-            account,
+            fromSession(viewer),
             PROJECT_UUID,
             'visible',
             editedFile(),
@@ -323,7 +324,7 @@ describe('CoderService composer chart upsert for the agent', () => {
         await expect(
             service.upsertComposerChart(
                 user,
-                account,
+                fromSession(user),
                 PROJECT_UUID,
                 'visible',
                 file,
@@ -343,6 +344,7 @@ describe('CoderService composer chart upload into a space', () => {
             { subject: 'Space', action: 'create' },
         ] as RawRuleOf<Ability<PossibleAbilities>>[]),
     } as unknown as SessionUser;
+    const uploaderAccount = fromSession(uploader);
     const spaceFile = (spaceSlug = SPACE_PATH): AnyType => ({
         ...storedChart('visible'),
         contentType: 'composer_chart',
@@ -416,7 +418,7 @@ describe('CoderService composer chart upload into a space', () => {
         const upload = (file: AnyType, options = {}) =>
             service.upsertComposerChart(
                 uploader,
-                account,
+                uploaderAccount,
                 PROJECT_UUID,
                 'visible',
                 file,
@@ -443,7 +445,7 @@ describe('CoderService composer chart upload into a space', () => {
         });
         expect(chartService.preflightWrite).toHaveBeenCalledOnce();
         expect(chartService.writeFromCode).toHaveBeenCalledWith(
-            account,
+            uploaderAccount,
             PROJECT_UUID,
             expect.objectContaining({
                 slug: 'visible',
@@ -470,7 +472,7 @@ describe('CoderService composer chart upload into a space', () => {
             true,
         );
         expect(chartService.writeFromCode).toHaveBeenCalledWith(
-            account,
+            uploaderAccount,
             PROJECT_UUID,
             expect.objectContaining({
                 owner: { type: 'space', spaceUuid: 'new-space-uuid' },
@@ -503,7 +505,7 @@ describe('CoderService composer chart upload into a space', () => {
         });
         expect(chartService.assertCanView).not.toHaveBeenCalled();
         expect(chartService.writeFromCode).toHaveBeenCalledWith(
-            account,
+            uploaderAccount,
             PROJECT_UUID,
             expect.objectContaining({
                 owner: { type: 'space', spaceUuid: 'marketing-uuid' },
@@ -523,7 +525,7 @@ describe('CoderService composer chart upload into a space', () => {
                 composerChartUuid: 'visible',
             });
             expect(chartService.assertCanView).toHaveBeenCalledWith(
-                account,
+                uploaderAccount,
                 PROJECT_UUID,
                 'visible',
             );
@@ -539,12 +541,12 @@ describe('CoderService composer chart upload into a space', () => {
             composerChartUuid: 'visible',
         });
         expect(chartService.preflightSpaceChartEdit).toHaveBeenCalledWith(
-            account,
+            uploaderAccount,
             PROJECT_UUID,
             'visible',
             { targetSpaceUuid: 'marketing-uuid' },
         );
-        expect(chartService.moveToSpace).toHaveBeenCalledWith(account, {
+        expect(chartService.moveToSpace).toHaveBeenCalledWith(uploaderAccount, {
             projectUuid: PROJECT_UUID,
             itemUuid: 'visible',
             targetSpaceUuid: 'marketing-uuid',
@@ -556,7 +558,7 @@ describe('CoderService composer chart upload into a space', () => {
         const { upload, chartService } = setup({ existing: liveInJaffle });
         await upload({ ...spaceFile(), name: 'Renamed' });
         expect(chartService.writeFromCode).toHaveBeenCalledWith(
-            account,
+            uploaderAccount,
             PROJECT_UUID,
             expect.objectContaining({
                 name: 'Renamed',

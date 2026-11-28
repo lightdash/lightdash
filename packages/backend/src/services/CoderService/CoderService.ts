@@ -3789,7 +3789,7 @@ export class CoderService extends BaseService {
         > = {},
     ): Promise<ApiComposerChartAsCodeUpsertResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
             {
                 auditedAbility,
@@ -3969,7 +3969,7 @@ export class CoderService extends BaseService {
         },
     ): Promise<ApiComposerChartAsCodeUpsertResponse['results']> {
         const { projectUuid } = project;
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         const getOrCreateSpace = async () => {
             const { space } = await this.getOrCreateSpace(
                 projectUuid,
