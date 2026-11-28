@@ -69,6 +69,11 @@ export type GithubApiSource = {
     repo: string;
 };
 
+/** A Stripe account; the restricted API key decides which one. */
+export type StripeApiSource = {
+    connector: ApiConnectorType.STRIPE;
+};
+
 /**
  * One table or view of a Supabase project, read through its Data API
  * (PostgREST). The project URL is the connection's origin.
@@ -226,6 +231,7 @@ export type ExternalConnectionApiSource =
     | SalesforceApiSource
     | AmplitudeApiSource
     | MixpanelApiSource
+    | StripeApiSource
     | SupabaseApiSource
     | SentryApiSource
     | HydraApiSource;
@@ -278,6 +284,14 @@ export const PYLON_ACCOUNTS_SEARCH_PATH = '/accounts/search';
 export const PYLON_CONTACTS_SEARCH_PATH = '/contacts/search';
 export const PYLON_USERS_PATH = '/users';
 
+export const STRIPE_ORIGIN = 'https://api.stripe.com';
+/** The Queries API is in preview, so every call pins its version. */
+export const STRIPE_API_VERSION = '2026-10-28.preview';
+export const STRIPE_QUERY_RUNS_PATH = '/v2/data/query_runs';
+/** Lists the analytical dataset's tables; needs the same permission as queries. */
+export const STRIPE_SCHEMAS_PATH = '/v2/data/schemas';
+/** The restricted key permission query runs and schemas need. */
+export const STRIPE_QUERIES_PERMISSION = 'data_queries_read';
 /** The Data API root; GET returns the OpenAPI description of every table. */
 export const SUPABASE_REST_PATH = '/rest/v1/';
 /** Supabase takes secret keys on this header, not as a bearer token. */

@@ -16602,6 +16602,7 @@
                     "salesforce",
                     "amplitude",
                     "mixpanel",
+                    "stripe",
                     "supabase",
                     "sentry",
                     "hydra"
@@ -16883,6 +16884,20 @@
                 "type": "object",
                 "description": "A Mixpanel project, read with a service account; the connection's origin\nsays whether its data lives in the US, the EU or India."
             },
+            "ApiConnectorType.STRIPE": {
+                "enum": ["stripe"],
+                "type": "string"
+            },
+            "StripeApiSource": {
+                "properties": {
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.STRIPE"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "A Stripe account; the restricted API key decides which one."
+            },
             "ApiConnectorType.SUPABASE": {
                 "enum": ["supabase"],
                 "type": "string"
@@ -17040,6 +17055,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/MixpanelApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StripeApiSource"
                     },
                     {
                         "$ref": "#/components/schemas/SupabaseApiSource"

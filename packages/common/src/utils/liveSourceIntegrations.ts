@@ -5,6 +5,7 @@ import {
     isSentrySlug,
     isSupabaseTableName,
     SENTRY_MAX_PROJECTS,
+    STRIPE_QUERIES_PERMISSION,
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
@@ -264,6 +265,21 @@ export const LIVE_INTEGRATION_CATALOG: {
         }),
         getTarget: ({ projectId }) => `Project ${projectId}`,
     },
+    [ApiConnectorType.STRIPE]: {
+        id: 'stripe',
+        label: 'Stripe',
+        defaultName: 'Stripe',
+        messageLabel: 'Stripe',
+        agentLabel: 'Stripe',
+        description: 'Payments, payouts, fees, disputes and MRR changes',
+        setup: 'token',
+        featureFlag: FeatureFlags.LiveSourceStripe,
+        scopes: [STRIPE_QUERIES_PERMISSION],
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.STRIPE),
+        }),
+        getTarget: () => 'Stripe account',
+    },
     [ApiConnectorType.SUPABASE]: {
         id: 'supabase',
         label: 'Supabase',
@@ -367,11 +383,6 @@ export const REQUESTABLE_LIVE_INTEGRATIONS = [
         id: 'shopify',
         label: 'Shopify',
         description: 'Orders, products and sales',
-    },
-    {
-        id: 'stripe',
-        label: 'Stripe',
-        description: 'Payments, subscriptions and revenue',
     },
     {
         id: 'jira',

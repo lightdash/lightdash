@@ -81,5 +81,4 @@ export { readRowsWithinCap, tooManyRowsError } from './query/rows';
 export type { LiveQueryResult } from './query/run';
 
 // SQL integrations reuse the warehouse query builder
-export { compileMetricQuery } from '../../../queryCompiler';
-export { MetricQueryBuilder } from '../../../utils/QueryBuilder/MetricQueryBuilder';
+export { compileLiveSqlQuery } from './query/compileSql';

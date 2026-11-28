@@ -28,6 +28,8 @@ export const LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS: Record<
     [ApiConnectorType.AMPLITUDE]: DEFAULT_CACHE_TTL_SECONDS,
     // Queries count against 60 an hour per project, shared with other clients
     [ApiConnectorType.MIXPANEL]: DEFAULT_CACHE_TTL_SECONDS,
+    // Stripe's analytical data trails live by hours, and Stripe caches identical runs too
+    [ApiConnectorType.STRIPE]: DEFAULT_CACHE_TTL_SECONDS,
     // Rows change as the app writes them; reads count against the project's compute
     [ApiConnectorType.SUPABASE]: DEFAULT_CACHE_TTL_SECONDS,
     // Calls count against Sentry's limits per endpoint, shared by the token's other uses

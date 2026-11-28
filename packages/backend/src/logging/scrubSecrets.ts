@@ -1,5 +1,7 @@
 const SECRET_PATTERNS: [RegExp, string][] = [
     [/\b(?:sk|rk)-[A-Za-z0-9_-]{8,}/g, '[redacted]'],
+    // Stripe secret and restricted keys: sk_live_..., rk_test_...
+    [/\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{8,}/g, '[redacted]'],
     [/\bAKIA[0-9A-Z]{16}\b/g, '[redacted]'],
     [/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, '$1 [redacted]'],
     [/([?&](?:api[-_]?key|key|token|sig|signature)=)[^&\s]+/gi, '$1[redacted]'],

@@ -295,6 +295,11 @@ export enum FeatureFlags {
      */
     LeftNavigation = 'left-navigation',
     /**
+     * The Stripe live data source integration. Organization scope; on unless
+     * the Console turns it off (see docs/feature-flags.md).
+     */
+    LiveSourceStripe = 'live-source-stripe',
+    /**
      * Org-scoped, on until turned off: Hydra, the live integration with
      * seeded data, can be added, queried and synced.
      */

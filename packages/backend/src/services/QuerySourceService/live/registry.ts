@@ -19,6 +19,7 @@ import { pylonIntegration } from './integrations/pylon';
 import { salesforceIntegration } from './integrations/salesforce';
 import { searchConsoleIntegration } from './integrations/searchConsole';
 import { sentryIntegration } from './integrations/sentry';
+import { stripeIntegration } from './integrations/stripe';
 import { supabaseIntegration } from './integrations/supabase';
 import { youtubeAnalyticsIntegration } from './integrations/youtubeAnalytics';
 import { type LiveIntegration } from './types';
@@ -36,6 +37,7 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.LINKEDIN_ADS]: linkedInAdsIntegration,
     [ApiConnectorType.GITHUB]: githubIntegration,
     [ApiConnectorType.PYLON]: pylonIntegration,
+    [ApiConnectorType.STRIPE]: stripeIntegration,
     [ApiConnectorType.ATTIO]: attioIntegration,
     [ApiConnectorType.HUBSPOT]: hubspotIntegration,
     [ApiConnectorType.SALESFORCE]: salesforceIntegration,

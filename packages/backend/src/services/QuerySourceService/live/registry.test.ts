@@ -91,6 +91,7 @@ const SAMPLE_SETTINGS: {
     [ApiConnectorType.ATTIO]: { connector: ApiConnectorType.ATTIO },
     [ApiConnectorType.HUBSPOT]: { connector: ApiConnectorType.HUBSPOT },
     [ApiConnectorType.SALESFORCE]: { connector: ApiConnectorType.SALESFORCE },
+    [ApiConnectorType.STRIPE]: { connector: ApiConnectorType.STRIPE },
     [ApiConnectorType.HYDRA]: HYDRA_DEFAULT_SOURCE,
 };
 
