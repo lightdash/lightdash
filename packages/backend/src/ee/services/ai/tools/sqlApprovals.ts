@@ -160,11 +160,10 @@ export const findSameTurnSqlApproval = (
     });
     const findApproval = (candidate: string) =>
         approved.find((approval) => isSameApprovalSql(approval.sql, candidate));
+    // A node must match character for character; no trimming as for whole SQL.
     const nodeApprovals = (nodeSql ?? []).map((statement) =>
         approved.find(
-            (approval) =>
-                approval.coversNode &&
-                isSameApprovalSql(approval.sql, statement),
+            (approval) => approval.coversNode && approval.sql === statement,
         ),
     );
     const coversEveryNode =

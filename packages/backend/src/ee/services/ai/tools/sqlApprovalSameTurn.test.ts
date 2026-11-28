@@ -597,12 +597,12 @@ describe('composer chart edit after SQL approved earlier in the same turn', () =
         const output = await turns.call(
             'editComposerChart',
             'edit-1',
-            `${approvedSql};`,
+            approvedSql,
         );
 
         expect(output.metadata?.status).toBe('success');
         expect(turns.asked).toEqual(['query-1']);
-        expect(turns.saved).toEqual([`${approvedSql};`]);
+        expect(turns.saved).toEqual([approvedSql]);
         expect(turns.recorded).toEqual([
             expect.objectContaining({
                 toolCallId: 'edit-1',

@@ -262,20 +262,23 @@ describe('findSameTurnSqlApproval', () => {
         it('covers a node whose SQL was approved on its own', () => {
             expect(
                 findSameTurnSqlApproval(
-                    [contentQueryApproved('query-1', 'select 1;')],
+                    [contentQueryApproved('query-1', 'select 1')],
                     edit([['payments', 'select 1']]),
                 ),
             ).toEqual({ decidedByUserUuid: 'user-uuid' });
         });
 
-        it('asks for SQL that differs in one character', () => {
-            expect(
-                findSameTurnSqlApproval(
-                    [contentQueryApproved('query-1', 'select 1')],
-                    edit([['payments', 'select 2']]),
-                ),
-            ).toBeNull();
-        });
+        it.each(['select 2', 'select 1;', 'select 1 '])(
+            'asks for node SQL %j that differs in one character',
+            (nodeSql) => {
+                expect(
+                    findSameTurnSqlApproval(
+                        [contentQueryApproved('query-1', 'select 1')],
+                        edit([['payments', nodeSql]]),
+                    ),
+                ).toBeNull();
+            },
+        );
 
         it('asks unless every node was approved', () => {
             const decisions = [
