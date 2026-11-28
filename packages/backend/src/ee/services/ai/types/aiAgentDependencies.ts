@@ -67,6 +67,7 @@ import {
     WarehouseTypes,
     type ProjectContextWritebackEntry,
     type SqlApprovalToolName,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import {
     AiAgentFindContentCoverageEvent,
@@ -454,7 +455,8 @@ export type EditContentFn = (
 
 /** Runs a composer chart edit's checks without saving; `approvalSql` is the new warehouse SQL, or null. */
 export type PrepareComposerChartEditFn = (args: {
-    slug: string;
+    /** The chart's slug or uuid; the tool field keeps its name. */
+    slug: UuidOrSlug;
     patch: unknown;
 }) => Promise<{ approvalSql: string | null }>;
 
