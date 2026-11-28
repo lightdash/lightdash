@@ -52,7 +52,7 @@ describe('composer chart tiles in DashboardModel on the real schema', () => {
 
     const insertChart = async (
         owner: Fixture,
-        dashboardUuid: string,
+        dashboardUuid: string | null,
     ): Promise<string> => {
         const [{ composer_chart_uuid: composerChartUuid }] = await database(
             COMPOSER_CHARTS,
@@ -60,6 +60,7 @@ describe('composer chart tiles in DashboardModel on the real schema', () => {
             .insert({
                 project_uuid: owner.projectUuid,
                 dashboard_uuid: dashboardUuid,
+                space_uuid: dashboardUuid === null ? owner.spaceUuid : null,
                 name: 'Orders by month',
                 slug: `orders-by-month-${randomUUID()}`,
                 created_by_user_uuid: owner.userUuid,
@@ -71,13 +72,14 @@ describe('composer chart tiles in DashboardModel on the real schema', () => {
     const addComposerTile = (
         dashboard: DashboardDAO,
         composerChartUuid: string | null,
+        tileUuid: string = randomUUID(),
     ) =>
         model.addVersion(
             dashboard.uuid,
             toVersion(dashboard, [
                 ...dashboard.tiles,
                 {
-                    uuid: randomUUID(),
+                    uuid: tileUuid,
                     type: DashboardTileTypes.COMPOSER_CHART,
                     x: 6,
                     y: 0,
@@ -195,11 +197,45 @@ describe('composer chart tiles in DashboardModel on the real schema', () => {
         ).toEqual(expect.objectContaining({ composerChartUuid }));
     });
 
-    it('refuses a composer tile without a chart', async () => {
+    it('keeps a composer tile whose chart is gone as an empty tile', async () => {
         const dashboard = await createDashboard(fixture);
 
-        await expect(addComposerTile(dashboard, null)).rejects.toThrow(
-            /Composer chart tile has no chart/,
+        const saved = await addComposerTile(dashboard, null);
+        expect(saved.tiles[1]).toMatchObject({
+            type: DashboardTileTypes.COMPOSER_CHART,
+            properties: { title: 'Orders', composerChartUuid: null },
+        });
+    });
+
+    it("shows a chart a space in the project owns, but not another project's space chart", async () => {
+        const dashboard = await createDashboard(fixture);
+        const spaceChartUuid = await insertChart(fixture, null);
+        const saved = await addComposerTile(dashboard, spaceChartUuid);
+        expect(saved.tiles[1].properties).toMatchObject({
+            composerChartUuid: spaceChartUuid,
+        });
+
+        const otherProject = await createFixture(database);
+        const foreignSpaceChartUuid = await insertChart(otherProject, null);
+        await expect(
+            addComposerTile(dashboard, foreignSpaceChartUuid),
+        ).rejects.toThrow(/Composer chart not found/);
+    });
+
+    it('keeps a trashed space chart only on the tile that showed it', async () => {
+        const created = await createDashboard(fixture);
+        const spaceChartUuid = await insertChart(fixture, null);
+        const tileUuid = randomUUID();
+        await addComposerTile(created, spaceChartUuid, tileUuid);
+        await database(COMPOSER_CHARTS)
+            .where('composer_chart_uuid', spaceChartUuid)
+            .update({ deleted_at: new Date() });
+
+        await expect(
+            addComposerTile(created, spaceChartUuid, tileUuid),
+        ).resolves.toBeDefined();
+        await expect(addComposerTile(created, spaceChartUuid)).rejects.toThrow(
+            /Composer chart not found/,
         );
     });
 
