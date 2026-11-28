@@ -113,6 +113,7 @@ import {
     UpdatedByUser,
     validateEmail,
     VirtualViewAsCode,
+    type ComposerChartOwner,
     type ContentAsCodeDirectAccess,
     type ContentAsCodeProjectSettings,
     type ContentAsCodeSettingsStamp,
@@ -3779,7 +3780,10 @@ export class CoderService extends BaseService {
             | 'publicSpaceCreate'
             | 'spaceNames'
             | 'authorization'
-        > = {},
+        > & {
+            /** `keep`: the agent's edit of a live chart a space owns; uploads refuse one. */
+            spaceOwner?: 'refuse' | 'keep';
+        } = {},
     ): Promise<ApiComposerChartAsCodeUpsertResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
@@ -3802,10 +3806,18 @@ export class CoderService extends BaseService {
             slug,
         );
         const dashboardSlug = file.dashboardSlug ?? null;
-        if (dashboardSlug === null || existing?.owner.type === 'space') {
+        const live = existing && !existing.deleted ? existing : null;
+        const spaceOwner = options.spaceOwner ?? 'refuse';
+        const editsLiveSpaceChart =
+            spaceOwner === 'keep' &&
+            live?.owner.type === 'space' &&
+            dashboardSlug === null;
+        if (
+            !editsLiveSpaceChart &&
+            (dashboardSlug === null || existing?.owner.type === 'space')
+        ) {
             throw new SpaceOwnedComposerChartUploadError(slug);
         }
-        const live = existing && !existing.deleted ? existing : null;
         if (live) {
             const stored = await this.composerChartModel.get(live.uuid);
             const [current] = await this.getComposerChartsAsCode(projectUuid, [
@@ -3831,16 +3843,21 @@ export class CoderService extends BaseService {
         }
         const chart = await this.toStoredComposerChart(projectUuid, file.chart);
 
-        const [dashboard] = live
-            ? []
-            : await this.dashboardModel.find({
-                  projectUuid,
-                  slug: dashboardSlug,
-              });
+        const [dashboard] =
+            live || dashboardSlug === null
+                ? []
+                : await this.dashboardModel.find({
+                      projectUuid,
+                      slug: dashboardSlug,
+                  });
         let dashboardUuid = dashboard?.uuid;
         let placeholderUuid: string | null = null;
         try {
-            if (dashboardUuid === undefined && !live) {
+            if (
+                dashboardUuid === undefined &&
+                !live &&
+                dashboardSlug !== null
+            ) {
                 await this.composerChartService.preflightWrite(
                     account,
                     project,
@@ -3854,15 +3871,18 @@ export class CoderService extends BaseService {
                 );
                 dashboardUuid = placeholderUuid;
             }
+            let writeOwner: ComposerChartOwner | null = null;
+            if (editsLiveSpaceChart && live) writeOwner = live.owner;
+            else if (dashboardUuid) {
+                writeOwner = { type: 'dashboard', dashboardUuid };
+            }
             const composerChartUuid =
                 await this.composerChartService.writeFromCode(
                     account,
                     projectUuid,
                     {
                         slug,
-                        owner: dashboardUuid
-                            ? { type: 'dashboard', dashboardUuid }
-                            : null,
+                        owner: writeOwner,
                         name: file.name,
                         description: file.description ?? null,
                         pipeline: file.pipeline,

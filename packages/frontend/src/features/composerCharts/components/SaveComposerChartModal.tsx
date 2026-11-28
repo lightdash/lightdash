@@ -21,14 +21,18 @@ import {
     Textarea,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChartBar } from '@tabler/icons-react';
+import { IconArrowRight, IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
+import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { getDestinationDashboardTab } from '../../../components/common/Dashboard/destinationDashboardTab';
+import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import SaveToDashboardForm from '../../../components/common/modal/ChartCreateModal/SaveToDashboardForm';
+import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import {
+    SaveDestination,
     type SaveToDashboardFormType,
     type SaveToSpaceFormType,
 } from '../../../components/common/modal/ChartCreateModal/types';
@@ -43,6 +47,7 @@ import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useSavedToDashboardToast } from '../../../hooks/dashboard/useSavedToDashboardToast';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import {
     useCreateMutation as useCreateSpaceMutation,
     useSpaceSummaries,
@@ -58,8 +63,13 @@ type FormValues = {
 
 export type SavedComposerChartLink = {
     composerChartUuid: string;
-    dashboardUuid: string;
+    /** Null when a space owns the chart. */
+    dashboardUuid: string | null;
 };
+
+type ComposerSaveDestination =
+    | SaveDestination.Space
+    | SaveDestination.Dashboard;
 
 type Props = {
     projectUuid: string;
@@ -72,7 +82,7 @@ type Props = {
     onSaved: (saved: SavedComposerChartLink) => Promise<void>;
 };
 
-/** The chart save modal for a composer chart: dashboards only, the space option shown greyed out. */
+/** The chart save modal for a composer chart: a space (the default) or a dashboard, as the classic save. */
 export const SaveComposerChartModal: FC<Props> = ({
     projectUuid,
     onClose,
@@ -85,10 +95,16 @@ export const SaveComposerChartModal: FC<Props> = ({
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { user } = useApp();
-    const { showToastApiError, showToastError } = useToaster();
+    const navigate = useNavigate();
+    const { showToastApiError, showToastError, showToastSuccess } =
+        useToaster();
     const showSavedToast = useSavedToDashboardToast();
     const { getDashboardActiveTabUuid } = useDashboardStorage();
-    const [isSelectingDashboard, setIsSelectingDashboard] = useState(false);
+    const [destination, setDestination] = useState<ComposerSaveDestination>(
+        SaveDestination.Space,
+    );
+    const [isSelectingDestination, setIsSelectingDestination] = useState(false);
+    const spaceManagement = useSpaceManagement({ projectUuid });
     const [isCreatingNewDashboard, setIsCreatingNewDashboard] = useState(false);
     const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -110,22 +126,27 @@ export const SaveComposerChartModal: FC<Props> = ({
         { staleTime: 0 },
         true,
     );
-    const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
+    const { data: allSpaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
         true,
-        {
-            select: (data) =>
-                data.filter((space) =>
-                    user.data?.ability.can(
-                        'create',
-                        subject('Dashboard', {
-                            ...space,
-                            access: space.userAccess ? [space.userAccess] : [],
-                        }),
-                    ),
-                ),
-        },
+        { staleTime: 0 },
     );
+    const [chartSpaces, dashboardSpaces] = useMemo(() => {
+        const canCreateIn =
+            (subjectName: 'SavedChart' | 'Dashboard') =>
+            (space: NonNullable<typeof allSpaces>[number]) =>
+                !!user.data?.ability.can(
+                    'create',
+                    subject(subjectName, {
+                        ...space,
+                        access: space.userAccess ? [space.userAccess] : [],
+                    }),
+                );
+        return [
+            allSpaces?.filter(canCreateIn('SavedChart')),
+            allSpaces?.filter(canCreateIn('Dashboard')),
+        ];
+    }, [allSpaces, user.data?.ability]);
     const { data: selectedDashboard } = useDashboardQuery({
         uuidOrSlug: form.values.dashboardUuid ?? undefined,
         projectUuid,
@@ -153,12 +174,81 @@ export const SaveComposerChartModal: FC<Props> = ({
             'update',
             subject('Dashboard', selectedDashboard),
         );
-    const isReadyToSave = isCreatingNewDashboard
-        ? !!form.values.newDashboardName &&
-          (isCreatingNewSpace
-              ? !!form.values.newSpaceName
-              : !!form.values.spaceUuid)
-        : !!selectedDashboard && !cannotUpdateSelected;
+    const isReadyToSave =
+        destination === SaveDestination.Space
+            ? spaceManagement.isCreatingNewSpace
+                ? !!spaceManagement.newSpaceName
+                : !!spaceManagement.selectedSpaceUuid
+            : isCreatingNewDashboard
+              ? !!form.values.newDashboardName &&
+                (isCreatingNewSpace
+                    ? !!form.values.newSpaceName
+                    : !!form.values.spaceUuid)
+              : !!selectedDashboard && !cannotUpdateSelected;
+    const selectedSpaceName = chartSpaces?.find(
+        (space) => space.uuid === spaceManagement.selectedSpaceUuid,
+    )?.name;
+
+    const goToDestination = () => {
+        if (
+            destination === SaveDestination.Space &&
+            !spaceManagement.selectedSpaceUuid
+        ) {
+            const firstTopLevel = chartSpaces?.find(
+                (space) => !space.parentSpaceUuid,
+            );
+            if (firstTopLevel) {
+                spaceManagement.setSelectedSpaceUuid(firstTopLevel.uuid);
+                form.setFieldValue('spaceUuid', firstTopLevel.uuid);
+            }
+        }
+        setIsSelectingDestination(true);
+    };
+
+    const createComposerChart = (body: CreateComposerChart) =>
+        lightdashApi<ComposerChart>({
+            url: `/projects/${projectUuid}/composer-charts`,
+            version: 'v2',
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+
+    // Nested under the selected space and private, as the classic space save.
+    const saveToSpace = async (
+        values: FormValues,
+    ): Promise<SavedComposerChartLink> => {
+        const newSpace = spaceManagement.isCreatingNewSpace
+            ? await spaceManagement.handleCreateNewSpace({
+                  inheritParentPermissions: false,
+              })
+            : undefined;
+        // If saving the chart fails, a retry saves it to the space that was created.
+        if (newSpace) spaceManagement.setSelectedSpaceUuid(newSpace.uuid);
+        const spaceUuid = newSpace?.uuid ?? spaceManagement.selectedSpaceUuid;
+        if (!spaceUuid) throw new Error('Pick a space');
+        const spaceName = newSpace?.name ?? selectedSpaceName ?? 'the space';
+        const composerChart = await createComposerChart({
+            spaceUuid,
+            name: values.name,
+            description: values.description || null,
+            pipeline,
+            chart,
+        });
+        void queryClient.invalidateQueries(['content']);
+        showToastSuccess({
+            title: `Chart saved to "${spaceName}"`,
+            autoClose: 10000,
+            action: {
+                children: 'Open',
+                icon: IconArrowRight,
+                onClick: () =>
+                    navigate(
+                        `/projects/${projectUuid}/composer-charts/${composerChart.uuid}`,
+                    ),
+            },
+        });
+        return { composerChartUuid: composerChart.uuid, dashboardUuid: null };
+    };
 
     const getDestination = async (values: FormValues): Promise<Dashboard> => {
         if (!isCreatingNewDashboard) {
@@ -191,70 +281,74 @@ export const SaveComposerChartModal: FC<Props> = ({
         });
     };
 
+    const saveToDashboard = async (
+        values: FormValues,
+    ): Promise<SavedComposerChartLink> => {
+        const dashboard = await getDestination(values);
+        const composerChart = await createComposerChart({
+            dashboardUuid: dashboard.uuid,
+            name: values.name,
+            description: values.description || null,
+            pipeline,
+            chart,
+        });
+        const tabUuid = getDestinationDashboardTab({
+            tabs: dashboard.tabs,
+            selectedTabUuid: values.tabUuid,
+            lastActiveTabUuid: getDashboardActiveTabUuid(dashboard.uuid),
+        })?.uuid;
+        const tileUuid = uuid4();
+        const tile: CreateDashboardComposerChartTile = {
+            uuid: tileUuid,
+            type: DashboardTileTypes.COMPOSER_CHART,
+            tabUuid,
+            properties: {
+                title: values.name,
+                hideTitle: chart.chartConfig.type === ChartType.BIG_NUMBER,
+                composerChartUuid: composerChart.uuid,
+                chartName: values.name,
+            },
+            ...getDefaultChartTileSize(chart.chartConfig.type),
+        };
+        const updatedDashboard = await updateDashboardApi(
+            lightdashApi,
+            dashboard.uuid,
+            {
+                filters: dashboard.filters,
+                tiles: appendNewTilesToBottom<
+                    | Dashboard['tiles'][number]
+                    | CreateDashboardComposerChartTile
+                >(dashboard.tiles, [tile]),
+                tabs: dashboard.tabs,
+            },
+            projectUuid,
+        );
+        // Reset marks the pre-save copy stale at once; the refetch needn't block closing
+        void Promise.all(
+            [dashboard.uuid, updatedDashboard.slug].map((key) =>
+                queryClient.resetQueries(['saved_dashboard_query', key]),
+            ),
+        );
+        showSavedToast({
+            projectUrlIdentifier: projectUuid,
+            dashboard: updatedDashboard,
+            tileUuid,
+            tabUuid: tabUuid ?? null,
+        });
+        return {
+            composerChartUuid: composerChart.uuid,
+            dashboardUuid: dashboard.uuid,
+        };
+    };
+
     const save = async (values: FormValues) => {
         setIsSaving(true);
         try {
-            const dashboard = await getDestination(values);
-            const body: CreateComposerChart = {
-                dashboardUuid: dashboard.uuid,
-                name: values.name,
-                description: values.description || null,
-                pipeline,
-                chart,
-            };
-            const composerChart = await lightdashApi<ComposerChart>({
-                url: `/projects/${projectUuid}/composer-charts`,
-                version: 'v2',
-                method: 'POST',
-                body: JSON.stringify(body),
-            });
-            const tabUuid = getDestinationDashboardTab({
-                tabs: dashboard.tabs,
-                selectedTabUuid: values.tabUuid,
-                lastActiveTabUuid: getDashboardActiveTabUuid(dashboard.uuid),
-            })?.uuid;
-            const tileUuid = uuid4();
-            const tile: CreateDashboardComposerChartTile = {
-                uuid: tileUuid,
-                type: DashboardTileTypes.COMPOSER_CHART,
-                tabUuid,
-                properties: {
-                    title: values.name,
-                    hideTitle: chart.chartConfig.type === ChartType.BIG_NUMBER,
-                    composerChartUuid: composerChart.uuid,
-                    chartName: values.name,
-                },
-                ...getDefaultChartTileSize(chart.chartConfig.type),
-            };
-            const updatedDashboard = await updateDashboardApi(
-                lightdashApi,
-                dashboard.uuid,
-                {
-                    filters: dashboard.filters,
-                    tiles: appendNewTilesToBottom<
-                        | Dashboard['tiles'][number]
-                        | CreateDashboardComposerChartTile
-                    >(dashboard.tiles, [tile]),
-                    tabs: dashboard.tabs,
-                },
-                projectUuid,
-            );
-            // Reset marks the pre-save copy stale at once; the refetch needn't block closing
-            void Promise.all(
-                [dashboard.uuid, updatedDashboard.slug].map((key) =>
-                    queryClient.resetQueries(['saved_dashboard_query', key]),
-                ),
-            );
-            showSavedToast({
-                projectUrlIdentifier: projectUuid,
-                dashboard: updatedDashboard,
-                tileUuid,
-                tabUuid: tabUuid ?? null,
-            });
-            await onSaved({
-                composerChartUuid: composerChart.uuid,
-                dashboardUuid: dashboard.uuid,
-            }).catch(() => undefined);
+            const saved =
+                destination === SaveDestination.Space
+                    ? await saveToSpace(values)
+                    : await saveToDashboard(values);
+            await onSaved(saved).catch(() => undefined);
             onClose();
         } catch (e) {
             if (isApiError(e)) {
@@ -273,6 +367,11 @@ export const SaveComposerChartModal: FC<Props> = ({
         }
     };
 
+    const showsNewSpaceButton =
+        isSelectingDestination &&
+        destination === SaveDestination.Space &&
+        !spaceManagement.isCreatingNewSpace;
+
     return (
         <MantineModal
             opened
@@ -281,12 +380,25 @@ export const SaveComposerChartModal: FC<Props> = ({
             icon={IconChartBar}
             size="lg"
             modalRootProps={{ closeOnClickOutside: false }}
+            cancelLabel={isSelectingDestination ? false : 'Cancel'}
+            leftActions={
+                showsNewSpaceButton ? (
+                    <Button
+                        variant="subtle"
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        onClick={spaceManagement.openCreateSpaceForm}
+                    >
+                        New Space
+                    </Button>
+                ) : undefined
+            }
             actions={
-                isSelectingDashboard ? (
+                isSelectingDestination ? (
                     <Group gap="sm">
                         <Button
                             variant="default"
-                            onClick={() => setIsSelectingDashboard(false)}
+                            onClick={() => setIsSelectingDestination(false)}
                         >
                             Back
                         </Button>
@@ -301,8 +413,12 @@ export const SaveComposerChartModal: FC<Props> = ({
                     </Group>
                 ) : (
                     <Button
-                        disabled={!form.values.name}
-                        onClick={() => setIsSelectingDashboard(true)}
+                        disabled={
+                            !form.values.name ||
+                            (destination === SaveDestination.Space &&
+                                !chartSpaces)
+                        }
+                        onClick={goToDestination}
                     >
                         Next
                     </Button>
@@ -311,48 +427,72 @@ export const SaveComposerChartModal: FC<Props> = ({
         >
             <form
                 id="save-composer-chart"
-                onSubmit={form.onSubmit((values) => void save(values))}
+                onSubmit={form.onSubmit((values) => {
+                    // Enter in the name field must not save before a destination is picked
+                    if (isSelectingDestination && isReadyToSave && !isSaving) {
+                        void save(values);
+                    }
+                })}
             >
-                {isSelectingDashboard ? (
-                    <Stack gap="xs">
-                        <SaveToDashboardForm
+                {isSelectingDestination ? (
+                    destination === SaveDestination.Space ? (
+                        <SaveToSpaceForm
                             form={form}
-                            isLoading={isLoadingDashboards || isLoadingSpaces}
-                            spaces={spaces}
-                            dashboards={dashboards}
-                            tabs={selectedDashboard?.tabs ?? []}
-                            destinationTabUuid={destinationTab?.uuid ?? null}
-                            onSelectTab={(tabUuid) =>
-                                form.setFieldValue('tabUuid', tabUuid)
-                            }
-                            isCreatingNewDashboard={isCreatingNewDashboard}
-                            onStartCreatingNewDashboard={() => {
-                                setIsCreatingNewDashboard(true);
-                                setIsCreatingNewSpace(!spaces?.length);
-                                form.setFieldValue(
-                                    'spaceUuid',
-                                    spaces?.[0]?.uuid ?? null,
-                                );
-                            }}
-                            onCancelCreatingNewDashboard={() => {
-                                setIsCreatingNewDashboard(false);
-                                setIsCreatingNewSpace(false);
-                            }}
-                            isCreatingNewSpaceForDashboard={isCreatingNewSpace}
-                            onStartCreatingNewSpaceForDashboard={() =>
-                                setIsCreatingNewSpace(true)
-                            }
-                            onCancelCreatingNewSpaceForDashboard={() =>
-                                setIsCreatingNewSpace(false)
-                            }
+                            isLoading={isLoadingSpaces}
+                            spaces={chartSpaces}
+                            projectUuid={projectUuid}
+                            spaceManagement={spaceManagement}
+                            selectedSpaceName={selectedSpaceName}
                         />
-                        {cannotUpdateSelected && (
-                            <Text fz="xs" c="dimmed">
-                                You do not have permission to edit this
-                                dashboard
-                            </Text>
-                        )}
-                    </Stack>
+                    ) : (
+                        <Stack gap="xs">
+                            <SaveToDashboardForm
+                                form={form}
+                                isLoading={
+                                    isLoadingDashboards || isLoadingSpaces
+                                }
+                                spaces={dashboardSpaces}
+                                dashboards={dashboards}
+                                tabs={selectedDashboard?.tabs ?? []}
+                                destinationTabUuid={
+                                    destinationTab?.uuid ?? null
+                                }
+                                onSelectTab={(tabUuid) =>
+                                    form.setFieldValue('tabUuid', tabUuid)
+                                }
+                                isCreatingNewDashboard={isCreatingNewDashboard}
+                                onStartCreatingNewDashboard={() => {
+                                    setIsCreatingNewDashboard(true);
+                                    setIsCreatingNewSpace(
+                                        !dashboardSpaces?.length,
+                                    );
+                                    form.setFieldValue(
+                                        'spaceUuid',
+                                        dashboardSpaces?.[0]?.uuid ?? null,
+                                    );
+                                }}
+                                onCancelCreatingNewDashboard={() => {
+                                    setIsCreatingNewDashboard(false);
+                                    setIsCreatingNewSpace(false);
+                                }}
+                                isCreatingNewSpaceForDashboard={
+                                    isCreatingNewSpace
+                                }
+                                onStartCreatingNewSpaceForDashboard={() =>
+                                    setIsCreatingNewSpace(true)
+                                }
+                                onCancelCreatingNewSpaceForDashboard={() =>
+                                    setIsCreatingNewSpace(false)
+                                }
+                            />
+                            {cannotUpdateSelected && (
+                                <Text fz="xs" c="dimmed">
+                                    You do not have permission to edit this
+                                    dashboard
+                                </Text>
+                            )}
+                        </Stack>
+                    )
                 ) : (
                     <Stack gap="xs">
                         <TextInput
@@ -369,16 +509,26 @@ export const SaveComposerChartModal: FC<Props> = ({
                         />
                         <Stack gap="sm" mt="sm">
                             <Text fw={500}>Save to</Text>
-                            <Radio.Group value="dashboard">
+                            <Radio.Group
+                                value={destination}
+                                onChange={(value) =>
+                                    setDestination(
+                                        value === SaveDestination.Dashboard
+                                            ? SaveDestination.Dashboard
+                                            : SaveDestination.Space,
+                                    )
+                                }
+                            >
                                 <Stack gap="xs">
                                     <Radio
-                                        value="space"
+                                        value={SaveDestination.Space}
                                         label="Space"
-                                        description="This chart can only be saved to a dashboard"
-                                        disabled
+                                        disabled={
+                                            !chartSpaces || isLoadingSpaces
+                                        }
                                     />
                                     <Radio
-                                        value="dashboard"
+                                        value={SaveDestination.Dashboard}
                                         label="Dashboard"
                                     />
                                 </Stack>

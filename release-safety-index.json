@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "generatedAt": "2026-11-28T09:24:32.326Z",
+  "generatedAt": "2026-11-28T13:09:02.737Z",
   "backfillFloorVersion": "0.1893.0",
   "entries": [
     {
@@ -53759,6 +53759,66 @@
       "version": "3.441.0",
       "previousVersion": "3.440.0",
       "releaseDate": "2026-11-28T09:24:32.305Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.442.0",
+      "previousVersion": "3.441.0",
+      "releaseDate": "2026-11-28T09:55:04.444Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.443.0",
+      "previousVersion": "3.442.0",
+      "releaseDate": "2026-11-28T10:11:40.769Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.444.0",
+      "previousVersion": "3.443.0",
+      "releaseDate": "2026-11-28T10:32:07.504Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.445.0",
+      "previousVersion": "3.444.0",
+      "releaseDate": "2026-11-28T10:48:33.987Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.446.0",
+      "previousVersion": "3.445.0",
+      "releaseDate": "2026-11-28T11:04:22.903Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.447.0",
+      "previousVersion": "3.446.0",
+      "releaseDate": "2026-11-28T13:09:02.723Z",
       "rollingUpdateSafe": true,
       "requiredStops": [],
       "minPreviousVersion": "2.497.1",

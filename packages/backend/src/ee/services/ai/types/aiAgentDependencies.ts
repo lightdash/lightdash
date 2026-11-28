@@ -447,6 +447,8 @@ export type EditContentFn = (
               before: string | null;
               after: string | null;
           };
+          /** Dashboards a space-owned chart shows on, which the edit reaches too. */
+          warnings: string[];
       }
 >;
 

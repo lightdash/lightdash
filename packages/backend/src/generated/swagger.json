@@ -37912,6 +37912,12 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "composerChartOwnerType": {
+                                "type": "string",
+                                "enum": ["dashboard", "space", null],
+                                "nullable": true,
+                                "description": "What owns the chart; null when it is no longer available."
+                            },
                             "composerChartSlug": {
                                 "type": "string",
                                 "nullable": true
@@ -37928,6 +37934,7 @@
                         "required": [
                             "displayName",
                             "pinnedVersionUuid",
+                            "composerChartOwnerType",
                             "composerChartSlug",
                             "composerChartUuid",
                             "type"
@@ -80280,6 +80287,92 @@
             "WithDescendantCounts_DeletedSqlChartContentSummary.never_": {
                 "$ref": "#/components/schemas/DeletedSqlChartContentSummary"
             },
+            "Pick_DeletedChartBase.Exclude_keyofDeletedChartBase.contentType-or-chartKind__": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "deletedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "description",
+                    "name",
+                    "uuid",
+                    "organizationUuid",
+                    "projectUuid",
+                    "spaceUuid",
+                    "spaceName",
+                    "deletedAt",
+                    "deletedBy"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DeletedChartBase.contentType-or-chartKind_": {
+                "$ref": "#/components/schemas/Pick_DeletedChartBase.Exclude_keyofDeletedChartBase.contentType-or-chartKind__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DeletedComposerChartContentSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_DeletedChartBase.contentType-or-chartKind_"
+                    },
+                    {
+                        "properties": {
+                            "chartKind": {
+                                "$ref": "#/components/schemas/ChartKind"
+                            },
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.COMPOSER_CHART"
+                            }
+                        },
+                        "required": ["chartKind", "contentType"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A space-owned composer chart; one a dashboard owns is never listed."
+            },
+            "WithDescendantCounts_DeletedComposerChartContentSummary.never_": {
+                "$ref": "#/components/schemas/DeletedComposerChartContentSummary"
+            },
             "DeletedDashboardContentSummary": {
                 "properties": {
                     "organizationUuid": {
@@ -80634,6 +80727,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/WithDescendantCounts_DeletedSqlChartContentSummary.never_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedComposerChartContentSummary.never_"
                     },
                     {
                         "$ref": "#/components/schemas/WithDescendantCounts_DeletedDashboardContentSummary.chart-or-scheduler_"
@@ -81035,6 +81131,49 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/ComposerChartWithDetails"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpdateComposerChart": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "A rename of a space-owned chart: no new version, the slug unchanged. An omitted field keeps its value."
+            },
+            "ComposerChartDashboard": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object",
+                "description": "A dashboard whose latest version has a tile for the chart."
+            },
+            "ApiComposerChartDashboardsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ComposerChartDashboard"
+                        },
+                        "type": "array"
                     },
                     "status": {
                         "type": "string",
@@ -82258,7 +82397,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.441.0",
+        "version": "3.447.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -130032,6 +130171,161 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}": {
+            "patch": {
+                "operationId": "updateComposerChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Renames a composer chart that a space owns, or changes its description.\nDoes not create a new version and keeps the slug. Omitted fields keep\ntheir current value. Requires permission to save charts in the chart's\nspace. Returns 400 for a composer chart that a dashboard owns, because\nthat chart is edited through its dashboard.",
+                "summary": "Update composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "composerChartUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateComposerChart"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteComposerChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Deletes a composer chart that a space owns. With soft delete on, the\nserver keeps the chart marked as deleted. With soft delete off, it\ndeletes the chart permanently. Dashboard tiles that show the chart stay and\nshow it as deleted. Requires permission to delete charts in the\nchart's space. Returns 400 for a composer chart that a dashboard owns,\nbecause deleting its tile deletes that chart.",
+                "summary": "Delete composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "composerChartUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}/dashboards": {
+            "get": {
+                "operationId": "getComposerChartDashboards",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartDashboardsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Lists the dashboards whose latest version has a tile that shows the\ncomposer chart. Leaves out dashboards the caller cannot view. Anyone\nwho can view the chart can read the list.",
+                "summary": "List dashboards showing composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "composerChartUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]

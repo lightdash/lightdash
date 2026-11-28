@@ -147,7 +147,7 @@ describe('Document content PostgreSQL integration', () => {
         try {
             await expect(
                 spaces.softDelete(spaceUuid, SEED_ORG_1_ADMIN.user_uuid),
-            ).resolves.toEqual(cascaded);
+            ).resolves.toEqual({ documents: cascaded, composerCharts: [] });
         } finally {
             vi.useRealTimers();
         }
@@ -177,7 +177,10 @@ describe('Document content PostgreSQL integration', () => {
             contentTypes: [ContentType.SPACE],
         });
         expect(hiddenCounts.data[0]).toHaveProperty('documentCount', 0);
-        await expect(spaces.restore(spaceUuid)).resolves.toEqual(cascaded);
+        await expect(spaces.restore(spaceUuid)).resolves.toEqual({
+            documents: cascaded,
+            composerCharts: [],
+        });
         expect(
             await model.get(SEED_PROJECT.project_uuid, documentUuid),
         ).toMatchObject({ documentUuid, version: existing.version, spaceUuid });

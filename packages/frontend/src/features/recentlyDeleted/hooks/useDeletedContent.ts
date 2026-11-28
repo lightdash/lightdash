@@ -14,7 +14,10 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { invalidateContent } from '../../../hooks/useContent';
+import {
+    invalidateComposerCharts,
+    invalidateContent,
+} from '../../../hooks/useContent';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     getDeletedContent,
@@ -93,13 +96,16 @@ export function useRestoreDeletedContent(projectUuid: string) {
                 title: 'Content restored',
                 subtitle: 'The item has been restored successfully.',
                 action:
-                    item.contentType === ContentType.CHART
+                    item.contentType === ContentType.CHART ||
+                    item.contentType === ContentType.COMPOSER_CHART
                         ? {
                               children: 'Go to chart',
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
-                                      `/projects/${projectUuid}/saved/${item.uuid}`,
+                                      item.contentType === ContentType.CHART
+                                          ? `/projects/${projectUuid}/saved/${item.uuid}`
+                                          : `/projects/${projectUuid}/composer-charts/${item.uuid}`,
                                   ),
                           }
                         : item.contentType === ContentType.DASHBOARD
@@ -145,6 +151,9 @@ export function useRestoreDeletedContent(projectUuid: string) {
                                 : undefined,
             });
             await invalidateContent(queryClient, projectUuid);
+            await invalidateComposerCharts(queryClient, projectUuid, [item], {
+                refetch: true,
+            });
             await queryClient.invalidateQueries(['deletedContent']);
         },
         onError: ({ error }) => {
@@ -164,12 +173,15 @@ export function usePermanentlyDeleteContent(projectUuid: string) {
     return useMutation<undefined, ApiError, DeletedContentItem>({
         mutationFn: (item) =>
             permanentlyDeleteContent(lightdashApi, projectUuid, item),
-        onSuccess: async () => {
+        onSuccess: async (_data, item) => {
             showToastSuccess({
                 title: 'Content permanently deleted',
                 subtitle: 'The item has been permanently deleted.',
             });
             await invalidateContent(queryClient, projectUuid);
+            await invalidateComposerCharts(queryClient, projectUuid, [item], {
+                refetch: false,
+            });
             await queryClient.invalidateQueries(['deletedContent']);
         },
         onError: ({ error }) => {
