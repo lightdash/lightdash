@@ -10,6 +10,8 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Deprecated,
+    Extension,
     Get,
     Middlewares,
     OperationId,
@@ -22,6 +24,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { getDeprecatedRouteMiddleware } from '../authentication';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -85,15 +88,31 @@ export class ComposerChartController extends BaseController {
     }
 
     /**
-     * Runs a composer chart's stored pipeline where a dashboard shows it, for
-     * anyone who can view the chart. The request carries no nodes; each node's
-     * query is polled with the standard results endpoint.
+     * Deprecated — use the v2 Execute dashboard composer chart endpoint instead.
+     *
+     * This endpoint was deprecated on 27 November 2026 and will be removed after 27 February 2027. It runs a composer chart shown on a dashboard tile. Execute dashboard composer chart takes the same request with composerChartUuid in the body.
      * @summary Run composer chart
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/dashboard-composer-chart instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Extension('x-mint', {
+        content: `<Warning>
+**This endpoint is deprecated and will be removed after 27 February 2027.**
+
+Use [Execute dashboard composer chart](https://docs.lightdash.com/api-reference/v2/execute-dashboard-composer-chart), \`POST /api/v2/projects/{projectUuid}/query/dashboard-composer-chart\`, instead. It takes the same request with \`composerChartUuid\` in the body and returns the same response.
+</Warning>`,
+    })
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-11-27'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/dashboard-composer-chart instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{composerChartUuid}/run')
     @OperationId('runComposerChart')
+    @Deprecated()
     async run(
         @Path() projectUuid: UUID,
         @Path() composerChartUuid: UUID,

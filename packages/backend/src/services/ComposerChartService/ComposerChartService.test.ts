@@ -353,26 +353,28 @@ const setup = ({ flagEnabled = true } = {}) => {
             admins: [],
         })),
     };
+    const dashboardModel = {
+        getSummaryByUuid: vi.fn(async () => ({
+            projectUuid,
+            organizationUuid,
+            spaceUuid: 'space-uuid',
+        })),
+        getByIdOrSlug: vi.fn(async (uuidOrSlug: string) => ({
+            uuid: uuidOrSlug,
+            filters: savedDashboardFilters,
+            tiles: [
+                {
+                    uuid: 'tile-uuid',
+                    type: DashboardTileTypes.COMPOSER_CHART,
+                    properties: { composerChartUuid: 'chart-uuid' },
+                },
+            ],
+        })),
+    };
     const service = new ComposerChartService({
         composerChartModel: composerChartModel as unknown as ComposerChartModel,
         appModel: appModel as unknown as AppModel,
-        dashboardModel: {
-            getSummaryByUuid: vi.fn(async () => ({
-                projectUuid,
-                organizationUuid,
-                spaceUuid: 'space-uuid',
-            })),
-            getByIdOrSlug: vi.fn(async () => ({
-                filters: savedDashboardFilters,
-                tiles: [
-                    {
-                        uuid: 'tile-uuid',
-                        type: DashboardTileTypes.COMPOSER_CHART,
-                        properties: { composerChartUuid: 'chart-uuid' },
-                    },
-                ],
-            })),
-        } as unknown as DashboardModel,
+        dashboardModel: dashboardModel as unknown as DashboardModel,
         featureFlagModel: {
             get: vi.fn(async () => ({
                 id: 'composer-charts',
@@ -401,6 +403,7 @@ const setup = ({ flagEnabled = true } = {}) => {
         querySourceService,
         asyncQueryService,
         spacePermissionService,
+        dashboardModel,
     };
 };
 
@@ -777,6 +780,8 @@ describe('ComposerChartService.run', () => {
             composerChartModel,
             querySourceService,
             asyncQueryService,
+            dashboardModel,
+            spacePermissionService,
         } = setup(options);
         const body = createBody(options.nodes ?? PIPELINES.python);
         const stored = body.pipeline;
@@ -811,6 +816,8 @@ describe('ComposerChartService.run', () => {
             submitComposerRun,
             asyncQueryService,
             getOwner,
+            dashboardModel,
+            spacePermissionService,
         };
     };
 
@@ -1125,39 +1132,126 @@ describe('ComposerChartService.run', () => {
         expect(submitComposerRun).not.toHaveBeenCalled();
     });
 
-    test('refuses a tile run of a chart a space owns', async () => {
-        const { service, submitComposerRun, getOwner } = setupRun();
-        getOwner.mockResolvedValue({
+    test('runs on the requested dashboard, whose tile shows a chart another dashboard owns', async () => {
+        const { service, submitComposerRun, asyncQueryService } = setupRun();
+        await service.run(
+            viewer(),
             projectUuid,
-            owner: { type: 'space', spaceUuid: 'space-uuid' },
+            'chart-uuid',
+            { ...runRequest, dashboardUuid: 'showing-dashboard' },
+            QueryExecutionContext.DASHBOARD,
+        );
+        expect(asyncQueryService.getComposerTileContext).toHaveBeenCalledWith(
+            expect.objectContaining({ dashboardUuid: 'showing-dashboard' }),
+        );
+        expect(submitComposerRun.mock.calls[0][0].binding.stamp).toEqual({
+            composerChartUuid: 'chart-uuid',
+            dashboardUuid: 'showing-dashboard',
+            tileUuid: 'tile-uuid',
         });
+    });
+
+    test('refuses a dashboard named by slug, as the field takes a uuid', async () => {
+        const { service, submitComposerRun, dashboardModel } = setupRun();
+        dashboardModel.getByIdOrSlug.mockImplementation(async () => ({
+            uuid: dashboardUuid,
+            filters: savedDashboardFilters,
+            tiles: [
+                {
+                    uuid: 'tile-uuid',
+                    type: DashboardTileTypes.COMPOSER_CHART,
+                    properties: { composerChartUuid: 'chart-uuid' },
+                },
+            ],
+        }));
         await expect(
             service.run(
                 viewer(),
                 projectUuid,
                 'chart-uuid',
-                runRequest,
+                { ...runRequest, dashboardUuid: 'dashboard-slug' },
                 QueryExecutionContext.DASHBOARD,
             ),
         ).rejects.toThrow('not on that dashboard tile');
         expect(submitComposerRun).not.toHaveBeenCalled();
     });
 
-    test('refuses a run naming a dashboard that does not own the chart', async () => {
-        const { service, submitComposerRun } = setupRun();
+    test('refuses a dashboard missing from the project with the tile error', async () => {
+        const { service, submitComposerRun, dashboardModel } = setupRun();
+        dashboardModel.getByIdOrSlug.mockRejectedValue(
+            new NotFoundError('Dashboard not found'),
+        );
         await expect(
             service.run(
                 viewer(),
                 projectUuid,
                 'chart-uuid',
-                {
-                    ...runRequest,
-                    dashboardUuid: 'another-dashboard',
-                },
+                { ...runRequest, dashboardUuid: 'missing-dashboard' },
                 QueryExecutionContext.DASHBOARD,
             ),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow('not on that dashboard tile');
         expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('runs a tile of a chart a space owns, checking view on its space', async () => {
+        const { service, submitComposerRun, getOwner, spacePermissionService } =
+            setupRun();
+        getOwner.mockResolvedValue({
+            projectUuid,
+            owner: { type: 'space', spaceUuid: 'space-uuid' },
+        });
+        await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            runRequest,
+            QueryExecutionContext.DASHBOARD,
+        );
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            expect.anything(),
+            { type: 'space', spaceUuid: 'space-uuid' },
+        );
+        expect(submitComposerRun).toHaveBeenCalledTimes(1);
+    });
+
+    test('refuses a run naming a dashboard whose tiles do not show the chart', async () => {
+        const { service, submitComposerRun, dashboardModel } = setupRun();
+        dashboardModel.getByIdOrSlug.mockResolvedValue({
+            uuid: 'another-dashboard',
+            filters: savedDashboardFilters,
+            tiles: [
+                {
+                    uuid: 'tile-uuid',
+                    type: DashboardTileTypes.COMPOSER_CHART,
+                    properties: { composerChartUuid: 'another-chart' },
+                },
+            ],
+        });
+        await expect(
+            service.run(
+                viewer(),
+                projectUuid,
+                'chart-uuid',
+                { ...runRequest, dashboardUuid: 'another-dashboard' },
+                QueryExecutionContext.DASHBOARD,
+            ),
+        ).rejects.toThrow('not on that dashboard tile');
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('runs the chart a dashboard composer chart request names', async () => {
+        const { service, submitComposerRun } = setupRun();
+        await service.runTile(
+            viewer(),
+            projectUuid,
+            { ...runRequest, composerChartUuid: 'chart-uuid' },
+            QueryExecutionContext.DASHBOARD,
+        );
+        expect(submitComposerRun.mock.calls[0][0].binding.stamp).toEqual({
+            composerChartUuid: 'chart-uuid',
+            dashboardUuid,
+            tileUuid: 'tile-uuid',
+        });
     });
 
     test('refuses a run naming a tile that does not show this chart', async () => {

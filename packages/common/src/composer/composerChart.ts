@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { type CaslSubjectNames } from '../authorization/types';
 import { type DateZoom } from '../types/api/paginatedQuery';
+import { type UUID } from '../types/api/uuid';
 import { ParameterError } from '../types/errors';
 import { type Explore } from '../types/explore';
 import {
@@ -608,6 +609,24 @@ export const parseComposerChartRunRequest = (
     const result = runRequestSchema.safeParse(request);
     if (!result.success) throw toParameterError('run request', result.error);
     return result.data as ComposerChartRunRequest;
+};
+
+/** A tile run: the tile's run request plus the chart the tile shows. */
+export type DashboardComposerChartRunRequest = ComposerChartRunRequest & {
+    composerChartUuid: UUID;
+};
+
+const dashboardRunRequestSchema = z.strictObject({
+    ...runRequestSchema.shape,
+    composerChartUuid: z.string(),
+});
+
+export const parseDashboardComposerChartRunRequest = (
+    request: unknown,
+): DashboardComposerChartRunRequest => {
+    const result = dashboardRunRequestSchema.safeParse(request);
+    if (!result.success) throw toParameterError('run request', result.error);
+    return result.data as DashboardComposerChartRunRequest;
 };
 
 export type ComposerChartRunResults = {

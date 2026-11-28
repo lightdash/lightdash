@@ -22,9 +22,9 @@ import {
     NotSupportedError,
     ParameterError,
     parseComposerChartInput,
-    parseComposerChartRunRequest,
     parseComposerPipeline,
     parseComposerStoredChart,
+    parseDashboardComposerChartRunRequest,
     QueryExecutionContext,
     QuerySourceType,
     type Account,
@@ -40,6 +40,7 @@ import {
     type ComposerStoredChart,
     type CreateComposerChart,
     type DashboardAvailableFiltersTile,
+    type DashboardComposerChartRunRequest,
     type DashboardFilters,
     type DateZoom,
     type Explore,
@@ -821,15 +822,15 @@ export class ComposerChartService extends BaseService {
         );
     }
 
-    /** A bound run for anyone who can view the chart, with the dashboard's filters and parameters written onto its nodes. */
-    async run(
+    /** A tile run for anyone who can view the chart, with the dashboard's filters and parameters written onto its nodes. */
+    async runTile(
         account: RegisteredAccount,
         projectUuid: UUID,
-        composerChartUuid: UUID,
-        body: ComposerChartRunRequest,
+        body: DashboardComposerChartRunRequest,
         context: ComposerChartRunContext,
     ): Promise<ComposerChartRunResults> {
-        const request = parseComposerChartRunRequest(body);
+        const { composerChartUuid, ...request } =
+            parseDashboardComposerChartRunRequest(body);
         return this.runOnTile(account, projectUuid, composerChartUuid, {
             dashboardUuid: request.dashboardUuid,
             tileUuid: request.tileUuid,
@@ -843,6 +844,22 @@ export class ComposerChartService extends BaseService {
                 excludedParameterKeys: request.excludedParameterKeys,
             },
         });
+    }
+
+    /** The deprecated run route: the chart comes from the path. */
+    async run(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        body: ComposerChartRunRequest,
+        context: ComposerChartRunContext,
+    ): Promise<ComposerChartRunResults> {
+        return this.runTile(
+            account,
+            projectUuid,
+            { ...body, composerChartUuid },
+            context,
+        );
     }
 
     /** As the tile runs on its dashboard opened unchanged: saved filters and parameter controls, resolved here. */
@@ -888,7 +905,7 @@ export class ComposerChartService extends BaseService {
         composerChartUuid: UUID,
         request: ComposerTileRunRequest,
     ): Promise<ComposerResolvedRun> {
-        const { organizationUuid, owner } = await this.assertCanView(
+        const { organizationUuid } = await this.assertCanView(
             account,
             projectUuid,
             composerChartUuid,
@@ -900,21 +917,19 @@ export class ComposerChartService extends BaseService {
         if (!enabled) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
+        // The tile decides, not ownership: a dashboard can show a chart a space owns
         const notOnTile = new ForbiddenError(
             'This composer chart is not on that dashboard tile',
         );
-        // No tile shows a chart a space owns yet
-        if (
-            owner.type !== 'dashboard' ||
-            request.dashboardUuid !== owner.dashboardUuid
-        ) {
-            throw notOnTile;
-        }
-        const { dashboardUuid } = owner;
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-            { projectUuid },
-        );
+        const dashboard = await this.dashboardModel
+            .getByIdOrSlug(request.dashboardUuid, { projectUuid })
+            .catch((error) => {
+                if (error instanceof NotFoundError) throw notOnTile;
+                throw error;
+            });
+        // A uuid only, as before: a slug resolving here is refused
+        if (dashboard.uuid !== request.dashboardUuid) throw notOnTile;
+        const { dashboardUuid } = request;
         const shown = dashboard.tiles.some(
             (tile) =>
                 tile.uuid === request.tileUuid &&

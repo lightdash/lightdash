@@ -3,6 +3,7 @@ import {
     type ComposerChart,
     type ComposerChartRunRequest,
     type ComposerChartRunResults,
+    type DashboardComposerChartRunRequest,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
@@ -48,13 +49,18 @@ export const useComposerChartRun = ({
             request,
             refreshCounter,
         ],
-        queryFn: () =>
-            lightdashApi<ComposerChartRunResults>({
-                url: `/projects/${projectUuid}/composer-charts/${composerChartUuid}/run`,
+        queryFn: () => {
+            const body: DashboardComposerChartRunRequest = {
+                ...request,
+                composerChartUuid: composerChartUuid ?? '',
+            };
+            return lightdashApi<ComposerChartRunResults>({
+                url: `/projects/${projectUuid}/query/dashboard-composer-chart`,
                 version: 'v2',
                 method: 'POST',
-                body: JSON.stringify(request),
-            }),
+                body: JSON.stringify(body),
+            });
+        },
         enabled: enabled && !!projectUuid && !!composerChartUuid,
     });
 };
