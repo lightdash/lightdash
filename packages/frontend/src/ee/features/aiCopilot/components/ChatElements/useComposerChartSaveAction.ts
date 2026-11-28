@@ -24,7 +24,7 @@ import { useUpdateArtifactVersionSavedComposerChart } from '../../hooks/useProje
 import { type ComposerPanelSource } from './useComposerNodeResults';
 
 export type ComposerChartSaveAction =
-    | { kind: 'saved'; dashboardUuid: string }
+    | { kind: 'saved'; saved: SavedComposerChartLink }
     | {
           kind: 'save';
           /** Shown on the disabled Save; null when Save is enabled. */
@@ -146,10 +146,7 @@ export const useComposerChartSaveAction = ({
         return null;
     }
     if (savedComposerChart) {
-        return {
-            kind: 'saved',
-            dashboardUuid: savedComposerChart.dashboardUuid,
-        };
+        return { kind: 'saved', saved: savedComposerChart };
     }
     const link = async (saved: SavedComposerChartLink) => {
         await linkChart({ savedComposerChartUuid: saved.composerChartUuid });

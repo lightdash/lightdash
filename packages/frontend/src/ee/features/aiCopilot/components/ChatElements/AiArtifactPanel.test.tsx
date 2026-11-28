@@ -663,6 +663,45 @@ describe('composer artifact', () => {
             ).not.toBeInTheDocument();
         });
 
+        it('shows View saved chart, opening its page in a new tab, once saved to a space', async () => {
+            mocks.artifact.mockReturnValue({
+                data: {
+                    artifactType: 'chart',
+                    title: 'Orders vs amounts',
+                    chartConfig: barConfig,
+                    savedComposerChartUuid: 'composer-chart-uuid',
+                    savedComposerChartDashboardUuid: null,
+                },
+                isLoading: false,
+                error: null,
+                refetch: mocks.retry,
+            });
+            mocks.query.mockReturnValue(composerRun);
+            mocks.rows.mockReturnValue(statusCounts);
+            renderWithProviders(
+                <MemoryRouter>
+                    <AiArtifactPanel artifact={artifact} />
+                </MemoryRouter>,
+            );
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            const view = await screen.findByRole('menuitem', {
+                name: 'View saved chart',
+            });
+            expect(view).toHaveAttribute(
+                'href',
+                '/projects/project/composer-charts/composer-chart-uuid',
+            );
+            expect(view).toHaveAttribute('target', '_blank');
+            expect(
+                screen.queryByRole('menuitem', { name: /^Save/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('menuitem', { name: 'View on dashboard' }),
+            ).not.toBeInTheDocument();
+        });
+
         it('shows the chart sketch, not a table, before the run has a query', () => {
             mocks.artifact.mockReturnValue({
                 data: {

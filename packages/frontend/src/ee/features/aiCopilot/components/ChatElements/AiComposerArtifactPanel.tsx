@@ -29,6 +29,7 @@ import {
     IconExternalLink,
     IconLayoutDashboard,
     IconTableExport,
+    IconTableShortcut,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useId, useMemo, useState, type FC, type RefObject } from 'react';
@@ -412,20 +413,34 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                                         : 'Save'}
                                 </Menu.Item>
                             )}
-                            {composerSave?.kind === 'saved' && (
-                                <Menu.Item
-                                    component={Link}
-                                    to={`/projects/${projectUuid}/dashboards/${composerSave.dashboardUuid}`}
-                                    target="_blank"
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconLayoutDashboard}
-                                        />
-                                    }
-                                >
-                                    View on dashboard
-                                </Menu.Item>
-                            )}
+                            {composerSave?.kind === 'saved' &&
+                                (composerSave.saved.dashboardUuid ? (
+                                    <Menu.Item
+                                        component={Link}
+                                        to={`/projects/${projectUuid}/dashboards/${composerSave.saved.dashboardUuid}`}
+                                        target="_blank"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconLayoutDashboard}
+                                            />
+                                        }
+                                    >
+                                        View on dashboard
+                                    </Menu.Item>
+                                ) : (
+                                    <Menu.Item
+                                        component={Link}
+                                        to={`/projects/${projectUuid}/composer-charts/${composerSave.saved.composerChartUuid}`}
+                                        target="_blank"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconTableShortcut}
+                                            />
+                                        }
+                                    >
+                                        View saved chart
+                                    </Menu.Item>
+                                ))}
                             {composerSave?.kind === 'save' && (
                                 <Menu.Item
                                     disabled={!!composerSave.disabledReason}
