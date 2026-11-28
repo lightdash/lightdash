@@ -1,3 +1,17 @@
+# [3.440.0](https://github.com/lightdash/lightdash/compare/3.439.0...3.440.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** search and the omnibar find space-owned composer charts ([#33598](https://github.com/lightdash/lightdash/issues/33598)) ([a36a4bf](https://github.com/lightdash/lightdash/commit/a36a4bf576b13c068ebde76ab71ee852aed7d0d2))
+
+# [3.439.0](https://github.com/lightdash/lightdash/compare/3.438.0...3.439.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** a page for a space-owned composer chart, with its parameter bar ([#33596](https://github.com/lightdash/lightdash/issues/33596)) ([65b8ba0](https://github.com/lightdash/lightdash/commit/65b8ba0936ae34573aca44775853069e131f0723))
+
 # [3.438.0](https://github.com/lightdash/lightdash/compare/3.437.0...3.438.0) (2026-11-28)
 
 
