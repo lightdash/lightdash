@@ -1317,6 +1317,9 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        {
+            fullTextSearchOperator = 'AND',
+        }: Pick<SearchContentOptions, 'fullTextSearchOperator'> = {},
     ): Promise<ComposerChartSearchResult[]> {
         // The "Charts" filter covers composer charts; they can't be verified
         if (
@@ -1334,12 +1337,14 @@ export class SearchModel {
         const searchRank = getFullTextSearchRankCalcSql({
             database: this.database,
             variables: { searchVectorColumn, searchQuery: query },
+            fullTextSearchOperator,
             nameColumn: `${ComposerChartsTableName}.name`,
         });
         const searchFilter = getFullTextSearchFilterSql({
             database: this.database,
             searchVectorColumn,
             searchQuery: query,
+            fullTextSearchOperator,
         });
         // Space-owned only: the inner join on space_uuid drops dashboard-owned charts
         const baseQuery = this.database(ComposerChartsTableName)

@@ -1,6 +1,7 @@
 import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     ForbiddenError,
+    NotFoundError,
     OrganizationMemberRole,
     type AnyType,
     type ComposerChart,
@@ -68,7 +69,28 @@ const makeService = (
         },
         appModel: { findAppsByUuids: vi.fn(async () => []) },
         composerChartModel: {
-            findForCode: vi.fn(async (): Promise<ComposerChart[]> => charts),
+            findForCode: vi.fn(async (_project: string, slugs?: string[]) =>
+                charts.filter(
+                    (chart: ComposerChart) =>
+                        !slugs || slugs.includes(chart.slug),
+                ),
+            ),
+            getUuidByUuidOrSlug: vi.fn(async (project: string, id: string) => {
+                const chart = charts.find(
+                    (stored: ComposerChart) =>
+                        (stored.projectUuid ?? PROJECT_UUID) === project &&
+                        stored.uuid === id,
+                );
+                if (!chart) throw new NotFoundError('Composer chart not found');
+                return chart.uuid;
+            }),
+            get: vi.fn(async (uuid: string) => {
+                const chart = charts.find(
+                    (stored: ComposerChart) => stored.uuid === uuid,
+                );
+                if (!chart) throw new NotFoundError('Composer chart not found');
+                return chart;
+            }),
         },
         composerChartService: { assertCanView },
     } as AnyType);
@@ -167,8 +189,51 @@ describe('CoderService composer chart read for the agent', () => {
                 dashboardSlug: null,
                 spaceSlug: 'marketing/growth',
             }),
+            composerChartUuid: 'in-space',
             spaceUuid: 'marketing-uuid',
         });
+    });
+
+    it('reads by the uuid a chart page link carries', async () => {
+        const uuid = '7d4f2c1e-3b5a-4c6d-8e9f-0a1b2c3d4e5f';
+        const service = makeService([
+            { ...spaceChart('in-space'), uuid },
+            spaceChart('other'),
+        ]);
+
+        await expect(
+            service.getComposerChartForRead(account, PROJECT_UUID, uuid),
+        ).resolves.toMatchObject({
+            composerChart: { slug: 'in-space' },
+            composerChartUuid: uuid,
+        });
+        await expect(
+            service.getComposerChartForRead(
+                account,
+                PROJECT_UUID,
+                '00000000-0000-4000-8000-000000000000',
+            ),
+        ).resolves.toBeNull();
+    });
+
+    it('misses a uuid from another project whose slug this project reuses', async () => {
+        const otherProjectChart = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+        const service = makeService([
+            spaceChart('in-space'),
+            {
+                ...spaceChart('in-space'),
+                uuid: otherProjectChart,
+                projectUuid: 'other-project-uuid',
+            },
+        ]);
+
+        await expect(
+            service.getComposerChartForRead(
+                account,
+                PROJECT_UUID,
+                otherProjectChart,
+            ),
+        ).resolves.toBeNull();
     });
 
     it('hides a chart the caller cannot view', async () => {

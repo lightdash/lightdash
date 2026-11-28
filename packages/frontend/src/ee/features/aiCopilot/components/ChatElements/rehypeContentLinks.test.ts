@@ -103,6 +103,18 @@ describe('rehypeAiAgentContentLinks', () => {
         });
     });
 
+    it.each([
+        '/projects/project-uuid/composer-charts/composer-uuid',
+        'https://app.lightdash.cloud/projects/project-uuid/composer-charts/composer-uuid?x=1',
+    ])('marks composer chart page links as chart links: %s', (href) => {
+        expect(processHref(href)).toEqual({
+            href,
+            'data-content-type': 'chart-link',
+            'data-chart-source': 'composer-chart',
+            'data-chart-uuid': 'composer-uuid',
+        });
+    });
+
     it('marks chart scheduled delivery deep-links instead of chart links', () => {
         expect(
             processHref(

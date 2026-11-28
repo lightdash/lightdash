@@ -16,7 +16,7 @@ export const TOOL_RESOLVE_URL_DESCRIPTION = ({
 
 Expand a share link, a URL whose path is "/share/<id>" (e.g. "<host>/share/aBcD1234..."), into the full URL it redirects to. Share links are opaque, so this is the only way to see what they point at; read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then fetch the content with other tools such as ${readContent}.
 
-Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/dashboards/<uuid>", already contains its identifiers: read them from the path and go straight to the appropriate tool. URLs from another instance cannot be resolved.`;
+Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/dashboards/<uuid>", already contains its identifiers: read them from the path and go straight to the appropriate tool. A composer chart page, "/projects/<uuid>/composer-charts/<uuid or slug>", is read with ${readContent} type composer_chart, passing that last segment as the slug. URLs from another instance cannot be resolved.`;
 };
 
 export const toolResolveUrlArgsSchema = createToolSchema()

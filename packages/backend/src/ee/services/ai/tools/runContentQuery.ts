@@ -16,8 +16,8 @@ import { stringify } from 'csv-stringify/sync';
 import { type QueryReviewer } from '../decisions/queryReview';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
+    ComposerChartRunRef,
     ComposerChartSummary,
-    ComposerChartTileRef,
     GetComposerChartFn,
     GetSavedChartFn,
     GetSqlChartFn,
@@ -446,7 +446,7 @@ export const getRunContentQuery = ({
 
     // Stored pipelines were approved when saved, so a run asks for nothing.
     const runComposerChart = async (
-        args: ComposerChartTileRef,
+        args: ComposerChartRunRef,
     ): Promise<RunContentQueryResult> => {
         try {
             await updateProgress('Running composer chart...');
@@ -512,12 +512,15 @@ export const getRunContentQuery = ({
                 return runSqlSource(source, toolCallId);
             }
             if (
-                source.type === 'dashboardChart' &&
+                (source.type === 'chart' || source.type === 'dashboardChart') &&
                 source.chartType === 'composer_chart'
             ) {
                 return runComposerChart({
                     chartSlug: source.chartSlug,
-                    dashboardSlug: source.dashboardSlug,
+                    dashboardSlug:
+                        source.type === 'dashboardChart'
+                            ? source.dashboardSlug
+                            : null,
                 });
             }
             if (

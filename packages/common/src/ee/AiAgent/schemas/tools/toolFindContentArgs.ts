@@ -218,8 +218,10 @@ export const findContentChartItemSchema = z.object({
     searchRank: z.number(),
     chartType: z.string(),
     chartSource: z
-        .enum(['saved', 'sql'])
-        .describe('"saved" for explore charts, "sql" for SQL Runner charts.'),
+        .enum(['saved', 'sql', 'composer'])
+        .describe(
+            '"saved" for explore charts (type chart), "sql" for SQL Runner charts (type sql_chart), "composer" for composer charts (type composer_chart).',
+        ),
     spaceUuid: z.string(),
     viewsCount: z.number().int(),
     href: z.string().describe('Canonical URL of the chart.'),

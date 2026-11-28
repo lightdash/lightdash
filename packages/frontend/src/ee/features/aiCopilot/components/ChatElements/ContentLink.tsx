@@ -244,7 +244,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     ? (chartType as ChartKind)
                     : ChartKind.VERTICAL_BAR;
             const href = typeof props.href === 'string' ? props.href : '';
-            const isSavedChart = chartSource !== 'sql-runner' && !!chartUuid;
+            const isSavedChart = chartSource === 'saved-chart' && !!chartUuid;
             const isActive =
                 isSavedChart &&
                 currentPreview?.type === 'savedChart' &&

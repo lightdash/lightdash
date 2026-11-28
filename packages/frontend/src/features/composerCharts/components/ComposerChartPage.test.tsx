@@ -8,6 +8,16 @@ import { ComposerChartPage } from './ComposerChartPage';
 
 vi.mock('../../../api');
 vi.mock(
+    '../../../hooks/useServerOrClientFeatureFlag',
+    async (importOriginal) => ({
+        ...(await importOriginal<object>()),
+        useServerFeatureFlag: () => ({
+            isLoading: false,
+            data: { enabled: false },
+        }),
+    }),
+);
+vi.mock(
     '../../../ee/features/aiCopilot/hooks/useRefreshComposerChartOnAgentEdit',
     () => ({ useRefreshComposerChartOnAgentEdit: () => {} }),
 );
