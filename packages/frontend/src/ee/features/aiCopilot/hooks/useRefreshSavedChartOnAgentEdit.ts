@@ -31,9 +31,7 @@ export const useRefreshSavedChartOnAgentEdit = ({
                 chartUuid,
                 chartSlug,
                 edit.toolArgs.slug,
-                edit.toolResult?.metadata.status === 'success'
-                    ? edit.toolResult.metadata.slug
-                    : undefined,
+                edit.toolResult.metadata.slug,
             ]);
             for (const identifier of identifiers) {
                 if (!identifier) continue;

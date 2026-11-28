@@ -67,7 +67,10 @@ export const useAiAgentProjectStreamParts = (
 type AgentEditToolCall = Extract<
     StreamPart,
     { type: 'toolCall'; toolName: 'editContent' }
->;
+> & {
+    isPreliminary: false;
+    toolResult: { metadata: { status: 'success'; uuid: string; slug: string } };
+};
 
 const isSameToolCalls = (a: AgentEditToolCall[], b: AgentEditToolCall[]) =>
     a.length === b.length &&

@@ -171,6 +171,12 @@ describe('refresh on agent edit', () => {
         stream(() => [
             edit({ toolCallId: 'mine', type: 'chart', uuid: 'chart' }),
         ]);
+        const refreshed = renders();
+        stream(() => [
+            edit({ toolCallId: 'mine', type: 'chart', uuid: 'chart' }),
+            text('Done'),
+        ]);
+        expect(renders()).toBe(refreshed);
         expect(invalidate.mock.calls).toEqual([
             [{ queryKey: ['saved_query', 'chart', projectUuid] }],
             [{ queryKey: ['saved_query', 'chart-page-slug', projectUuid] }],
