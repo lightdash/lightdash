@@ -12,6 +12,7 @@ export enum ContentType {
     SPACE = 'space',
     DATA_APP = 'data_app',
     DOCUMENT = 'document',
+    COMPOSER_CHART = 'composer_chart',
 }
 
 export interface Content {
@@ -78,6 +79,12 @@ export interface ChartContent extends Content {
         uuid: string;
         name: string;
     } | null;
+}
+
+// A space-owned composer chart; dashboard-owned ones are never listed.
+export interface ComposerChartContent extends Content {
+    contentType: ContentType.COMPOSER_CHART;
+    chartKind: ChartKind;
 }
 
 // Dashboard types
@@ -148,7 +155,8 @@ export type SummaryContentBase =
     | DashboardContent
     | SpaceContentBase
     | DocumentContentItem
-    | DataAppContent;
+    | DataAppContent
+    | ComposerChartContent;
 
 // What the API returns (spaces enriched with access data)
 export type SummaryContent =
@@ -156,7 +164,8 @@ export type SummaryContent =
     | DashboardContent
     | SpaceContent
     | DocumentContentItem
-    | DataAppContent;
+    | DataAppContent
+    | ComposerChartContent;
 
 // API types
 
@@ -200,6 +209,10 @@ type ItemPayload =
     | {
           uuid: string;
           contentType: ContentType.DOCUMENT;
+      }
+    | {
+          uuid: string;
+          contentType: ContentType.COMPOSER_CHART;
       };
 
 export type ContentAction = ContentActionMove | ContentActionDelete;

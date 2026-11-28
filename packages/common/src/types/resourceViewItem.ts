@@ -3,12 +3,13 @@ import assertUnreachable from '../utils/assertUnreachable';
 import {
     ContentType as ResourceViewItemType,
     type ChartSourceType,
+    type ComposerChartContent,
     type DataAppContent,
     type SummaryContent,
 } from './content';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type DashboardBasicDetails } from './dashboard';
-import { type SpaceQuery } from './savedCharts';
+import { type ChartKind, type SpaceQuery } from './savedCharts';
 import { type Space, type SpaceMemberRole, type SpaceSummary } from './space';
 
 export { ResourceViewItemType };
@@ -131,19 +132,42 @@ export type ResourceViewDataAppItem = {
     category?: ResourceItemCategory;
 };
 
+export type ResourceViewComposerChartItem = {
+    type: ResourceViewItemType.COMPOSER_CHART;
+    data: {
+        uuid: string;
+        slug: string;
+        name: string;
+        description: string | undefined;
+        spaceUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        chartKind: ChartKind;
+        updatedAt: Date;
+        updatedByUser: {
+            userUuid: string;
+            firstName: string;
+            lastName: string;
+        } | null;
+    };
+    category?: ResourceItemCategory;
+};
+
 type ResourceViewAcceptedItems =
     | ResourceViewSpaceItem['data']
     | ResourceViewChartItem['data']
     | ResourceViewDashboardItem['data']
     | ResourceViewDocumentItem['data']
-    | ResourceViewDataAppItem['data'];
+    | ResourceViewDataAppItem['data']
+    | ResourceViewComposerChartItem['data'];
 
 export type ResourceViewItem =
     | ResourceViewChartItem
     | ResourceViewDashboardItem
     | ResourceViewSpaceItem
     | ResourceViewDocumentItem
-    | ResourceViewDataAppItem;
+    | ResourceViewDataAppItem
+    | ResourceViewComposerChartItem;
 
 export const isResourceViewItemChart = (
     item: ResourceViewItem,
@@ -162,6 +186,11 @@ export const isResourceViewDataAppItem = (
     item: ResourceViewItem,
 ): item is ResourceViewDataAppItem =>
     item.type === ResourceViewItemType.DATA_APP;
+
+export const isResourceViewComposerChartItem = (
+    item: ResourceViewItem,
+): item is ResourceViewComposerChartItem =>
+    item.type === ResourceViewItemType.COMPOSER_CHART;
 
 export const isResourceViewDocumentItem = (
     item: ResourceViewItem,
@@ -197,6 +226,11 @@ export const wrapResource = <T extends ResourceViewAcceptedItems>(
             };
         case ResourceViewItemType.DOCUMENT:
             return { type, data: resource as ResourceViewDocumentItem['data'] };
+        case ResourceViewItemType.COMPOSER_CHART:
+            return {
+                type,
+                data: resource as ResourceViewComposerChartItem['data'],
+            };
         default:
             return assertUnreachable(type, `Unknown resource type: ${type}`);
     }
@@ -232,6 +266,30 @@ export const spaceToResourceViewItem = (
 export type MostPopularAndRecentlyUpdated = {
     mostPopular: (DashboardBasicDetails | SpaceQuery | DataAppContent)[];
     recentlyUpdated: (DashboardBasicDetails | SpaceQuery)[];
+};
+
+const composerChartToResourceViewItem = (
+    content: ComposerChartContent,
+): ResourceViewComposerChartItem['data'] => {
+    const updatedByUser = content.lastUpdatedBy ?? content.createdBy;
+    return {
+        uuid: content.uuid,
+        slug: content.slug,
+        name: content.name,
+        description: content.description || undefined,
+        spaceUuid: content.space.uuid,
+        projectUuid: content.project.uuid,
+        organizationUuid: content.organization.uuid,
+        chartKind: content.chartKind,
+        updatedAt: content.lastUpdatedAt ?? content.createdAt,
+        updatedByUser: updatedByUser
+            ? {
+                  userUuid: updatedByUser.uuid,
+                  firstName: updatedByUser.firstName,
+                  lastName: updatedByUser.lastName,
+              }
+            : null,
+    };
 };
 
 export const contentToResourceViewItem = (content: SummaryContent) => {
@@ -342,6 +400,11 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 verification: content.verification,
             };
             return wrapResource(dataAppViewItem, ResourceViewItemType.DATA_APP);
+        case ResourceViewItemType.COMPOSER_CHART:
+            return wrapResource(
+                composerChartToResourceViewItem(content),
+                ResourceViewItemType.COMPOSER_CHART,
+            );
         default:
             return assertUnreachable(content, `Unsupported content type`);
     }

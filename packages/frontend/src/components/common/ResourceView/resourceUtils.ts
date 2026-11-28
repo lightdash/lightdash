@@ -9,6 +9,46 @@ import {
 } from '@lightdash/common';
 import dayjs from 'dayjs';
 
+const getChartKindName = (chartKind: ChartKind | undefined) => {
+    switch (chartKind) {
+        case undefined:
+        case ChartKind.VERTICAL_BAR:
+            return 'Bar chart';
+        case ChartKind.HORIZONTAL_BAR:
+            return 'Horizontal bar chart';
+        case ChartKind.LINE:
+            return 'Line chart';
+        case ChartKind.SCATTER:
+            return 'Scatter chart';
+        case ChartKind.AREA:
+            return 'Area chart';
+        case ChartKind.MIXED:
+            return 'Mixed chart';
+        case ChartKind.PIE:
+            return 'Pie chart';
+        case ChartKind.FUNNEL:
+            return 'Funnel chart';
+        case ChartKind.TREEMAP:
+            return 'Treemap';
+        case ChartKind.GAUGE:
+            return 'Gauge';
+        case ChartKind.TABLE:
+            return 'Table';
+        case ChartKind.BIG_NUMBER:
+            return 'Big number';
+        case ChartKind.CUSTOM:
+            return 'Custom chart';
+        case ChartKind.MAP:
+            return 'Map';
+        case ChartKind.SANKEY:
+            return 'Sankey';
+        case ChartKind.DATA_APP_VIZ:
+            return 'Custom chart';
+        default:
+            return 'Chart';
+    }
+};
+
 export const getResourceTypeName = (item: ResourceViewItem) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
@@ -20,43 +60,8 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
         case ResourceViewItemType.DOCUMENT:
             return 'Document';
         case ResourceViewItemType.CHART:
-            switch (item.data.chartKind) {
-                case undefined:
-                case ChartKind.VERTICAL_BAR:
-                    return 'Bar chart';
-                case ChartKind.HORIZONTAL_BAR:
-                    return 'Horizontal bar chart';
-                case ChartKind.LINE:
-                    return 'Line chart';
-                case ChartKind.SCATTER:
-                    return 'Scatter chart';
-                case ChartKind.AREA:
-                    return 'Area chart';
-                case ChartKind.MIXED:
-                    return 'Mixed chart';
-                case ChartKind.PIE:
-                    return 'Pie chart';
-                case ChartKind.FUNNEL:
-                    return 'Funnel chart';
-                case ChartKind.TREEMAP:
-                    return 'Treemap';
-                case ChartKind.GAUGE:
-                    return 'Gauge';
-                case ChartKind.TABLE:
-                    return 'Table';
-                case ChartKind.BIG_NUMBER:
-                    return 'Big number';
-                case ChartKind.CUSTOM:
-                    return 'Custom chart';
-                case ChartKind.MAP:
-                    return 'Map';
-                case ChartKind.SANKEY:
-                    return 'Sankey';
-                case ChartKind.DATA_APP_VIZ:
-                    return 'Custom chart';
-                default:
-                    return 'Chart';
-            }
+        case ResourceViewItemType.COMPOSER_CHART:
+            return getChartKindName(item.data.chartKind);
         default:
             return assertUnreachable(item, 'Resource type not supported');
     }
@@ -114,6 +119,8 @@ export const getResourceUrl = (
                 item.data.uuid,
                 item.data.slug,
             );
+        case ResourceViewItemType.COMPOSER_CHART:
+            return `/projects/${projectUuid}/composer-charts/${item.data.uuid}`;
         default:
             return assertUnreachable(item, `Can't get URL for ${itemType}`);
     }
@@ -124,6 +131,7 @@ export const getResourceName = (type: ResourceViewItemType) => {
         case ResourceViewItemType.DASHBOARD:
             return 'Dashboard';
         case ResourceViewItemType.CHART:
+        case ResourceViewItemType.COMPOSER_CHART:
             return 'Chart';
         case ResourceViewItemType.SPACE:
             return 'Space';
