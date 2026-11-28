@@ -56,14 +56,12 @@ describe('a composer tile outlives its permanently deleted chart', () => {
     let composerChartModel: ComposerChartModel;
     let fixture: Fixture;
 
-    const createChart = (owner: { dashboardUuid: string } | null) =>
+    const createChart = (dashboardUuid: string) =>
         composerChartModel.create({
             uuid: null,
             slug: null,
             projectUuid: fixture.projectUuid,
-            owner: owner
-                ? { type: 'dashboard', dashboardUuid: owner.dashboardUuid }
-                : { type: 'space', spaceUuid: fixture.spaceUuid },
+            owner: { type: 'dashboard', dashboardUuid },
             name: 'Orders',
             description: null,
             pipeline,
@@ -95,8 +93,8 @@ describe('a composer tile outlives its permanently deleted chart', () => {
             { userUuid: fixture.userUuid },
             fixture.projectUuid,
         );
-        const keptUuid = await createChart({ dashboardUuid: created.uuid });
-        const deletedUuid = await createChart({ dashboardUuid: created.uuid });
+        const keptUuid = await createChart(created.uuid);
+        const deletedUuid = await createChart(created.uuid);
         const dashboard = await dashboardModel.addVersion(
             created.uuid,
             {
@@ -147,9 +145,7 @@ describe('a composer tile outlives its permanently deleted chart', () => {
 
     it('still cleans up an orphan when another tile has no chart', async () => {
         const { dashboard, keptUuid } = await setUp();
-        const orphanUuid = await createChart({
-            dashboardUuid: dashboard.uuid,
-        });
+        const orphanUuid = await createChart(dashboard.uuid);
 
         await composerChartModel.deleteOrphans(dashboard.uuid, new Set());
 
