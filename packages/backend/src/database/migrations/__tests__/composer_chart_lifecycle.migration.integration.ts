@@ -621,6 +621,7 @@ describe('space-owned composer charts follow their space on the real schema', ()
         const live = await createSpaceChart(owner, 'Live');
         const deletedEarlier = await createSpaceChart(owner, 'Deleted earlier');
         const elsewhere = await createSpaceChart(other, 'Elsewhere');
+        const sameTimeOtherUser = await createSpaceChart(owner, 'Other user');
         await composerChartModel.deleteFromSpace(
             deletedEarlier,
             owner.spaceUuid,
@@ -632,9 +633,16 @@ describe('space-owned composer charts follow their space on the real schema', ()
             owner.spaceUuid,
             owner.userUuid,
         );
-        expect(cascaded.composerCharts).toEqual([
-            { composerChartUuid: live, projectUuid: owner.projectUuid },
-        ]);
+        expect(cascaded.composerCharts).toEqual(
+            expect.arrayContaining([
+                { composerChartUuid: live, projectUuid: owner.projectUuid },
+                {
+                    composerChartUuid: sameTimeOtherUser,
+                    projectUuid: owner.projectUuid,
+                },
+            ]),
+        );
+        expect(cascaded.composerCharts).toHaveLength(2);
         const space = await database('spaces')
             .select('deleted_at')
             .where('space_uuid', owner.spaceUuid)
@@ -650,15 +658,28 @@ describe('space-owned composer charts follow their space on the real schema', ()
             deleted_at: null,
             deleted_by_user_uuid: null,
         });
+        await database('composer_charts')
+            .where('composer_chart_uuid', sameTimeOtherUser)
+            .update({ deleted_by_user_uuid: other.userUuid });
 
         const restored = await spaceModel.restore(owner.spaceUuid);
-        expect(restored.composerCharts).toEqual(cascaded.composerCharts);
+        expect(restored.composerCharts).toEqual(
+            cascaded.composerCharts.filter(
+                ({ composerChartUuid }) =>
+                    composerChartUuid !== sameTimeOtherUser,
+            ),
+        );
+        expect(restored.composerCharts).toHaveLength(1);
         await expect(composerChartModel.get(live)).resolves.toMatchObject({
             owner: { type: 'space', spaceUuid: owner.spaceUuid },
         });
         await expect(deletedStamp(deletedEarlier)).resolves.toEqual(
             earlierStamp,
         );
+        await expect(deletedStamp(sameTimeOtherUser)).resolves.toEqual({
+            deleted_at: space?.deleted_at,
+            deleted_by_user_uuid: other.userUuid,
+        });
     });
 
     it('restores a deleted chart only once its space is live, and permanently deletes only a deleted one', async () => {

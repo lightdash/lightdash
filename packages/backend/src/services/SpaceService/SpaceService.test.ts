@@ -2179,7 +2179,9 @@ describe('Space cascade audit for Documents and composer charts', () => {
             projectUuid: 'project',
         });
         // Plus the Space's own bypass event
-        expect(logBypassEvent).toHaveBeenCalledTimes(4);
+        expect(logBypassEvent).toHaveBeenCalledTimes(
+            cascaded.documents.length + cascaded.composerCharts.length + 1,
+        );
     });
 
     it('logs one bypass event per Document and composer chart restored with the Space', async () => {

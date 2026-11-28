@@ -152,7 +152,6 @@ export const composerChartContentConfiguration: ContentConfiguration<ComposerCha
                 .whereNull(`${SpaceTableName}.deleted_at`)
                 .where((builder) => {
                     if (filters.deleted) {
-                        // Recently deleted scopes by deleter, as for classic charts
                         void builder.whereNotNull(
                             `${ComposerChartsTableName}.deleted_at`,
                         );

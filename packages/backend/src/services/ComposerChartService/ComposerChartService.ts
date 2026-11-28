@@ -792,7 +792,7 @@ export class ComposerChartService extends BaseService {
         }
     }
 
-    /** Restores a deleted space-owned chart; 409 while its space is deleted. Works with the flag off. */
+    /** 409 while its space is deleted. Works with the flag off. */
     async restore(
         account: RegisteredAccount,
         projectUuid: UUID,
@@ -810,7 +810,7 @@ export class ComposerChartService extends BaseService {
         );
     }
 
-    /** Permanently deletes a soft-deleted space-owned chart and its versions. Works with the flag off. */
+    /** Works with the flag off. */
     async permanentDelete(
         account: RegisteredAccount,
         projectUuid: UUID,

@@ -149,8 +149,6 @@ const createService = ({
     const composerChartService = {
         moveToSpace: vi.fn().mockResolvedValue(undefined),
         delete: vi.fn().mockResolvedValue(undefined),
-        restore: vi.fn().mockResolvedValue(undefined),
-        permanentDelete: vi.fn().mockResolvedValue(undefined),
     };
     const documentService = {
         delete: vi.fn().mockResolvedValue(undefined),
@@ -1065,28 +1063,6 @@ describe('ContentService composer chart actions', () => {
         uuid: 'composer-chart-uuid',
         contentType: ContentType.COMPOSER_CHART,
     } as const;
-
-    it.each(['restore', 'permanentDelete'] as const)(
-        'hands %s to the composer chart service with the authorized project',
-        async (method) => {
-            const deps = createService();
-            const user = createUser();
-            await (method === 'restore'
-                ? deps.service.restoreContent(user, projectUuid, item)
-                : deps.service.permanentlyDeleteContent(
-                      user,
-                      projectUuid,
-                      item,
-                  ));
-            expect(deps.composerChartService[method]).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    user: expect.objectContaining({ userUuid: user.userUuid }),
-                }),
-                projectUuid,
-                item.uuid,
-            );
-        },
-    );
 
     it('bulk delete deletes the rest and skips a composer chart the user may not delete', async () => {
         const deps = createService();

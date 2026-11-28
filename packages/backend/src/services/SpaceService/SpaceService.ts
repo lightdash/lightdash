@@ -832,24 +832,36 @@ export class SpaceService
             cascaded: CascadedSpaceContent;
         },
     ): void {
-        const action = operation === 'delete' ? 'delete' : 'manage';
-        for (const { documentUuid, projectUuid } of cascaded.documents) {
-            this.logBypassEvent(user, action, {
-                type: operation === 'delete' ? 'Document' : 'DeletedContent',
+        const audit = {
+            delete: {
+                action: 'delete',
+                document: 'Document',
+                chart: 'SavedChart',
+            },
+            restore: {
+                action: 'manage',
+                document: 'DeletedContent',
+                chart: 'DeletedContent',
+            },
+        }[operation];
+        const resources = [
+            ...cascaded.documents.map(({ documentUuid, projectUuid }) => ({
+                type: audit.document,
                 metadata: { documentUuid, spaceUuid },
-                organizationUuid,
                 projectUuid,
-            });
-        }
-        for (const {
-            composerChartUuid,
-            projectUuid,
-        } of cascaded.composerCharts) {
-            this.logBypassEvent(user, action, {
-                type: operation === 'delete' ? 'SavedChart' : 'DeletedContent',
-                metadata: { composerChartUuid, spaceUuid },
+            })),
+            ...cascaded.composerCharts.map(
+                ({ composerChartUuid, projectUuid }) => ({
+                    type: audit.chart,
+                    metadata: { composerChartUuid, spaceUuid },
+                    projectUuid,
+                }),
+            ),
+        ];
+        for (const resource of resources) {
+            this.logBypassEvent(user, audit.action, {
+                ...resource,
                 organizationUuid,
-                projectUuid,
             });
         }
     }
