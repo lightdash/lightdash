@@ -18,6 +18,7 @@ import googleAnalyticsIcon from './icons/google-analytics.svg';
 import googleSearchConsoleIcon from './icons/google-search-console.svg';
 import hubspotIcon from './icons/hubspot.svg';
 import hydraIcon from './icons/hydra.svg';
+import intercomIcon from './icons/intercom.svg';
 import jiraIcon from './icons/jira.svg';
 import linkedinAdsIcon from './icons/linkedin-ads.svg';
 import metaAdsIcon from './icons/meta-ads.svg';
@@ -31,6 +32,7 @@ import stripeIcon from './icons/stripe.svg';
 import supabaseIcon from './icons/supabase.svg';
 import unknownIcon from './icons/unknown.svg';
 import youtubeAnalyticsIcon from './icons/youtube-analytics.svg';
+import { INTERCOM_TOKEN_FORM } from './intercomConnection';
 import iconClasses from './LiveSourceIcon.module.css';
 import { META_ADS_TOKEN_FORM } from './metaAdsConnection';
 import { PYLON_TOKEN_FORM } from './pylonConnection';
@@ -85,6 +87,7 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.SALESFORCE]: salesforceIcon,
     [ApiConnectorType.AMPLITUDE]: amplitudeIcon,
     [ApiConnectorType.MIXPANEL]: mixpanelIcon,
+    [ApiConnectorType.INTERCOM]: intercomIcon,
     [ApiConnectorType.SUPABASE]: supabaseIcon,
     [ApiConnectorType.SENTRY]: sentryIcon,
     [ApiConnectorType.HYDRA]: hydraIcon,
@@ -94,7 +97,7 @@ const ICONS: Record<string, string> = {
 };
 
 /** One-colour marks, such as GitHub's, drawn dark and lightened in dark mode. */
-const MONO_ICONS = new Set([githubIcon, attioIcon, unknownIcon]);
+const MONO_ICONS = new Set([githubIcon, attioIcon, intercomIcon, unknownIcon]);
 
 /** Coloured marks too dark for a dark background, drawn white there, as the vendor does. */
 const WHITE_ON_DARK_ICONS = new Set([pylonIcon, sentryIcon]);
@@ -121,6 +124,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.SALESFORCE,
     ApiConnectorType.AMPLITUDE,
     ApiConnectorType.MIXPANEL,
+    ApiConnectorType.INTERCOM,
     ApiConnectorType.SUPABASE,
     ApiConnectorType.SENTRY,
     ApiConnectorType.HYDRA,
@@ -133,6 +137,7 @@ const TOKEN_FORMS: Partial<Record<ApiConnectorType, TokenLiveSourceForm>> = {
     [ApiConnectorType.PYLON]: PYLON_TOKEN_FORM,
     [ApiConnectorType.ATTIO]: ATTIO_TOKEN_FORM,
     [ApiConnectorType.HUBSPOT]: HUBSPOT_TOKEN_FORM,
+    [ApiConnectorType.INTERCOM]: INTERCOM_TOKEN_FORM,
     [ApiConnectorType.SENTRY]: SENTRY_TOKEN_FORM,
     [ApiConnectorType.HYDRA]: HYDRA_TOKEN_FORM,
 };

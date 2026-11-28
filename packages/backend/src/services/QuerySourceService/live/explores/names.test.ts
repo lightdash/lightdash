@@ -122,6 +122,11 @@ const SOURCES: {
         answers: {},
     },
     {
+        name: 'Intercom',
+        apiSource: { connector: ApiConnectorType.INTERCOM },
+        answers: {},
+    },
+    {
         name: 'Sentry',
         apiSource: {
             connector: ApiConnectorType.SENTRY,

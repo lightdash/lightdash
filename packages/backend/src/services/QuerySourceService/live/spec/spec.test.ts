@@ -87,6 +87,10 @@ describe('live integration specs', () => {
               "rating": "easy",
               "score": 6,
             },
+            "intercom": {
+              "rating": "easy",
+              "score": 7,
+            },
             "linkedin_ads": {
               "rating": "hard",
               "score": 1,

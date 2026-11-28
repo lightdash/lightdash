@@ -264,6 +264,20 @@ export const LIVE_INTEGRATION_CATALOG: {
         }),
         getTarget: ({ projectId }) => `Project ${projectId}`,
     },
+    [ApiConnectorType.INTERCOM]: {
+        id: 'intercom',
+        label: 'Intercom',
+        defaultName: 'Intercom',
+        messageLabel: 'Intercom',
+        agentLabel: 'Intercom',
+        description: 'Conversations, tickets, contacts and teammates',
+        setup: 'token',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.INTERCOM),
+        }),
+        getTarget: () => 'Intercom workspace',
+        featureFlag: FeatureFlags.LiveSourceIntercom,
+    },
     [ApiConnectorType.SUPABASE]: {
         id: 'supabase',
         label: 'Supabase',

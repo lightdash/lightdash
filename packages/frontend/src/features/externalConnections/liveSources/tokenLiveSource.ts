@@ -23,6 +23,15 @@ export type TokenLiveSourceForm = {
         normalize: (value: string) => string;
         isValid: (normalizedValue: string) => boolean;
     } | null;
+    /**
+     * The hosts the token may belong to, for APIs with regions; the first is
+     * the default. Omitted, the source always calls `origin`.
+     */
+    regions?: {
+        label: string;
+        hint: string;
+        options: readonly { label: string; origin: string }[];
+    };
     tokenLabel: string;
     /** Shown under the token field; defaults to "Read access is enough". */
     tokenHint?: string;
@@ -48,6 +57,8 @@ export type TokenLiveSourceValues = {
     name: string;
     accountId: string;
     token: string;
+    /** The region's host, for forms with regions; fixed once saved. */
+    origin?: string;
 };
 
 /** A saved token stays when the field is blank. */
@@ -61,12 +72,14 @@ export const useTokenLiveSourceForm = (
                   name: connection.name,
                   accountId: form.getAccountId(connection),
                   token: '',
+                  origin: connection.origin,
               }
             : {
                   name: LIVE_INTEGRATION_CATALOG[form.toApiSource('').connector]
                       .defaultName,
                   accountId: '',
                   token: '',
+                  origin: form.origin,
               },
         validate: {
             name: (value) =>
@@ -95,7 +108,7 @@ export const toTokenLiveSourceCreatePayload = (
     return {
         name: values.name.trim(),
         type: 'bearer_token',
-        origin: form.origin,
+        origin: (form.regions && values.origin) || form.origin,
         secret: values.token.trim(),
         apiSource: form.toApiSource(accountId),
         ...form.getAccess(accountId),

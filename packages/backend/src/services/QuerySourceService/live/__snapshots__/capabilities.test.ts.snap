@@ -137,6 +137,7 @@ exports[`connector capability declarations > the summable tags 1`] = `
       "aggregation": "additive",
     },
   },
+  "intercom": {},
   "linkedin_ads": {
     "clicks": {
       "aggregation": "additive",

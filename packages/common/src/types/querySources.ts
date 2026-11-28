@@ -77,6 +77,7 @@ export enum ApiConnectorType {
     SALESFORCE = 'salesforce',
     AMPLITUDE = 'amplitude',
     MIXPANEL = 'mixpanel',
+    INTERCOM = 'intercom',
     SUPABASE = 'supabase',
     SENTRY = 'sentry',
     /** A test integration the tests control; registered only when turned on. */

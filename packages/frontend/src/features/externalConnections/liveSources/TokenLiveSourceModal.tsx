@@ -3,7 +3,7 @@
  * settings: how it reaches the integration first, then what it is called.
  */
 import { LIVE_INTEGRATION_CATALOG } from '@lightdash/common';
-import { PasswordInput, Stack, TextInput } from '@mantine/core';
+import { PasswordInput, Select, Stack, TextInput } from '@mantine/core';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useCreateExternalConnection } from '../hooks/useCreateExternalConnection';
@@ -50,7 +50,7 @@ export const TokenLiveSourceModal: FC<Props> = ({
         enabled: opened,
     });
     const isSaving = createMutation.isLoading;
-    const { account } = definition;
+    const { account, regions } = definition;
 
     const { getTestRequest } = definition;
     const handleTest = () => {
@@ -111,6 +111,21 @@ export const TokenLiveSourceModal: FC<Props> = ({
                             />
                         </SettingsRow>
                     ) : null}
+                    {regions ? (
+                        <SettingsRow label={regions.label} hint={regions.hint}>
+                            <Select
+                                w={FIELD_WIDTH}
+                                size="xs"
+                                aria-label={regions.label}
+                                allowDeselect={false}
+                                data={regions.options.map((option) => ({
+                                    value: option.origin,
+                                    label: option.label,
+                                }))}
+                                {...form.getInputProps('origin')}
+                            />
+                        </SettingsRow>
+                    ) : null}
                     <SettingsRow
                         label={definition.tokenLabel}
                         hint={definition.tokenHint ?? 'Read access is enough'}
@@ -128,7 +143,11 @@ export const TokenLiveSourceModal: FC<Props> = ({
                             hint="Checks the details above, without saving"
                             test={testMutation}
                             onTest={handleTest}
-                            inputs={[form.values.accountId, form.values.token]}
+                            inputs={[
+                                form.values.accountId,
+                                form.values.token,
+                                form.values.origin,
+                            ]}
                         />
                     ) : null}
                 </SettingsCard>
