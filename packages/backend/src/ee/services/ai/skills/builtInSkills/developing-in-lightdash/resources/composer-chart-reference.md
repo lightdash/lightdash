@@ -40,7 +40,7 @@ Done when the result links the dashboard and `runContentQuery` on the new chart 
 3. Patch exactly what you read with `editContent` (`type: "composer_chart"`), as RFC6902 operations on that JSON.
 4. Check the saved chart with `runContentQuery` and `chartType: "composer_chart"`. For a chart on a dashboard, use `source.type: "dashboardChart"` with the dashboard's slug. When the chart's `dashboardSlug` is null, a space owns the chart, so use `source.type: "chart"`. Done when the terminal node's rows show the change you made.
 
-On a dashboard, `editContent` saves the edit in place as a new version of the chart, so the dashboard shows the edit straight away. Restoring an earlier dashboard version restores the chart with it. In a space, where `dashboardSlug` is null, the `editContent` description says how each field saves. A new `spaceSlug` moves the chart. Repeat the result's `warnings` to the user. The warnings name the dashboards that show the chart, and those dashboards show the change too. `slug`, `contentType` and `dashboardSlug` cannot change. In a conversation bound to a dashboard, only that dashboard's composer charts can be edited.
+On a dashboard, `editContent` saves the edit in place as a new version of the chart, so the dashboard shows the edit straight away. Restoring an earlier dashboard version restores the chart with it. In a space, where `dashboardSlug` is null, the `editContent` description says how each field saves. Repeat the result's `warnings` to the user. `slug`, `contentType` and `dashboardSlug` cannot change. In a conversation bound to a dashboard, only that dashboard's composer charts can be edited.
 
 ## Rename
 

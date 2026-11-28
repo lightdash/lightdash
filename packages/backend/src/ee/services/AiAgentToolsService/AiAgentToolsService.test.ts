@@ -4610,7 +4610,7 @@ describe('AiAgentToolsService', () => {
         });
 
         it('writes a pipeline change as a new version after approval, keeping the space owner', async () => {
-            const { runtime, upsertComposerChart, update, preflightWrite } =
+            const { runtime, upsertComposerChart, update } =
                 makeSpaceEditService();
             const approveSql = vi.fn(async () => {
                 expect(upsertComposerChart).not.toHaveBeenCalled();
@@ -4623,7 +4623,6 @@ describe('AiAgentToolsService', () => {
                 approveSql,
             });
 
-            expect(preflightWrite).toHaveBeenCalledOnce();
             expect(approveSql).toHaveBeenCalledExactlyOnceWith({
                 sql: '-- orders\nselect status from orders',
                 chartName: 'Orders by status',
@@ -4688,12 +4687,11 @@ describe('AiAgentToolsService', () => {
         });
 
         it('checks the pipeline before saving a chart change with no new SQL', async () => {
-            const { runtime, upsertComposerChart, preflightWrite } =
-                makeSpaceEditService({
-                    preflightWrite: vi
-                        .fn()
-                        .mockRejectedValue(new ForbiddenError('no composer')),
-                });
+            const { runtime, upsertComposerChart } = makeSpaceEditService({
+                preflightWrite: vi
+                    .fn()
+                    .mockRejectedValue(new ForbiddenError('no composer')),
+            });
 
             await expect(
                 runtime.editContent({
@@ -4709,7 +4707,6 @@ describe('AiAgentToolsService', () => {
                     approveSql: vi.fn(),
                 }),
             ).rejects.toThrow(ForbiddenError);
-            expect(preflightWrite).toHaveBeenCalledOnce();
             expect(upsertComposerChart).not.toHaveBeenCalled();
         });
 

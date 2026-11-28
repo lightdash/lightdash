@@ -302,6 +302,9 @@ type SearchContentResult = Awaited<
 // A failed node's error, e.g. a Python traceback, as the model sees it.
 const COMPOSER_NODE_ERROR_MAX_CHARS = 4096;
 
+const composerChartChangedWhileWaiting = (slug: string) =>
+    `Composer chart "${slug}" changed while this edit waited, so it was not saved. Read it again and reapply the change.`;
+
 /** What an agent edit of a space-owned composer chart writes. */
 type SpaceComposerChartEdit = {
     composerChartUuid: UUID;
@@ -4845,9 +4848,7 @@ export class AiAgentToolsService extends BaseService {
                 slug,
             );
         if (versionBeforeSave.versionUuid !== versionUuid) {
-            throw new ParameterError(
-                `Composer chart "${slug}" changed while this edit waited, so it was not saved. Read it again and reapply the change.`,
-            );
+            throw new ParameterError(composerChartChangedWhileWaiting(slug));
         }
         const { account } = context;
         assertRegisteredAccount(account);
@@ -4911,7 +4912,6 @@ export class AiAgentToolsService extends BaseService {
         };
     }
 
-    /** A pipeline or chart change writes a version; a name or description change alone renames; a new space moves. */
     private async saveSpaceComposerChartEdit(
         context: AiAgentToolsRuntimeContext,
         {
@@ -4941,9 +4941,7 @@ export class AiAgentToolsService extends BaseService {
             (now.description ?? null) !== read.description ||
             now.spaceSlug !== read.spaceSlug
         ) {
-            throw new ParameterError(
-                `Composer chart "${slug}" changed while this edit waited, so it was not saved. Read it again and reapply the change.`,
-            );
+            throw new ParameterError(composerChartChangedWhileWaiting(slug));
         }
         if (spaceEdit.write === 'version') {
             await this.coderService.upsertComposerChart(
