@@ -772,17 +772,23 @@ export const LiveActivityCard: FC<Props> = ({
         (sum, group) => sum + group.calls.length,
         0,
     );
-    const olderGroups = latest
-        ? toolGroups.filter((group) => group !== latest)
-        : toolGroups;
-    const hasOlderAwaitingApproval = olderGroups.some(isGroupAwaitingApproval);
-    const hasGroupAwaitingApproval =
-        latestAwaitingApproval || hasOlderAwaitingApproval;
-    const olderCount = latest ? totalCalls - latest.calls.length : totalCalls;
+    // Pending calls share one parent, so a card stays mounted when the lead changes.
+    const leadGroups = latest
+        ? toolGroups.filter(
+              (group) => group === latest || isGroupAwaitingApproval(group),
+          )
+        : [];
+    const olderGroups = toolGroups.filter(
+        (group) => !leadGroups.includes(group),
+    );
+    const olderCount = olderGroups.reduce(
+        (sum, group) => sum + group.calls.length,
+        0,
+    );
     const hasExpandableBody = olderCount > 0 || hasReasoning;
     // Auto-expand while approval is pending so the user sees it immediately.
     const expanded =
-        hasGroupAwaitingApproval || (userExpanded ?? defaultExpanded);
+        latestAwaitingApproval || (userExpanded ?? defaultExpanded);
 
     const latestNeedsExpandedBody =
         latest?.toolName === 'runSql' ||
@@ -1003,91 +1009,82 @@ export const LiveActivityCard: FC<Props> = ({
                             isLive={reasoning.isLive}
                         />
                     )}
-                    {olderGroups.length > 0 &&
-                        (earlierOpen || hasOlderAwaitingApproval) && (
-                            <Stack gap={2}>
-                                {olderGroups.map((group) => {
-                                    if (isGroupAwaitingApproval(group)) {
-                                        return (
-                                            <Fragment key={group.keyId}>
-                                                {renderCallDescriptions(group)}
-                                            </Fragment>
-                                        );
-                                    }
-                                    if (!earlierOpen) return null;
-                                    const groupTrace =
-                                        group.toolName === 'discoverFields'
-                                            ? group.calls
-                                                  .map(
-                                                      (tc) =>
-                                                          getDiscoverFieldsTraceFromCall(
-                                                              tc,
-                                                          ) ??
-                                                          getDiscoverFieldsTrace(
-                                                              toolResults?.find(
-                                                                  (r) =>
-                                                                      r.toolCallId ===
-                                                                      tc.toolCallId,
-                                                              ),
-                                                              toolCalls,
+                    {olderGroups.length > 0 && earlierOpen && (
+                        <Stack gap={2}>
+                            {olderGroups.map((group) => {
+                                const groupTrace =
+                                    group.toolName === 'discoverFields'
+                                        ? group.calls
+                                              .map(
+                                                  (tc) =>
+                                                      getDiscoverFieldsTraceFromCall(
+                                                          tc,
+                                                      ) ??
+                                                      getDiscoverFieldsTrace(
+                                                          toolResults?.find(
+                                                              (r) =>
+                                                                  r.toolCallId ===
+                                                                  tc.toolCallId,
                                                           ),
-                                                  )
-                                                  .find(
-                                                      (t) => t && t.length > 0,
-                                                  )
-                                            : null;
-                                    // Adapt the writeback tool's persisted, generic
-                                    // step actions into grouped step rows. The
-                                    // adaptation lives here (the orchestrator),
-                                    // never in the generic row/step components.
-                                    const groupSteps = isDbtWriteToolName(
-                                        group.toolName,
-                                    )
-                                        ? group.calls.flatMap((tc) => {
-                                              const meta = toolResults?.find(
-                                                  (r) =>
-                                                      r.toolCallId ===
-                                                      tc.toolCallId,
-                                              )?.metadata as
-                                                  | {
-                                                        steps?: AiWritebackStep[];
-                                                    }
-                                                  | undefined;
-                                              return meta?.steps ?? [];
-                                          })
-                                        : [];
-                                    return (
-                                        <Box key={group.keyId}>
-                                            <ToolCallRow
-                                                toolName={group.toolName}
-                                                toolCalls={group.calls}
-                                                display={group.display}
-                                                status="done"
-                                                toolResults={toolResults}
-                                                mcpServers={mcpServers}
-                                                extraBody={(() => {
-                                                    if (groupSteps.length > 0) {
-                                                        return (
-                                                            <AgentStepGroups
-                                                                steps={
-                                                                    groupSteps
-                                                                }
-                                                            />
-                                                        );
-                                                    }
-                                                    return groupTrace ? (
-                                                        <DiscoverFieldsTrace
-                                                            trace={groupTrace}
+                                                          toolCalls,
+                                                      ),
+                                              )
+                                              .find((t) => t && t.length > 0)
+                                        : null;
+                                // Adapt the writeback tool's persisted, generic
+                                // step actions into grouped step rows. The
+                                // adaptation lives here (the orchestrator),
+                                // never in the generic row/step components.
+                                const groupSteps = isDbtWriteToolName(
+                                    group.toolName,
+                                )
+                                    ? group.calls.flatMap((tc) => {
+                                          const meta = toolResults?.find(
+                                              (r) =>
+                                                  r.toolCallId ===
+                                                  tc.toolCallId,
+                                          )?.metadata as
+                                              | {
+                                                    steps?: AiWritebackStep[];
+                                                }
+                                              | undefined;
+                                          return meta?.steps ?? [];
+                                      })
+                                    : [];
+                                return (
+                                    <Box key={group.keyId}>
+                                        <ToolCallRow
+                                            toolName={group.toolName}
+                                            toolCalls={group.calls}
+                                            display={group.display}
+                                            status="done"
+                                            toolResults={toolResults}
+                                            mcpServers={mcpServers}
+                                            extraBody={(() => {
+                                                if (groupSteps.length > 0) {
+                                                    return (
+                                                        <AgentStepGroups
+                                                            steps={groupSteps}
                                                         />
-                                                    ) : undefined;
-                                                })()}
-                                            />
-                                        </Box>
-                                    );
-                                })}
-                            </Stack>
-                        )}
-                    {latest && renderCallDescriptions(latest)}
+                                                    );
+                                                }
+                                                return groupTrace ? (
+                                                    <DiscoverFieldsTrace
+                                                        trace={groupTrace}
+                                                    />
+                                                ) : undefined;
+                                            })()}
+                                        />
+                                    </Box>
+                                );
+                            })}
+                        </Stack>
+                    )}
+                    {leadGroups.map((group) => (
+                        <Fragment key={group.keyId}>
+                            {renderCallDescriptions(group)}
+                        </Fragment>
+                    ))}
                     {extra}
                 </Stack>
             </Collapse>

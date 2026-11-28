@@ -498,6 +498,47 @@ describe('LiveActivityCard approval behind a later call', () => {
         );
     });
 
+    it('keeps a decision in flight when the newer approval resolves first', async () => {
+        mockedLightdashApi.mockReturnValue(new Promise(() => undefined));
+        const toolGroups = [
+            sqlGroup('first', 'select 1'),
+            chartRun,
+            sqlGroup('second', 'select 2'),
+        ];
+        const { rerender } = renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={toolGroups}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: ['first', 'second'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+        await userEvent.click(
+            screen.getAllByRole('button', { name: 'Approve' })[0],
+        );
+
+        rerender(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={toolGroups}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: ['first'],
+                        decidedToolCallIds: ['second'],
+                    }}
+                />
+            </Provider>,
+        );
+
+        expect(screen.getByRole('button', { name: 'Reject' })).toBeDisabled();
+    });
+
     it('collapses once the edit is decided and the turn ends', () => {
         const toolGroups = [composerEdit, chartRun];
         const { rerender } = renderWithProviders(
