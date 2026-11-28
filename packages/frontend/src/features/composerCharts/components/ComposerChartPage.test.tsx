@@ -77,10 +77,10 @@ const chart = {
     chart: { chartConfig: { type: 'cartesian', config: {} } },
 } as unknown as ComposerChartWithDetails;
 
-const renderPage = (page: ComposerChartWithDetails = chart) =>
+const renderPage = (shown: ComposerChartWithDetails = chart) =>
     renderWithProviders(
         <MemoryRouter>
-            <ComposerChartPage projectUuid="project-uuid" chart={page} />
+            <ComposerChartPage projectUuid="project-uuid" chart={shown} />
         </MemoryRouter>,
     );
 

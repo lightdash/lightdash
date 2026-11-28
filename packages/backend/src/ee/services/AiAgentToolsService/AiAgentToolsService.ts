@@ -3419,7 +3419,7 @@ export class AiAgentToolsService extends BaseService {
 
     private async readComposerChartForAgent(
         context: AiAgentToolsRuntimeContext,
-        slug: string,
+        composerChartUuidOrSlug: UuidOrSlug,
         action: 'read' | 'update',
     ): Promise<{
         current: Extract<
@@ -3429,7 +3429,11 @@ export class AiAgentToolsService extends BaseService {
         composerChartUuid: UUID;
     }> {
         const { composerChart, composerChartUuid } =
-            await this.findComposerChartForAgent(context, slug, action);
+            await this.findComposerChartForAgent(
+                context,
+                composerChartUuidOrSlug,
+                action,
+            );
         if (!composerChart.dashboardSlug) {
             return {
                 current: {
