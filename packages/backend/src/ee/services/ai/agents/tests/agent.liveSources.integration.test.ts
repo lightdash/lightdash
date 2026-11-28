@@ -164,8 +164,7 @@ describeOrSkip('live data source selection', () => {
                     sourceName: source.prefix,
                     name: source.name,
                     apiSource,
-                    scannedFields: [],
-                    edits: {},
+
                     aiHint: [
                         describeLiveTarget(apiSource, origin, null),
                         ...(source.aiHint ? [source.aiHint] : []),

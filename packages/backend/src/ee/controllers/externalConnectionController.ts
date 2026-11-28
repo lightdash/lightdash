@@ -13,6 +13,7 @@ import {
     type ApiLiveSourceAccessResponse,
     type ApiLiveSourceContentUsageResponse,
     type ApiLiveSourceFieldsResponse,
+    type ApiLiveSourceRefreshResponse,
     type ApiProposeExternalConnectionConfigRequest,
     type ApiProposeExternalConnectionConfigResponse,
     type ApiReattachableLiveSourcesResponse,
@@ -315,9 +316,10 @@ export class ExternalConnectionController extends BaseController {
     }
 
     /**
-     * Rebuild the explores of a live data source from its integration's
-     * semantic layer and the fields it reports, such as GA4 custom
-     * dimensions or PostHog properties
+     * Read what a live data source's integration offers now, such as GA4
+     * custom dimensions, PostHog properties or a CRM's own objects, and
+     * rebuild its explores. Returns the explores and fields that appeared or
+     * went away
      * @summary Refresh live data source explores
      */
     @Middlewares([
@@ -332,15 +334,15 @@ export class ExternalConnectionController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() connectionUuid: string,
-    ): Promise<{ status: 'ok'; results: undefined }> {
+    ): Promise<ApiLiveSourceRefreshResponse> {
         assertRegisteredAccount(req.account);
-        await this.getService().refreshApiSourceExplores(
+        const results = await this.getService().refreshApiSourceExplores(
             req.account,
             projectUuid,
             connectionUuid,
         );
         this.setStatus(200);
-        return { status: 'ok', results: undefined };
+        return { status: 'ok', results };
     }
 
     /**

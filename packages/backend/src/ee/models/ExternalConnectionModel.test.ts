@@ -2,6 +2,7 @@ import {
     ApiConnectorType,
     ConflictError,
     ParameterError,
+    type SentryApiSource,
 } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
@@ -662,6 +663,32 @@ describe('ExternalConnectionModel', () => {
             expect(write.bindings).toContainEqual(
                 expect.arrayContaining(['rateLimits']),
             );
+        });
+
+        it('saves each project of a Sentry source one time, and reads a stored source the same way', async () => {
+            const twice: SentryApiSource = {
+                connector: ApiConnectorType.SENTRY,
+                organizationSlug: 'acme',
+                projectSlugs: ['mobile', 'mobile', 'web'],
+            };
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .response([makeDbConnection({ api_source: twice })]);
+            tracker.on.update(ExternalConnectionsTableName).response(1);
+
+            const stored = await model.update(CONNECTION_UUID, USER_UUID, {
+                apiSource: twice,
+            });
+
+            const [write] = tracker.history.update;
+            expect(write.bindings).toContain(
+                JSON.stringify({ ...twice, projectSlugs: ['mobile', 'web'] }),
+            );
+            // The row the fake database returns still names it two times
+            expect(stored.apiSource).toEqual({
+                ...twice,
+                projectSlugs: ['mobile', 'web'],
+            });
         });
 
         it('leaves the stored secret unchanged when secret is blank', async () => {

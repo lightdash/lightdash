@@ -14,17 +14,18 @@ import {
 } from '@lightdash/common';
 import {
     getApiName,
+    getLiveDateRange,
     getLiveDefinitionName,
     getLiveExplore,
+    toAbsoluteDateRange,
     type LiveCompiledRequest,
-} from '../../explores/definition';
-import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
+} from '../../sdk';
 import {
     ATTIO_SORT_FIELDS,
     isAttioChoiceProperty,
     parseAttioApiName,
-} from './attributes';
-import { toAttioObject } from './explores';
+    toAttioObject,
+} from './model';
 import { type AttioRequest, type AttioSort } from './run';
 
 type AttioCondition = Record<string, unknown>;
@@ -32,8 +33,8 @@ type AttioCondition = Record<string, unknown>;
 // Placeholder for the open side of a one-sided date filter; never sent
 const EARLIEST_DATE = '1900-01-01';
 
-/** Built-in fields filtered or sorted as Attio's own attributes. */
-const BUILT_IN_ATTRIBUTES: Record<string, string> = {
+/** Declared fields filtered or sorted as Attio's own attributes. */
+const RECORD_ATTRIBUTES: Record<string, string> = {
     record_id: 'record_id',
     created_at: 'created_at',
 };
@@ -101,9 +102,9 @@ const toCondition = ({
     type: DimensionType;
     today: string;
 }): AttioCondition => {
-    const builtIn = BUILT_IN_ATTRIBUTES[apiName];
-    const { slug, property } = builtIn
-        ? { slug: builtIn, property: null }
+    const recordAttribute = RECORD_ATTRIBUTES[apiName];
+    const { slug, property } = recordAttribute
+        ? { slug: recordAttribute, property: null }
         : parseAttioApiName(apiName);
     const values = rule.values ?? [];
     // Attio filters a value's property by naming it: {name: {full_name: …}}
@@ -196,8 +197,8 @@ const toAttioSorts = (
     const native = sorts.map((sort): AttioSort | null => {
         const name = apiName(sort.fieldId);
         const direction = sort.descending ? 'desc' : 'asc';
-        if (Object.hasOwn(BUILT_IN_ATTRIBUTES, name)) {
-            return { attribute: BUILT_IN_ATTRIBUTES[name], direction };
+        if (Object.hasOwn(RECORD_ATTRIBUTES, name)) {
+            return { attribute: RECORD_ATTRIBUTES[name], direction };
         }
         if (!typeOf(sort.fieldId)) {
             return null;

@@ -294,6 +294,11 @@ export enum FeatureFlags {
      * only, so user and organization overrides both apply.
      */
     LeftNavigation = 'left-navigation',
+    /**
+     * Org-scoped, on until turned off: Hydra, the live integration with
+     * seeded data, can be added, queried and synced.
+     */
+    LiveSourceHydra = 'live-source-hydra',
 }
 
 export type FeatureFlag = {

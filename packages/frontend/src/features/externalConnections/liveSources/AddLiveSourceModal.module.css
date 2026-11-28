@@ -12,7 +12,7 @@
         background-color 120ms ease;
 }
 
-button.card:hover {
+button.card:hover:not(:disabled) {
     border-color: var(
         --mantine-color-default-border-hover,
         var(--mantine-color-gray-4)
@@ -29,4 +29,15 @@ button.card:focus-visible {
     width: 28px;
     height: 28px;
     flex-shrink: 0;
+}
+
+button.card:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.notice {
+    padding: var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-default-hover);
 }

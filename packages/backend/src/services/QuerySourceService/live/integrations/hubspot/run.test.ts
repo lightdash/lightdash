@@ -7,10 +7,13 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { hubspotIntegration } from '.';
-import { connectLiveSource } from '../../liveSource.mock';
+import {
+    connectLiveSource,
+    getExploresWithDiscoveredFields,
+} from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { toHubspotError } from './errors';
-import { HUBSPOT_MAX_ROWS } from './explores';
+import { HUBSPOT_MAX_ROWS, toHubspotError } from './api';
+import { summarizeHubspotTest } from './connection';
 import {
     HUBSPOT_DEAL_PIPELINES,
     HUBSPOT_DEAL_PROPERTIES,
@@ -18,7 +21,7 @@ import {
     hubspotDeal,
     hubspotSearchPage,
 } from './hubspot.fixtures';
-import { summarizeHubspotTest } from './testSummary';
+import { HUBSPOT_EXPLORES } from './model';
 
 const response = (
     body: unknown,
@@ -153,7 +156,7 @@ describe('hubspotIntegration records', () => {
         expect(result.hasMoreRows).toBe(false);
     });
 
-    it('names built-in fields as each object’s own properties', async () => {
+    it('names declared fields as each object’s own properties', async () => {
         const { source, send } = connect(
             'contacts',
             response(hubspotSearchPage([], 0)),
@@ -327,7 +330,7 @@ describe('hubspotIntegration count', () => {
     });
 });
 
-describe('hubspotIntegration scan and test', () => {
+describe('hubspotIntegration discover and test', () => {
     it('reads each object’s properties, one call per object', async () => {
         const { source, send } = connect(
             'deals',
@@ -338,15 +341,11 @@ describe('hubspotIntegration scan and test', () => {
             response({ results: [] }),
         );
 
-        await expect(source.scan()).resolves.toEqual({
-            hubspotProperties: {
-                deals: HUBSPOT_DEAL_PROPERTIES,
-                contacts: { results: [] },
-                companies: { results: [] },
-                tickets: { results: [] },
-                leads: { results: [] },
-            },
-        });
+        const explores = await source.discover();
+
+        expect(
+            getExploresWithDiscoveredFields(HUBSPOT_EXPLORES, explores),
+        ).toEqual(['deals']);
         expect(send.mock.calls.map(([request]) => request.path)).toEqual([
             '/crm/v3/properties/deals',
             '/crm/v3/properties/contacts',
@@ -366,14 +365,14 @@ describe('hubspotIntegration scan and test', () => {
             response(MISSING_LEADS_SCOPE, 403),
         );
 
-        const scan = await source.scan();
+        const explores = await source.discover();
 
-        expect(scan.hubspotProperties).toEqual({
-            deals: HUBSPOT_DEAL_PROPERTIES,
-            contacts: { results: [] },
-            companies: { results: [] },
-            tickets: { results: [] },
-        });
+        expect(explores.map(({ name }) => name)).toEqual(
+            HUBSPOT_EXPLORES.map(({ name }) => name),
+        );
+        expect(
+            getExploresWithDiscoveredFields(HUBSPOT_EXPLORES, explores),
+        ).toEqual(['deals']);
     });
 
     it('fails the scan when no object can be read', async () => {
@@ -386,7 +385,7 @@ describe('hubspotIntegration scan and test', () => {
                 ),
             ),
         );
-        await expect(source.scan()).rejects.toThrow('access token');
+        await expect(source.discover()).rejects.toThrow('access token');
     });
 
     it('fails the scan when HubSpot is briefly unavailable, keeping the last one', async () => {
@@ -398,7 +397,7 @@ describe('hubspotIntegration scan and test', () => {
             response({ results: [] }),
             response({ results: [] }),
         );
-        await expect(source.scan()).rejects.toBeInstanceOf(
+        await expect(source.discover()).rejects.toBeInstanceOf(
             TooManyRequestsError,
         );
     });
@@ -408,7 +407,7 @@ describe('hubspotIntegration scan and test', () => {
         send.mockResolvedValueOnce(response(HUBSPOT_DEAL_PROPERTIES))
             .mockRejectedValueOnce(new Error('HubSpot timed out'))
             .mockResolvedValue(response({ results: [] }));
-        await expect(source.scan()).rejects.toThrow('HubSpot timed out');
+        await expect(source.discover()).rejects.toThrow('HubSpot timed out');
     });
 
     it.each([
