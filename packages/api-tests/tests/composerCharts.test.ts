@@ -3208,6 +3208,23 @@ describe('Composer charts', () => {
                 }
             };
 
+            const withFlagOff = async (act: () => Promise<void>) => {
+                expect(
+                    (await admin.post(flagUrl, { enabled: false })).status,
+                ).toBe(200);
+                try {
+                    expect(
+                        (await admin.get<Body<{ enabled: boolean }>>(flagUrl))
+                            .body.results.enabled,
+                    ).toBe(false);
+                    await act();
+                } finally {
+                    expect(
+                        (await admin.post(flagUrl, { enabled: true })).status,
+                    ).toBe(200);
+                }
+            };
+
             const composerItem = (uuid: string) => ({
                 uuid,
                 contentType: ContentType.COMPOSER_CHART,
@@ -3279,17 +3296,9 @@ describe('Composer charts', () => {
                 expect(
                     (await permanentlyDelete(chart.uuid, viewer)).status,
                 ).toBe(403);
-                // Turning the flag off never strands a deleted chart
-                expect(
-                    (await admin.post(flagUrl, { enabled: false })).status,
-                ).toBe(200);
-                try {
+                await withFlagOff(async () => {
                     expect((await restore(chart.uuid)).status).toBe(200);
-                } finally {
-                    expect(
-                        (await admin.post(flagUrl, { enabled: true })).status,
-                    ).toBe(200);
-                }
+                });
                 expect((await getChart(chart.uuid)).status).toBe(200);
             });
 
@@ -3418,7 +3427,7 @@ describe('Composer charts', () => {
                 expect(await statuses()).toEqual([200, 200, 200, 200]);
             });
 
-            it('permanently deletes a deleted chart for good, and refuses a live or dashboard-owned one', async (ctx) => {
+            it('permanently deletes a deleted chart for good, with the flag off too, and refuses a live or dashboard-owned one', async (ctx) => {
                 await skipWithoutSoftDelete(ctx);
                 const { chart } = await createSpaceChart();
                 expect((await permanentlyDelete(chart.uuid)).status).toBe(404);
@@ -3426,9 +3435,11 @@ describe('Composer charts', () => {
                 expect((await deleteChart(chart.uuid, editor)).status).toBe(
                     200,
                 );
-                expect(
-                    (await permanentlyDelete(chart.uuid, editor)).status,
-                ).toBe(200);
+                await withFlagOff(async () => {
+                    expect(
+                        (await permanentlyDelete(chart.uuid, editor)).status,
+                    ).toBe(200);
+                });
                 expect((await restore(chart.uuid)).status).toBe(404);
                 expect(
                     (await recentlyDeleted()).map((item) => item.uuid),
