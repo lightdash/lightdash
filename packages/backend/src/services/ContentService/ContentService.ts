@@ -20,7 +20,6 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
-    NotSupportedError,
     ParameterError,
     SessionUser,
     SpaceContentBase,
@@ -50,9 +49,6 @@ import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { SpaceService } from '../SpaceService/SpaceService';
-
-const composerChartActionNotSupported = (action: string) =>
-    new NotSupportedError(`${action} composer charts is not supported yet`);
 
 // Composer charts have no direct grants, so "Shared with me" never lists them.
 type DirectAccessContent = Exclude<
@@ -1047,6 +1043,7 @@ export class ContentService extends BaseService {
             ContentType.SPACE,
             ContentType.DATA_APP,
             ContentType.DOCUMENT,
+            ContentType.COMPOSER_CHART,
         ];
 
         return this.contentModel.findDeletedContents(
@@ -1057,7 +1054,6 @@ export class ContentService extends BaseService {
                 deletedByUserUuids,
                 dataAppVizsFilter: filters.dataAppVizsFilter,
                 documents: { allowedSpaceUuids: [] },
-                // Counts only: composer rows never list in Recently deleted yet.
                 composerCharts: (await this.isComposerChartsEnabled(
                     user,
                     contentTypes,
@@ -1135,7 +1131,11 @@ export class ContentService extends BaseService {
                     item.uuid,
                 );
             case ContentType.COMPOSER_CHART:
-                throw composerChartActionNotSupported('Restoring');
+                return this.composerChartService.restore(
+                    fromSession(user),
+                    projectUuid,
+                    item.uuid,
+                );
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }
@@ -1211,7 +1211,11 @@ export class ContentService extends BaseService {
                     item.uuid,
                 );
             case ContentType.COMPOSER_CHART:
-                throw composerChartActionNotSupported('Permanently deleting');
+                return this.composerChartService.permanentDelete(
+                    fromSession(user),
+                    projectUuid,
+                    item.uuid,
+                );
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }

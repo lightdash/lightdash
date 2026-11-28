@@ -27,7 +27,9 @@ type ComposerChartContentRow = SummaryContentRow<{
 }>;
 
 // A bad stored config costs its row the icon, never the whole listing.
-const toChartKind = (chartConfig: ChartConfig | null): ChartKind => {
+export const toComposerChartKind = (
+    chartConfig: ChartConfig | null,
+): ChartKind => {
     try {
         return (
             (chartConfig &&
@@ -44,7 +46,6 @@ export const composerChartContentConfiguration: ContentConfiguration<ComposerCha
         // Opt-in by type, like spaces, so callers that list "everything" never meet a type they cannot handle.
         shouldQueryBeIncluded: (filters: ContentFilters) =>
             filters.composerCharts !== undefined &&
-            !filters.deleted &&
             !filters.sharedWithMe &&
             !filters.ownerUserUuids &&
             !filters.chart?.sources &&
@@ -90,6 +91,11 @@ export const composerChartContentConfiguration: ContentConfiguration<ComposerCha
                     'updated_by_user.user_uuid',
                     'latest_version.created_by_user_uuid',
                 )
+                .leftJoin(
+                    `${UserTableName} as deleted_by_user`,
+                    'deleted_by_user.user_uuid',
+                    `${ComposerChartsTableName}.deleted_by_user_uuid`,
+                )
                 .select<ComposerChartContentRow[]>([
                     knex.raw('? as content_type', [ContentType.COMPOSER_CHART]),
                     knex.raw('?::integer as content_type_rank', [
@@ -123,10 +129,12 @@ export const composerChartContentConfiguration: ContentConfiguration<ComposerCha
                     knex.raw('0::integer as views'),
                     knex.raw('null::timestamp as first_viewed_at'),
                     knex.raw('null::timestamp as last_viewed_at'),
-                    knex.raw('null::timestamp as deleted_at'),
-                    knex.raw('null::uuid as deleted_by_user_uuid'),
-                    knex.raw('null as deleted_by_user_first_name'),
-                    knex.raw('null as deleted_by_user_last_name'),
+                    knex.raw(
+                        `${ComposerChartsTableName}.deleted_at::timestamp as deleted_at`,
+                    ),
+                    `${ComposerChartsTableName}.deleted_by_user_uuid`,
+                    'deleted_by_user.first_name as deleted_by_user_first_name',
+                    'deleted_by_user.last_name as deleted_by_user_last_name',
                     knex.raw('null::timestamp as verified_at'),
                     knex.raw('null::uuid as verified_by_user_uuid'),
                     knex.raw('null as verified_by_user_first_name'),
@@ -140,13 +148,28 @@ export const composerChartContentConfiguration: ContentConfiguration<ComposerCha
                     ),
                 ])
                 .whereNull(`${ComposerChartsTableName}.dashboard_uuid`)
-                .whereNull(`${ComposerChartsTableName}.deleted_at`)
+                // A chart in a deleted space is listed through its space
                 .whereNull(`${SpaceTableName}.deleted_at`)
-                .whereIn(
-                    `${SpaceTableName}.space_uuid`,
-                    filters.composerCharts?.allowedSpaceUuids ?? [],
-                )
                 .where((builder) => {
+                    if (filters.deleted) {
+                        // Recently deleted scopes by deleter, as for classic charts
+                        void builder.whereNotNull(
+                            `${ComposerChartsTableName}.deleted_at`,
+                        );
+                        if (filters.deletedByUserUuids) {
+                            void builder.whereIn(
+                                `${ComposerChartsTableName}.deleted_by_user_uuid`,
+                                filters.deletedByUserUuids,
+                            );
+                        }
+                    } else {
+                        void builder
+                            .whereNull(`${ComposerChartsTableName}.deleted_at`)
+                            .whereIn(
+                                `${SpaceTableName}.space_uuid`,
+                                filters.composerCharts?.allowedSpaceUuids ?? [],
+                            );
+                    }
                     if (filters.projectUuids) {
                         void builder.whereIn(
                             `${ProjectTableName}.project_uuid`,
@@ -187,7 +210,7 @@ export const composerChartContentConfiguration: ContentConfiguration<ComposerCha
                 slug: value.slug,
                 name: value.name,
                 description: value.description,
-                chartKind: toChartKind(value.metadata.chart_config),
+                chartKind: toComposerChartKind(value.metadata.chart_config),
                 createdAt: value.created_at,
                 createdBy: value.created_by_user_uuid
                     ? {

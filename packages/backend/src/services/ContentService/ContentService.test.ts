@@ -5,7 +5,6 @@ import {
     DirectAccessResourceType,
     ForbiddenError,
     KnexPaginatedData,
-    NotSupportedError,
     OrganizationMemberRole,
     ProjectMemberRole,
     SpaceMemberRole,
@@ -150,6 +149,8 @@ const createService = ({
     const composerChartService = {
         moveToSpace: vi.fn().mockResolvedValue(undefined),
         delete: vi.fn().mockResolvedValue(undefined),
+        restore: vi.fn().mockResolvedValue(undefined),
+        permanentDelete: vi.fn().mockResolvedValue(undefined),
     };
     const documentService = {
         delete: vi.fn().mockResolvedValue(undefined),
@@ -1065,31 +1066,27 @@ describe('ContentService composer chart actions', () => {
         contentType: ContentType.COMPOSER_CHART,
     } as const;
 
-    it.each([
-        [
-            'restore',
-            (deps: ReturnType<typeof createService>) =>
-                deps.service.restoreContent(createUser(), projectUuid, item),
-        ],
-        [
-            'permanent delete',
-            (deps: ReturnType<typeof createService>) =>
-                deps.service.permanentlyDeleteContent(
-                    createUser(),
-                    projectUuid,
-                    item,
-                ),
-        ],
-    ])('refuses %s as not supported yet', async (_, act) => {
-        const deps = createService({
-            contentModel: {
-                getDatabase: () => ({
-                    transaction: async (fn: (tx: unknown) => unknown) => fn({}),
+    it.each(['restore', 'permanentDelete'] as const)(
+        'hands %s to the composer chart service with the authorized project',
+        async (method) => {
+            const deps = createService();
+            const user = createUser();
+            await (method === 'restore'
+                ? deps.service.restoreContent(user, projectUuid, item)
+                : deps.service.permanentlyDeleteContent(
+                      user,
+                      projectUuid,
+                      item,
+                  ));
+            expect(deps.composerChartService[method]).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    user: expect.objectContaining({ userUuid: user.userUuid }),
                 }),
-            } as unknown as ContentModel,
-        });
-        await expect(act(deps)).rejects.toThrow(NotSupportedError);
-    });
+                projectUuid,
+                item.uuid,
+            );
+        },
+    );
 
     it('bulk delete deletes the rest and skips a composer chart the user may not delete', async () => {
         const deps = createService();

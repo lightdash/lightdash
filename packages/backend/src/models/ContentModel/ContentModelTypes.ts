@@ -30,7 +30,7 @@ export type ContentFilters = {
     };
     /** Server-resolved; absent (flag off) hides composer charts and leaves them out of space counts. */
     composerCharts?: {
-        /** Spaces where the caller may view charts (`view:SavedChart`). */
+        /** Spaces where the caller may view charts (`view:SavedChart`); Recently deleted ignores it. */
         allowedSpaceUuids: string[];
     };
     projectUuids?: string[];

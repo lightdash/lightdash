@@ -752,6 +752,82 @@ export class ComposerChartService extends BaseService {
         );
     }
 
+    /** Recently deleted rule, as for classic charts: the user who deleted it or `manage:DeletedContent`. */
+    private async assertCanManageDeleted(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        action: 'restore' | 'permanently delete',
+    ): Promise<UUID> {
+        const deleted =
+            await this.composerChartModel.getDeleted(composerChartUuid);
+        if (deleted.projectUuid !== projectUuid) {
+            throw new NotFoundError('Deleted composer chart not found');
+        }
+        const isAdmin = this.createAuditedAbility(account).can(
+            'manage',
+            subject('DeletedContent', {
+                organizationUuid: deleted.organizationUuid,
+                projectUuid,
+                metadata: { composerChartUuid },
+            }),
+        );
+        if (!isAdmin && deleted.deletedByUserUuid !== account.user.userUuid) {
+            throw new ForbiddenError(
+                `You can only ${action} content you deleted`,
+            );
+        }
+        switch (deleted.owner.type) {
+            case 'space':
+                return deleted.owner.spaceUuid;
+            case 'dashboard':
+                throw new ParameterError(
+                    'This composer chart belongs to a dashboard. It is restored and deleted with that dashboard.',
+                );
+            default:
+                return assertUnreachable(
+                    deleted.owner,
+                    'Unknown composer chart owner',
+                );
+        }
+    }
+
+    /** Restores a deleted space-owned chart; 409 while its space is deleted. Works with the flag off. */
+    async restore(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<void> {
+        const spaceUuid = await this.assertCanManageDeleted(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'restore',
+        );
+        await this.composerChartModel.restoreToSpace(
+            composerChartUuid,
+            spaceUuid,
+        );
+    }
+
+    /** Permanently deletes a soft-deleted space-owned chart and its versions. Works with the flag off. */
+    async permanentDelete(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<void> {
+        const spaceUuid = await this.assertCanManageDeleted(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'permanently delete',
+        );
+        await this.composerChartModel.permanentlyDeleteFromSpace(
+            composerChartUuid,
+            spaceUuid,
+        );
+    }
+
     /** Dashboards whose latest version shows the chart, those the caller can view only. */
     async getDashboardsShowing(
         account: RegisteredAccount,
