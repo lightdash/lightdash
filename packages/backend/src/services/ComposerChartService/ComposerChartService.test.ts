@@ -13,6 +13,7 @@ import {
     MergeJoinType,
     MetricType,
     NotFoundError,
+    ParameterError,
     QueryExecutionContext,
     QuerySourceType,
     TableCalculationType,
@@ -557,6 +558,109 @@ describe('ComposerChartService.create', () => {
         );
         await service.create(account, projectUuid, createBody(PIPELINES.sql));
         expect(composerChartModel.create).toHaveBeenCalledOnce();
+    });
+});
+
+describe('ComposerChartService.create owner', () => {
+    const spaceUuid = '7c3f6a52-1d2b-4c8e-9f0a-3b5d7e9f1a2c';
+    const spaceBody = (): CreateComposerChart => ({
+        ...createBody(PIPELINES.sql),
+        dashboardUuid: null,
+        spaceUuid,
+    });
+
+    test('creates a chart the space owns when no dashboard is named, checked on the space', async () => {
+        const { service, composerChartModel, spacePermissionService } = setup();
+        await service.create(
+            sessionAccount(abilityWithout(null)),
+            projectUuid,
+            spaceBody(),
+        );
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            defaultSessionUser.userUuid,
+            { type: 'space', spaceUuid },
+        );
+        expect(composerChartModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                owner: { type: 'space', spaceUuid },
+            }),
+        );
+    });
+
+    test('ignores the space, even a malformed one, when a dashboard is named', async () => {
+        const { service, composerChartModel } = setup();
+        await service.create(
+            sessionAccount(abilityWithout(null)),
+            projectUuid,
+            { ...createBody(PIPELINES.sql), spaceUuid: 'not-a-uuid' },
+        );
+        expect(composerChartModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                owner: { type: 'dashboard', dashboardUuid },
+            }),
+        );
+    });
+
+    test.each([
+        ['both null', { dashboardUuid: null, spaceUuid: null }],
+        ['both missing', {}],
+        ['a malformed space', { dashboardUuid: null, spaceUuid: 'space-uuid' }],
+    ])('refuses a create naming no usable owner: %s', async (_, owner) => {
+        const { service, composerChartModel } = setup();
+        const { dashboardUuid: _d, ...body } = createBody(PIPELINES.sql);
+        await expect(
+            service.create(sessionAccount(abilityWithout(null)), projectUuid, {
+                ...body,
+                ...owner,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(composerChartModel.create).not.toHaveBeenCalled();
+    });
+
+    test('refuses a space in another project', async () => {
+        const { service, composerChartModel, spacePermissionService } = setup();
+        spacePermissionService.resolveAccess.mockResolvedValue({
+            organizationUuid,
+            projectUuid: 'another-project',
+            inheritsFromOrgOrProject: true,
+            access: [],
+            admins: [],
+        });
+        await expect(
+            service.create(
+                sessionAccount(abilityWithout(null)),
+                projectUuid,
+                spaceBody(),
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(composerChartModel.create).not.toHaveBeenCalled();
+    });
+
+    test('refuses an author who can view charts in the space but not save them', async () => {
+        const { service, composerChartModel } = setup();
+        const ability = new Ability<PossibleAbilities>([
+            { subject: 'SavedChart', action: 'view' as const },
+            ...AUTHOR_SUBJECTS.map((name) => ({
+                subject: name,
+                action: 'manage' as const,
+            })),
+        ]);
+        await expect(
+            service.create(sessionAccount(ability), projectUuid, spaceBody()),
+        ).rejects.toThrow(ForbiddenError);
+        expect(composerChartModel.create).not.toHaveBeenCalled();
+    });
+
+    test('is refused with the composer-charts flag off', async () => {
+        const { service, composerChartModel } = setup({ flagEnabled: false });
+        await expect(
+            service.create(
+                sessionAccount(abilityWithout(null)),
+                projectUuid,
+                spaceBody(),
+            ),
+        ).rejects.toThrow(FeatureNotEnabledError);
+        expect(composerChartModel.create).not.toHaveBeenCalled();
     });
 });
 

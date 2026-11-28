@@ -535,8 +535,10 @@ export const getComposerPipelineWriteDeniedReason = (
     return null;
 };
 
+/** A dashboard owns the chart; with no dashboard, `spaceUuid` does. A missing field reads as null. */
 export type CreateComposerChart = {
-    dashboardUuid: string;
+    dashboardUuid?: string | null;
+    spaceUuid?: string | null;
     name: string;
     description?: string | null;
     pipeline: ComposerChartPipeline;

@@ -85817,7 +85817,20 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 name: { dataType: 'string', required: true },
-                dashboardUuid: { dataType: 'string', required: true },
+                spaceUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                dashboardUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
             },
             validators: {},
         },

@@ -80519,12 +80519,18 @@
                     "name": {
                         "type": "string"
                     },
+                    "spaceUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "dashboardUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     }
                 },
-                "required": ["chart", "pipeline", "name", "dashboardUuid"],
-                "type": "object"
+                "required": ["chart", "pipeline", "name"],
+                "type": "object",
+                "description": "A dashboard owns the chart; with no dashboard, `spaceUuid` does. A missing field reads as null."
             },
             "Record_string.ParametersValuesMap_": {
                 "properties": {},
@@ -81877,7 +81883,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.434.0",
+        "version": "3.435.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -129479,7 +129485,7 @@
                         }
                     }
                 },
-                "description": "Creates a composer chart owned by a dashboard: a stored pipeline and the\nchart drawn from its terminal node. Adds no tile; add one with the\ndashboard update. Requires the composer-charts feature flag and\npermission to save charts on the dashboard.",
+                "description": "Creates a composer chart: a stored pipeline and the chart drawn from its\nterminal node. If you pass `dashboardUuid`, that dashboard owns the\nchart and `spaceUuid` is ignored; otherwise the space in `spaceUuid`\nowns it. Adds no tile; add one with the dashboard update. Requires the\ncomposer-charts feature flag and permission to save charts on the owner.",
                 "summary": "Create composer chart",
                 "tags": ["v2", "Charts"],
                 "security": [],
