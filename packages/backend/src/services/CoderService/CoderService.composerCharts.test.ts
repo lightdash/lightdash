@@ -596,6 +596,19 @@ describe('CoderService composer chart upload into a space', () => {
         },
     );
 
+    it.each([
+        ['creating', null],
+        ['moving', liveInJaffle],
+    ])('refuses %s with an empty spaceSlug', async (_, existing) => {
+        const { upload, chartService, getOrCreateSpace } = setup({ existing });
+        await expect(upload(spaceFile(''))).rejects.toThrow(
+            'needs a spaceSlug or a dashboardSlug',
+        );
+        expect(getOrCreateSpace).not.toHaveBeenCalled();
+        expect(chartService.writeFromCode).not.toHaveBeenCalled();
+        expect(chartService.moveToSpace).not.toHaveBeenCalled();
+    });
+
     it('checks write on the chart before creating a missing target space', async () => {
         const { upload, chartService, getOrCreateSpace } = setup({
             existing: liveInJaffle,

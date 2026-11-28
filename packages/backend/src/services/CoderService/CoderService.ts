@@ -3984,6 +3984,11 @@ export class CoderService extends BaseService {
         };
         // Slugs map to paths lossily; never guess between two spaces, or two parents of a new one
         const assertOneSpaceAtPath = async () => {
+            if (file.spaceSlug.trim() === '') {
+                throw new ParameterError(
+                    `Composer chart "${slug}" needs a spaceSlug or a dashboardSlug`,
+                );
+            }
             const path = getLtreePathFromContentAsCodePath(file.spaceSlug);
             let spaces = await this.spaceModel.find({ projectUuid, path });
             if (spaces.length === 0) {

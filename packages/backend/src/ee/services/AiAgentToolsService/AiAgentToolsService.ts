@@ -611,6 +611,7 @@ type AiAgentToolsServiceDependencies = {
         | 'update'
         | 'moveToSpace'
         | 'getDashboardsShowing'
+        | 'writeFromCode'
     >;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
@@ -4944,14 +4945,22 @@ export class AiAgentToolsService extends BaseService {
             throw new ParameterError(composerChartChangedWhileWaiting(slug));
         }
         if (spaceEdit.write === 'version') {
-            // The move below is the agent's own, inside its writable spaces
-            await this.coderService.upsertComposerChart(
-                context.user,
+            // In place: a live chart keeps its space, a deleted one is refused
+            await this.composerChartService.writeFromCode(
                 account,
                 context.projectUuid,
-                slug,
-                { ...edited, spaceSlug: read.spaceSlug },
-                { authorization: 'space_access' },
+                {
+                    slug,
+                    owner: null,
+                    spaceOwner: 'keep',
+                    name: edited.name,
+                    description: edited.description ?? null,
+                    pipeline: edited.pipeline,
+                    chart: await this.coderService.toStoredComposerChart(
+                        context.projectUuid,
+                        edited.chart,
+                    ),
+                },
             );
         } else if (spaceEdit.write === 'rename') {
             await this.composerChartService.update(
