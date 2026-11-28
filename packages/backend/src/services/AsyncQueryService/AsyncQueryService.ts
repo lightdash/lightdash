@@ -541,7 +541,6 @@ import {
     unavailableInteractiveEstimateRecord,
     type InteractiveQueryCostEstimateRecord,
 } from './queryCostEstimateTelemetry';
-import type { QueryPollingSource } from './queryPollingSource';
 import {
     canReuseQueryResult,
     toStoredLiveResult,
@@ -17188,6 +17187,7 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         queryUuid,
+        firstPollAt,
         initialBackoffMs = 500,
         maxBackoffMs = 2000,
         timeoutMs = 5 * 60 * 1000, // 5 min default
@@ -17197,17 +17197,13 @@ export class AsyncQueryService extends ProjectService {
         account: Account;
         projectUuid: string;
         queryUuid: string;
-        initialBackoffMs?: number;
-        maxBackoffMs?: number;
-        timeoutMs?: number;
-        abortSignal?: AbortSignal;
-        source?: QueryPollingSource;
-    }): Promise<void> {
+    } & PollingOptions): Promise<void> {
         try {
             await this.queryHistoryModel.pollForQueryCompletion({
                 queryUuid,
                 account,
                 projectUuid,
+                firstPollAt,
                 initialBackoffMs,
                 maxBackoffMs,
                 timeoutMs,

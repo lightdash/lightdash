@@ -1048,6 +1048,7 @@ export class QueryHistoryModel {
         queryUuid,
         account,
         projectUuid,
+        firstPollAt,
         initialBackoffMs = 500,
         maxBackoffMs = 2000,
         timeoutMs = 5 * 60 * 1000,
@@ -1058,6 +1059,7 @@ export class QueryHistoryModel {
         queryUuid: string;
         account: Account | null;
         projectUuid: string;
+        firstPollAt?: number;
         initialBackoffMs?: number;
         maxBackoffMs?: number;
         timeoutMs?: number;
@@ -1071,7 +1073,10 @@ export class QueryHistoryModel {
                 ? this.getByQueryUuid(queryUuid)
                 : this.get(queryUuid, projectUuid, account);
 
-        const poll = async (backoffMs: number): Promise<QueryHistory> => {
+        const poll = async (
+            backoffMs: number,
+            sleepMs = backoffMs,
+        ): Promise<QueryHistory> => {
             abortSignal?.throwIfAborted();
             if (Date.now() - startTime > timeoutMs) {
                 throw new QueryPollingTimeoutError(timeoutMs);
@@ -1079,7 +1084,7 @@ export class QueryHistoryModel {
 
             const queryHistory = await getQueryHistory();
             if (!queryHistory) {
-                await abortableSleep(backoffMs, undefined, {
+                await abortableSleep(sleepMs, undefined, {
                     signal: abortSignal,
                 });
                 return poll(Math.min(backoffMs * 2, maxBackoffMs));
@@ -1102,7 +1107,7 @@ export class QueryHistoryModel {
                 case QueryHistoryStatus.PENDING:
                 case QueryHistoryStatus.QUEUED:
                 case QueryHistoryStatus.EXECUTING:
-                    await abortableSleep(backoffMs, undefined, {
+                    await abortableSleep(sleepMs, undefined, {
                         signal: abortSignal,
                     });
                     return poll(Math.min(backoffMs * 2, maxBackoffMs));
@@ -1116,6 +1121,15 @@ export class QueryHistoryModel {
             }
         };
 
+        const delayMs = Math.min(
+            (firstPollAt ?? startTime) - startTime,
+            initialBackoffMs,
+        );
+        if (delayMs > 0 && delayMs < timeoutMs) {
+            await abortableSleep(delayMs, undefined, { signal: abortSignal });
+            // Move only the first read. The second read keeps its original deadline.
+            return poll(initialBackoffMs, initialBackoffMs - delayMs);
+        }
         return poll(initialBackoffMs);
     }
 

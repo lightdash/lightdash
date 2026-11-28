@@ -139,6 +139,7 @@ import {
     type AgentConnectionTaskEffect,
     type AgentWorkMarker,
     type BatchDeliveryResult,
+    type CacheMetadata,
     type CapturedQuery,
     type DeliveryCaptureManifest,
     type DeliveryNotice,
@@ -1970,6 +1971,18 @@ export default class SchedulerTask {
                             return result;
                         };
 
+                        const tilePollingOptions = (
+                            cacheMetadata: CacheMetadata,
+                        ): PollingOptions =>
+                            schedulerUuid &&
+                            format === SchedulerFormat.XLSX &&
+                            !cacheMetadata.cacheHit
+                                ? {
+                                      ...this.schedulerPollingOptions,
+                                      firstPollAt: Date.now() + 500,
+                                  }
+                                : this.schedulerPollingOptions;
+
                         const downloadChartTileResults = async ({
                             chartUuid,
                             tileUuid,
@@ -2020,6 +2033,9 @@ export default class SchedulerTask {
                                         pivotResults: shouldPivotResults,
                                     },
                                 );
+                            const pollingOptions = exportAsImage
+                                ? this.schedulerPollingOptions
+                                : tilePollingOptions(query.cacheMetadata);
                             const downloadTileResults = () =>
                                 this.asyncQueryService.downloadSyncQueryResults(
                                     {
@@ -2059,7 +2075,7 @@ export default class SchedulerTask {
                                             ? XlsxExportContent.CHART_IMAGE
                                             : undefined,
                                     },
-                                    this.schedulerPollingOptions,
+                                    pollingOptions,
                                     dashboardUuid,
                                 );
                             const downloadResult = exportAsImage
@@ -2112,6 +2128,9 @@ export default class SchedulerTask {
                                                 : sqlLimit,
                                     },
                                 );
+                            const pollingOptions = tilePollingOptions(
+                                query.cacheMetadata,
+                            );
                             const chart =
                                 await this.asyncQueryService.savedSqlModel.getByUuid(
                                     chartUuid,
@@ -2149,7 +2168,7 @@ export default class SchedulerTask {
                                             ),
                                         expirationSecondsOverride,
                                     },
-                                    this.schedulerPollingOptions,
+                                    pollingOptions,
                                     dashboardUuid,
                                 );
                             return {
