@@ -27,7 +27,12 @@ import {
     type SqlSourceQuery,
 } from '../types/querySources';
 import { type ResultColumn } from '../types/results';
-import { ChartType, type ChartConfig } from '../types/savedCharts';
+import {
+    ChartKind,
+    ChartType,
+    getChartKind,
+    type ChartConfig,
+} from '../types/savedCharts';
 import { getHandWrittenAdditionalMetrics } from '../utils/additionalMetrics';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type ChartZoomableField } from '../utils/dateZoom';
@@ -751,4 +756,19 @@ export const getComposerChartExportLabels = (
 export type ApiComposerChartRunResponse = {
     status: 'ok';
     results: ComposerChartRunResults;
+};
+
+/** A stored config a newer or older build wrote can make `getChartKind` throw; the icon falls back. */
+export const toComposerChartKind = (
+    chartConfig: ChartConfig | null,
+): ChartKind => {
+    try {
+        return (
+            (chartConfig &&
+                getChartKind(chartConfig.type, chartConfig.config)) ??
+            ChartKind.VERTICAL_BAR
+        );
+    } catch {
+        return ChartKind.VERTICAL_BAR;
+    }
 };

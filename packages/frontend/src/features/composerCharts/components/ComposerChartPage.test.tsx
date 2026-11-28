@@ -77,10 +77,10 @@ const chart = {
     chart: { chartConfig: { type: 'cartesian', config: {} } },
 } as unknown as ComposerChartWithDetails;
 
-const renderPage = () =>
+const renderPage = (shown: ComposerChartWithDetails = chart) =>
     renderWithProviders(
         <MemoryRouter>
-            <ComposerChartPage projectUuid="project-uuid" chart={chart} />
+            <ComposerChartPage projectUuid="project-uuid" chart={shown} />
         </MemoryRouter>,
     );
 
@@ -95,5 +95,21 @@ describe('ComposerChartPage', () => {
         fireEvent.click(screen.getByText('Lineage'));
         expect(screen.getByText('Lineage graph')).toBeInTheDocument();
         expect(screen.getAllByText('Drawn chart')).toHaveLength(1);
+    });
+
+    it('opens a chart whose stored series type this build does not know', () => {
+        renderPage({
+            ...chart,
+            chart: {
+                chartConfig: {
+                    type: 'cartesian',
+                    config: {
+                        layout: {},
+                        eChartsConfig: { series: [{ type: 'waterfall' }] },
+                    },
+                },
+            },
+        } as unknown as ComposerChartWithDetails);
+        expect(screen.getByText('Drawn chart')).toBeInTheDocument();
     });
 });

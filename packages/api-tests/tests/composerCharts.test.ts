@@ -2119,7 +2119,7 @@ describe('Composer charts', () => {
             });
         });
 
-        it('refuses a create naming no owner, a malformed, missing or deleted space', async () => {
+        it('refuses a create naming no owner, a malformed dashboard, a malformed, missing or deleted space', async () => {
             const { dashboardUuid: _, ...noOwner } = composerChartBody('');
             expect((await postChart(noOwner)).status).toBe(400);
             expect(
@@ -2136,6 +2136,23 @@ describe('Composer charts', () => {
             ).toBe(404);
             expect(
                 (await postChart(composerSpaceChartBody('not-a-uuid'))).status,
+            ).toBe(400);
+            const space = await createSpace();
+            expect(
+                (
+                    await postChart({
+                        ...composerSpaceChartBody(space.uuid),
+                        dashboardUuid: '',
+                    })
+                ).status,
+            ).toBe(400);
+            expect(
+                (
+                    await postChart({
+                        ...composerSpaceChartBody(space.uuid),
+                        dashboardUuid: 'not-a-uuid',
+                    })
+                ).status,
             ).toBe(400);
 
             const deleted = await createSpace();

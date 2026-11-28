@@ -1,8 +1,7 @@
 import {
-    ChartKind,
     ComposerChartContent,
     ContentType,
-    getChartKind,
+    toComposerChartKind,
     type ChartConfig,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -25,21 +24,6 @@ import { applyContentNameSearch } from '../ContentSearchUtils';
 type ComposerChartContentRow = SummaryContentRow<{
     chart_config: ChartConfig | null;
 }>;
-
-// A bad stored config costs its row the icon, never the whole listing.
-export const toComposerChartKind = (
-    chartConfig: ChartConfig | null,
-): ChartKind => {
-    try {
-        return (
-            (chartConfig &&
-                getChartKind(chartConfig.type, chartConfig.config)) ??
-            ChartKind.VERTICAL_BAR
-        );
-    } catch {
-        return ChartKind.VERTICAL_BAR;
-    }
-};
 
 export const composerChartContentConfiguration: ContentConfiguration<ComposerChartContentRow> =
     {
