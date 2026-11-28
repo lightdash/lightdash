@@ -1,11 +1,13 @@
 import {
     assertUnreachable,
     ChartType,
+    ConflictError,
     NotFoundError,
     parseComposerPipeline,
     parseComposerStoredChart,
     UnexpectedServerError,
     type ComposerChart,
+    type ComposerChartDashboard,
     type ComposerChartOwner,
     type ComposerChartPipeline,
     type ComposerChartWithDetails,
@@ -24,6 +26,8 @@ import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
+import { OrganizationTableName } from '../database/entities/organizations';
+import { ProjectTableName } from '../database/entities/projects';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import { generateUniqueSlugScopedToProject } from '../utils/SlugUtils';
@@ -75,6 +79,12 @@ const toOwner = (uuid: string, row: OwnerColumns): ComposerChartOwner => {
     throw new UnexpectedServerError(
         `Composer chart ${uuid} does not have exactly one owner`,
     );
+};
+
+/** One soft deletion of a chart: restore and permanent delete act on it only. */
+export type ComposerChartDeletion = {
+    deletedAt: Date;
+    deletedByUserUuid: string | null;
 };
 
 export class ComposerChartModel {
@@ -129,6 +139,224 @@ export class ComposerChartModel {
             .first();
         if (!row) throw new NotFoundError('Composer chart not found');
         return { projectUuid: row.project_uuid, owner: toOwner(uuid, row) };
+    }
+
+    /** Name and description of a live chart still in the space checked; versions are untouched. */
+    async update(
+        uuid: string,
+        spaceUuid: string,
+        fields: { name?: string; description?: string | null },
+    ): Promise<ComposerChart> {
+        if (fields.name !== undefined || fields.description !== undefined) {
+            const count = await this.database(ComposerChartsTableName)
+                .update(fields)
+                .where('composer_chart_uuid', uuid)
+                .where('space_uuid', spaceUuid)
+                .whereNull('deleted_at');
+            if (count !== 1) {
+                throw new ConflictError(
+                    'This composer chart moved or was deleted. Reload and try again.',
+                );
+            }
+        }
+        return this.get(uuid);
+    }
+
+    async moveToSpace(
+        {
+            projectUuid,
+            composerChartUuid,
+            sourceSpaceUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            composerChartUuid: string;
+            sourceSpaceUuid: string;
+            targetSpaceUuid: string;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<void> {
+        const count = await tx(ComposerChartsTableName)
+            .update({ space_uuid: targetSpaceUuid })
+            .where('composer_chart_uuid', composerChartUuid)
+            .where('project_uuid', projectUuid)
+            .where('space_uuid', sourceSpaceUuid)
+            .whereNull('deleted_at');
+        if (count !== 1) {
+            throw new ConflictError(
+                'This composer chart moved or was deleted. Reload and try again.',
+            );
+        }
+    }
+
+    /** Deletes a live chart still in the space checked: soft with `deletedByUserUuid`, permanently without. */
+    async deleteFromSpace(
+        uuid: string,
+        spaceUuid: string,
+        deletedByUserUuid: string | null,
+    ): Promise<void> {
+        const query = this.database(ComposerChartsTableName)
+            .where('composer_chart_uuid', uuid)
+            .where('space_uuid', spaceUuid)
+            .whereNull('deleted_at');
+        const count =
+            deletedByUserUuid === null
+                ? await query.delete()
+                : await query.update({
+                      deleted_at: new Date(),
+                      deleted_by_user_uuid: deletedByUserUuid,
+                  });
+        if (count !== 1) {
+            throw new ConflictError(
+                'This composer chart moved or was deleted. Reload and try again.',
+            );
+        }
+    }
+
+    /** A soft-deleted chart with its owner and deleter, for restore and permanent delete. */
+    async getDeleted(uuid: string): Promise<{
+        projectUuid: string;
+        organizationUuid: string;
+        owner: ComposerChartOwner;
+        deletion: ComposerChartDeletion;
+    }> {
+        const row = await this.database(ComposerChartsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${ComposerChartsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .select(
+                `${ComposerChartsTableName}.project_uuid`,
+                `${ComposerChartsTableName}.dashboard_uuid`,
+                `${ComposerChartsTableName}.space_uuid`,
+                `${ComposerChartsTableName}.deleted_at`,
+                `${ComposerChartsTableName}.deleted_by_user_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
+            )
+            .where(`${ComposerChartsTableName}.composer_chart_uuid`, uuid)
+            .whereNotNull(`${ComposerChartsTableName}.deleted_at`)
+            .first();
+        if (!row) throw new NotFoundError('Deleted composer chart not found');
+        return {
+            projectUuid: row.project_uuid,
+            organizationUuid: row.organization_uuid,
+            owner: toOwner(uuid, row),
+            deletion: {
+                deletedAt: row.deleted_at,
+                deletedByUserUuid: row.deleted_by_user_uuid,
+            },
+        };
+    }
+
+    /** Restores the deletion checked of a chart still in the space checked, once that space is live. */
+    async restoreToSpace(
+        uuid: string,
+        spaceUuid: string,
+        { deletedAt, deletedByUserUuid }: ComposerChartDeletion,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            const space = await trx(SpaceTableName)
+                .select('space_uuid')
+                .where('space_uuid', spaceUuid)
+                .whereNull('deleted_at')
+                .forShare()
+                .first();
+            if (!space) {
+                throw new ConflictError(
+                    "This composer chart's space is deleted. Restore the space first.",
+                );
+            }
+            const count = await trx(ComposerChartsTableName)
+                .where('composer_chart_uuid', uuid)
+                .where('space_uuid', spaceUuid)
+                .where('deleted_at', deletedAt)
+                .where('deleted_by_user_uuid', deletedByUserUuid)
+                .update({ deleted_at: null, deleted_by_user_uuid: null });
+            if (count !== 1) {
+                throw new ConflictError(
+                    'This composer chart moved or was restored. Reload and try again.',
+                );
+            }
+        });
+    }
+
+    /** Permanently deletes the deletion checked of a chart still in the space checked; its versions cascade. */
+    async permanentlyDeleteFromSpace(
+        uuid: string,
+        spaceUuid: string,
+        { deletedAt, deletedByUserUuid }: ComposerChartDeletion,
+    ): Promise<void> {
+        const count = await this.database(ComposerChartsTableName)
+            .where('composer_chart_uuid', uuid)
+            .where('space_uuid', spaceUuid)
+            .where('deleted_at', deletedAt)
+            .where('deleted_by_user_uuid', deletedByUserUuid)
+            .delete();
+        if (count !== 1) {
+            throw new ConflictError(
+                'This composer chart moved or was restored. Reload and try again.',
+            );
+        }
+    }
+
+    /** Live dashboards in the project whose latest version has a tile for the chart. */
+    async findDashboardsShowing(
+        projectUuid: string,
+        uuid: string,
+    ): Promise<Array<ComposerChartDashboard & { spaceUuid: string }>> {
+        return this.database(DashboardTileComposerChartsTableName)
+            .innerJoin(
+                DashboardVersionsTableName,
+                `${DashboardVersionsTableName}.dashboard_version_id`,
+                `${DashboardTileComposerChartsTableName}.dashboard_version_id`,
+            )
+            .innerJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(
+                `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
+                uuid,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .whereRaw(
+                `?? = (
+                    SELECT latest_version.dashboard_version_id FROM ?? AS latest_version
+                    WHERE latest_version.dashboard_id = ??
+                    ORDER BY latest_version.created_at DESC, latest_version.dashboard_version_id DESC
+                    LIMIT 1
+                )`,
+                [
+                    `${DashboardVersionsTableName}.dashboard_version_id`,
+                    DashboardVersionsTableName,
+                    `${DashboardsTableName}.dashboard_id`,
+                ],
+            )
+            .distinct({
+                uuid: `${DashboardsTableName}.dashboard_uuid`,
+                name: `${DashboardsTableName}.name`,
+                spaceUuid: `${SpaceTableName}.space_uuid`,
+            })
+            .orderBy([{ column: 'name' }, { column: 'uuid' }]);
     }
 
     /** Copies the chart and its latest version, unparsed, onto another dashboard. */

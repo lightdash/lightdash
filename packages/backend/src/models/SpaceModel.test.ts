@@ -155,13 +155,23 @@ describe('SpaceModel restore', () => {
             { document_uuid: 'document-1', project_uuid: 'project' },
             { document_uuid: 'document-2', project_uuid: 'project' },
         ]);
+        tracker.on
+            .update('composer_charts')
+            .responseOnce([
+                { composer_chart_uuid: 'composer-1', project_uuid: 'project' },
+            ]);
 
-        await expect(model.restore('deleted-space-uuid')).resolves.toEqual([
-            { documentUuid: 'document-1', projectUuid: 'project' },
-            { documentUuid: 'document-2', projectUuid: 'project' },
-        ]);
+        await expect(model.restore('deleted-space-uuid')).resolves.toEqual({
+            documents: [
+                { documentUuid: 'document-1', projectUuid: 'project' },
+                { documentUuid: 'document-2', projectUuid: 'project' },
+            ],
+            composerCharts: [
+                { composerChartUuid: 'composer-1', projectUuid: 'project' },
+            ],
+        });
 
-        expect(tracker.history.update).toHaveLength(2);
+        expect(tracker.history.update).toHaveLength(3);
         expect(tracker.history.update[1].sql).toContain('returning');
         expect(tracker.history.update[0].bindings).toContain(
             'deleted-space-uuid',

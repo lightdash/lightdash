@@ -660,7 +660,7 @@ describe('AiAgentService.createPinnedContextMessage composer charts', () => {
         );
     });
 
-    it('runs a chart a space owns as a chart, not a dashboard tile', () => {
+    it('runs a chart a space owns as a chart, not a dashboard tile, and edits it', () => {
         const content = composerChart('space');
 
         expect(content).toContain('the composer chart in a space');
@@ -668,7 +668,7 @@ describe('AiAgentService.createPinnedContextMessage composer charts', () => {
             'runContentQuery (source chart, chartType composer_chart)',
         );
         expect(content).not.toContain('dashboardChart');
-        expect(content).not.toContain('editContent');
+        expect(content).toContain('editContent (type composer_chart)');
     });
 
     it('says a deleted chart is no longer available', () => {

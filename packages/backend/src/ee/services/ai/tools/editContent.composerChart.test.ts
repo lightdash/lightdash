@@ -91,6 +91,7 @@ const makeTool = (
             uuid: 'composer-chart-uuid',
             href: '/projects/project-uuid/dashboards/ops-uuid/view#dashboard-link',
             versionUuids: { before: 'v1', after: 'v2' },
+            warnings: [],
         };
     });
     const tool = getEditContent({

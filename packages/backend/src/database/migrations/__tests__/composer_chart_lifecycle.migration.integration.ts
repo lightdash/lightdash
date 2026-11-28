@@ -1,5 +1,8 @@
 import {
+    ChartKind,
     ChartType,
+    ConflictError,
+    ContentType,
     DashboardTileTypes,
     FieldType,
     NotFoundError,
@@ -11,8 +14,10 @@ import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { lightdashConfigWithGoogleOAuthMock } from '../../../config/lightdashConfig.mock';
 import { ComposerChartModel } from '../../../models/ComposerChartModel';
+import { ContentModel } from '../../../models/ContentModel/ContentModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { SpaceModel } from '../../../models/SpaceModel';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
@@ -295,6 +300,111 @@ describe('composer charts follow their dashboard on the real schema', () => {
         await expect(
             composerChartModel.findForCode(owner.projectUuid, undefined),
         ).resolves.toEqual([]);
+    });
+
+    // No dashboard write can reference a space's chart yet, so the tile is pointed at it directly
+    const showOnDashboard = async (composerChartUuid: string) => {
+        const { dashboard, composerChartUuid: ownChartUuid } =
+            await createDashboardWithChart();
+        await database('dashboard_tile_composer_charts')
+            .where('composer_chart_uuid', ownChartUuid)
+            .update({ composer_chart_uuid: composerChartUuid });
+        return dashboard;
+    };
+
+    it("lists the live dashboards whose latest version shows a space's chart", async () => {
+        const composerChartUuid = await createSpaceChart();
+        const showing = await showOnDashboard(composerChartUuid);
+        const shownEarlier = await showOnDashboard(composerChartUuid);
+        await dashboardModel.addVersion(
+            shownEarlier.uuid,
+            {
+                tiles: [],
+                filters: shownEarlier.filters,
+                tabs: shownEarlier.tabs,
+            },
+            { userUuid: fixture.userUuid },
+            fixture.projectUuid,
+        );
+        const deleted = await showOnDashboard(composerChartUuid);
+        await dashboardModel.softDelete(deleted.uuid, fixture.userUuid);
+
+        await expect(
+            composerChartModel.findDashboardsShowing(
+                fixture.projectUuid,
+                composerChartUuid,
+            ),
+        ).resolves.toEqual([
+            {
+                uuid: showing.uuid,
+                name: showing.name,
+                spaceUuid: fixture.spaceUuid,
+            },
+        ]);
+        await expect(
+            composerChartModel.findDashboardsShowing(
+                randomUUID(),
+                composerChartUuid,
+            ),
+        ).resolves.toEqual([]);
+    });
+
+    it("soft deletes a space's chart once, keeping its tiles, and refuses another space", async () => {
+        const composerChartUuid = await createSpaceChart();
+        await showOnDashboard(composerChartUuid);
+        const other = await createFixture(database);
+
+        await expect(
+            composerChartModel.deleteFromSpace(
+                composerChartUuid,
+                other.spaceUuid,
+                fixture.userUuid,
+            ),
+        ).rejects.toThrow(ConflictError);
+        await composerChartModel.deleteFromSpace(
+            composerChartUuid,
+            fixture.spaceUuid,
+            fixture.userUuid,
+        );
+
+        const row = await database('composer_charts')
+            .where('composer_chart_uuid', composerChartUuid)
+            .first();
+        expect(row?.deleted_at).not.toBeNull();
+        expect(row?.deleted_by_user_uuid).toBe(fixture.userUuid);
+        await expect(
+            database('dashboard_tile_composer_charts')
+                .where('composer_chart_uuid', composerChartUuid)
+                .pluck('composer_chart_uuid'),
+        ).resolves.toEqual([composerChartUuid]);
+        await expect(
+            composerChartModel.deleteFromSpace(
+                composerChartUuid,
+                fixture.spaceUuid,
+                fixture.userUuid,
+            ),
+        ).rejects.toThrow(ConflictError);
+    });
+
+    it("permanently deletes a space's chart with its versions", async () => {
+        const composerChartUuid = await createSpaceChart();
+
+        await composerChartModel.deleteFromSpace(
+            composerChartUuid,
+            fixture.spaceUuid,
+            null,
+        );
+
+        await expect(
+            database('composer_charts')
+                .where('composer_chart_uuid', composerChartUuid)
+                .first(),
+        ).resolves.toBeUndefined();
+        await expect(
+            database('composer_chart_versions')
+                .where('composer_chart_uuid', composerChartUuid)
+                .first(),
+        ).resolves.toBeUndefined();
     });
 
     it('reads a space owner', async () => {
@@ -598,5 +708,218 @@ describe('composer charts follow their dashboard on the real schema', () => {
                 composerChartModel.get(spaceChartUuid),
             ).resolves.toMatchObject(spaceOwner);
         });
+    });
+});
+
+describe('space-owned composer charts follow their space on the real schema', () => {
+    let migrated: MigratedDatabase;
+    let database: Knex;
+    let composerChartModel: ComposerChartModel;
+    let spaceModel: SpaceModel;
+    let contentModel: ContentModel;
+
+    const createSpaceChart = (owner: Fixture, name = 'In a space') =>
+        composerChartModel.create({
+            uuid: null,
+            slug: null,
+            projectUuid: owner.projectUuid,
+            owner: { type: 'space', spaceUuid: owner.spaceUuid },
+            name,
+            description: null,
+            pipeline: pipeline('select 1'),
+            chart: storedChart,
+            createdByUserUuid: owner.userUuid,
+        });
+
+    const deletedStamp = (composerChartUuid: string) =>
+        database('composer_charts')
+            .select('deleted_at', 'deleted_by_user_uuid')
+            .where('composer_chart_uuid', composerChartUuid)
+            .first();
+
+    beforeAll(async () => {
+        migrated = await createMigratedDatabase();
+        database = migrated.database;
+        composerChartModel = new ComposerChartModel({ database });
+        spaceModel = new SpaceModel({ database });
+        contentModel = new ContentModel({ database });
+    });
+
+    afterAll(async () => {
+        await migrated?.destroy();
+    });
+
+    it("takes its live charts with the space's exact time and user and restores exactly those", async () => {
+        const owner = await createFixture(database);
+        const other = await createFixture(database);
+        const live = await createSpaceChart(owner, 'Live');
+        const deletedEarlier = await createSpaceChart(owner, 'Deleted earlier');
+        const elsewhere = await createSpaceChart(other, 'Elsewhere');
+        const sameTimeOtherUser = await createSpaceChart(owner, 'Other user');
+        const deleterRemoved = await createSpaceChart(owner, 'Deleter removed');
+        await composerChartModel.deleteFromSpace(
+            deletedEarlier,
+            owner.spaceUuid,
+            owner.userUuid,
+        );
+        const earlierStamp = await deletedStamp(deletedEarlier);
+
+        const cascaded = await spaceModel.softDelete(
+            owner.spaceUuid,
+            owner.userUuid,
+        );
+        expect(cascaded.composerCharts).toEqual(
+            expect.arrayContaining([
+                { composerChartUuid: live, projectUuid: owner.projectUuid },
+                {
+                    composerChartUuid: sameTimeOtherUser,
+                    projectUuid: owner.projectUuid,
+                },
+            ]),
+        );
+        expect(cascaded.composerCharts).toHaveLength(3);
+        const space = await database('spaces')
+            .select('deleted_at')
+            .where('space_uuid', owner.spaceUuid)
+            .first();
+        await expect(deletedStamp(live)).resolves.toEqual({
+            deleted_at: space?.deleted_at,
+            deleted_by_user_uuid: owner.userUuid,
+        });
+        await expect(deletedStamp(deletedEarlier)).resolves.toEqual(
+            earlierStamp,
+        );
+        await expect(deletedStamp(elsewhere)).resolves.toEqual({
+            deleted_at: null,
+            deleted_by_user_uuid: null,
+        });
+        await database('composer_charts')
+            .where('composer_chart_uuid', sameTimeOtherUser)
+            .update({ deleted_by_user_uuid: other.userUuid });
+        // What ON DELETE SET NULL leaves when the deleter's account is removed
+        await database('composer_charts')
+            .where('composer_chart_uuid', deleterRemoved)
+            .update({ deleted_by_user_uuid: null });
+
+        const restored = await spaceModel.restore(owner.spaceUuid);
+        expect(restored.composerCharts).toEqual(
+            expect.arrayContaining(
+                [live, deleterRemoved].map((composerChartUuid) => ({
+                    composerChartUuid,
+                    projectUuid: owner.projectUuid,
+                })),
+            ),
+        );
+        expect(restored.composerCharts).toHaveLength(2);
+        await expect(composerChartModel.get(live)).resolves.toMatchObject({
+            owner: { type: 'space', spaceUuid: owner.spaceUuid },
+        });
+        await expect(deletedStamp(deletedEarlier)).resolves.toEqual(
+            earlierStamp,
+        );
+        await expect(deletedStamp(sameTimeOtherUser)).resolves.toEqual({
+            deleted_at: space?.deleted_at,
+            deleted_by_user_uuid: other.userUuid,
+        });
+    });
+
+    it('restores a deleted chart only once its space is live, and permanently deletes only a deleted one', async () => {
+        const owner = await createFixture(database);
+        const chart = await createSpaceChart(owner);
+        await expect(
+            composerChartModel.permanentlyDeleteFromSpace(
+                chart,
+                owner.spaceUuid,
+                { deletedAt: new Date(), deletedByUserUuid: null },
+            ),
+        ).rejects.toThrow(ConflictError);
+        await composerChartModel.deleteFromSpace(
+            chart,
+            owner.spaceUuid,
+            owner.userUuid,
+        );
+        const { deletion } = await composerChartModel.getDeleted(chart);
+        expect(deletion.deletedByUserUuid).toBe(owner.userUuid);
+        await spaceModel.softDelete(owner.spaceUuid, owner.userUuid);
+        await expect(
+            composerChartModel.restoreToSpace(chart, owner.spaceUuid, deletion),
+        ).rejects.toThrow('Restore the space first');
+
+        await spaceModel.restore(owner.spaceUuid);
+        await expect(deletedStamp(chart)).resolves.not.toMatchObject({
+            deleted_at: null,
+        });
+        await composerChartModel.restoreToSpace(
+            chart,
+            owner.spaceUuid,
+            deletion,
+        );
+        await expect(composerChartModel.get(chart)).resolves.toBeTruthy();
+        await expect(composerChartModel.getDeleted(chart)).rejects.toThrow(
+            NotFoundError,
+        );
+
+        await composerChartModel.deleteFromSpace(
+            chart,
+            owner.spaceUuid,
+            owner.userUuid,
+        );
+        // The earlier deletion was authorized, not this newer one by the same user
+        await expect(
+            composerChartModel.permanentlyDeleteFromSpace(
+                chart,
+                owner.spaceUuid,
+                deletion,
+            ),
+        ).rejects.toThrow(ConflictError);
+        await composerChartModel.permanentlyDeleteFromSpace(
+            chart,
+            owner.spaceUuid,
+            (await composerChartModel.getDeleted(chart)).deletion,
+        );
+        await expect(deletedStamp(chart)).resolves.toBeUndefined();
+        await expect(
+            database('composer_chart_versions').where(
+                'composer_chart_uuid',
+                chart,
+            ),
+        ).resolves.toEqual([]);
+    });
+
+    it('lists a deleted chart in Recently deleted by its deleter, and not one deleted with its space', async () => {
+        const owner = await createFixture(database);
+        const deleted = await createSpaceChart(owner, 'Deleted');
+        await createSpaceChart(owner, 'Live');
+        await composerChartModel.deleteFromSpace(
+            deleted,
+            owner.spaceUuid,
+            owner.userUuid,
+        );
+        const findDeleted = (deletedByUserUuids?: string[]) =>
+            contentModel.findDeletedContents({
+                projectUuids: [owner.projectUuid],
+                contentTypes: [ContentType.CHART, ContentType.COMPOSER_CHART],
+                deletedByUserUuids,
+                composerCharts: { allowedSpaceUuids: [] },
+            });
+
+        const { data } = await findDeleted();
+        expect(data).toEqual([
+            expect.objectContaining({
+                uuid: deleted,
+                contentType: ContentType.COMPOSER_CHART,
+                chartKind: ChartKind.VERTICAL_BAR,
+                spaceUuid: owner.spaceUuid,
+                deletedBy: expect.objectContaining({
+                    userUuid: owner.userUuid,
+                }),
+            }),
+        ]);
+        await expect(findDeleted([randomUUID()])).resolves.toMatchObject({
+            data: [],
+        });
+
+        await spaceModel.softDelete(owner.spaceUuid, owner.userUuid);
+        await expect(findDeleted()).resolves.toMatchObject({ data: [] });
     });
 });

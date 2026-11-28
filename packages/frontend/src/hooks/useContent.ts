@@ -46,8 +46,21 @@ export type ContentArgs = {
     sharedWithMe?: boolean;
 };
 
-const contentTypeLabel = (contentType: ContentType): string =>
-    contentType === ContentType.DATA_APP ? 'data app' : contentType;
+const contentTypeLabel = (contentType: ContentType): string => {
+    switch (contentType) {
+        case ContentType.DATA_APP:
+            return 'data app';
+        case ContentType.COMPOSER_CHART:
+            return 'chart';
+        case ContentType.CHART:
+        case ContentType.DASHBOARD:
+        case ContentType.SPACE:
+        case ContentType.DOCUMENT:
+            return contentType;
+        default:
+            return assertUnreachable(contentType, 'Unknown content type');
+    }
+};
 
 function createQueryString(params: Record<string, any>): string {
     const query = new URLSearchParams();
@@ -155,6 +168,20 @@ export const invalidateContent = async (
     ]);
 };
 
+/** Only after composer actions: a deleted dashboard's open tiles would refetch into a 404. */
+export const invalidateComposerCharts = async (
+    queryClient: QueryClient,
+    projectUuid: string,
+    items: { contentType: ContentType }[],
+    { refetch }: { refetch: boolean },
+) => {
+    if (items.some((i) => i.contentType === ContentType.COMPOSER_CHART)) {
+        await queryClient.invalidateQueries(['composerChart', projectUuid], {
+            refetchType: refetch ? 'active' : 'none',
+        });
+    }
+};
+
 export const useContentAction = (
     projectUuid: string | undefined,
     options?: UseMutationOptions<
@@ -188,6 +215,13 @@ export const useContentAction = (
             }
 
             await invalidateContent(queryClient, projectUuid);
+            await invalidateComposerCharts(
+                queryClient,
+                projectUuid,
+                [variables.item],
+                // A deleted chart's open page would refetch into a 404 before it navigates away
+                { refetch: variables.action.type !== 'delete' },
+            );
 
             options?.onSuccess?.(data, variables, context);
 
@@ -278,6 +312,12 @@ export const useContentBulkAction = (
             }
 
             await invalidateContent(queryClient, projectUuid);
+            await invalidateComposerCharts(
+                queryClient,
+                projectUuid,
+                variables.content,
+                { refetch: variables.action.type !== 'delete' },
+            );
 
             options?.onSuccess?.(data, variables, context);
 

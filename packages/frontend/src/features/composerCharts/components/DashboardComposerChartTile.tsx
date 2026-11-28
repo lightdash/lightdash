@@ -129,7 +129,11 @@ const TileError: FC<{
 
 const DrawnComposerChartTile: FC<Props> = (props) => {
     const { tile, minimal = false } = props;
-    const { composerChartUuid } = tile.properties;
+    // The dashboard read names only live charts: no name means the chart is trashed
+    const composerChartUuid =
+        tile.properties.chartName === null
+            ? null
+            : tile.properties.composerChartUuid;
     const projectUuid = useProjectUuid();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const isEmbedded = useIsEmbedded();

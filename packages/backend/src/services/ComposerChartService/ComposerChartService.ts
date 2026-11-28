@@ -33,6 +33,7 @@ import {
     type ChartParameterReferencesResult,
     type ComposerAvailableFilterSource,
     type ComposerChart,
+    type ComposerChartDashboard,
     type ComposerChartOwner,
     type ComposerChartParameters,
     type ComposerChartPipeline,
@@ -51,13 +52,19 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type RegisteredAccount,
+    type UpdateComposerChart,
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import type { Knex } from 'knex';
 import { validate as isUuid } from 'uuid';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
-import { ComposerChartModel } from '../../models/ComposerChartModel';
+import type { LightdashConfig } from '../../config/parseConfig';
+import {
+    ComposerChartModel,
+    type ComposerChartDeletion,
+} from '../../models/ComposerChartModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectParametersModel } from '../../models/ProjectParametersModel';
@@ -96,6 +103,7 @@ type ComposerChartServiceArguments = {
         AsyncQueryService,
         'getExplore' | 'getComposerTileContext'
     >;
+    lightdashConfig: Pick<LightdashConfig, 'softDelete'>;
 };
 
 /** Where a bound run is recorded in query history: a dashboard view, a scheduled delivery, a dashboard CSV export or an AI agent. */
@@ -173,6 +181,8 @@ export class ComposerChartService extends BaseService {
 
     private readonly getAsyncQueryService: ComposerChartServiceArguments['getAsyncQueryService'];
 
+    private readonly lightdashConfig: ComposerChartServiceArguments['lightdashConfig'];
+
     constructor(args: ComposerChartServiceArguments) {
         super({ serviceName: 'ComposerChartService' });
         this.composerChartModel = args.composerChartModel;
@@ -184,6 +194,7 @@ export class ComposerChartService extends BaseService {
         this.queryHistoryModel = args.queryHistoryModel;
         this.getQuerySourceService = args.getQuerySourceService;
         this.getAsyncQueryService = args.getAsyncQueryService;
+        this.lightdashConfig = args.lightdashConfig;
     }
 
     /** Access through the owner: its space, or its dashboard with that dashboard's grants, as for a classic dashboard chart. */
@@ -227,7 +238,7 @@ export class ComposerChartService extends BaseService {
     /** Every composer chart permission, checked on `SavedChart` as for classic and SQL charts. */
     private async assertChartPermission(
         account: RegisteredAccount,
-        action: 'view' | 'create' | 'update',
+        action: 'view' | 'create' | 'update' | 'delete',
         projectUuid: string,
         owner: ComposerChartOwner,
         composerChartUuid: string | null,
@@ -243,9 +254,12 @@ export class ComposerChartService extends BaseService {
             )
         ) {
             throw new ForbiddenError(
-                action === 'view'
-                    ? "You don't have permission to view this composer chart"
-                    : "You don't have permission to save composer charts here",
+                {
+                    view: "You don't have permission to view this composer chart",
+                    create: "You don't have permission to save composer charts here",
+                    update: "You don't have permission to save composer charts here",
+                    delete: "You don't have permission to delete this composer chart",
+                }[action],
             );
         }
         return access;
@@ -539,7 +553,7 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.get(uuid);
     }
 
-    /** Content-as-code upload; an existing chart stays on its dashboard. */
+    /** Content-as-code write; an existing chart keeps its owner. */
     async writeFromCode(
         account: RegisteredAccount,
         projectUuid: string,
@@ -547,6 +561,8 @@ export class ComposerChartService extends BaseService {
             slug: string;
             /** Owner of a new or revived chart; an existing chart keeps its own. */
             dashboardUuid: string | null;
+            /** `keep` lets a live chart a space owns take the version; an upload refuses it. */
+            spaceOwner: 'refuse' | 'keep';
         },
     ): Promise<string> {
         const existing = await this.composerChartModel.findIdentityBySlug(
@@ -554,12 +570,16 @@ export class ComposerChartService extends BaseService {
             data.slug,
         );
         const live = existing && !existing.deleted ? existing : null;
-        const dashboardUuid = live
-            ? ComposerChartService.requireDashboardOwner(
+        const owner = live
+            ? ComposerChartService.getLiveWriteOwner(
                   (await this.composerChartModel.getOwner(live.uuid)).owner,
+                  data.spaceOwner,
               )
-            : data.dashboardUuid;
-        if (dashboardUuid === null) {
+            : data.dashboardUuid !== null && {
+                  type: 'dashboard' as const,
+                  dashboardUuid: data.dashboardUuid,
+              };
+        if (!owner) {
             throw new ParameterError(
                 `Composer chart "${data.slug}" needs a dashboard to belong to`,
             );
@@ -567,17 +587,14 @@ export class ComposerChartService extends BaseService {
         const { pipeline, chart } = await this.authorizeWrite(
             account,
             projectUuid,
-            {
-                owner: { type: 'dashboard', dashboardUuid },
-                composerChartUuid: live?.uuid ?? null,
-            },
+            { owner, composerChartUuid: live?.uuid ?? null },
             data,
         );
         return this.composerChartModel.writeFromCode({
             existing,
             slug: data.slug,
             projectUuid,
-            owner: { type: 'dashboard', dashboardUuid },
+            owner,
             name: data.name,
             description: data.description ?? null,
             pipeline,
@@ -619,12 +636,16 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.remapPreviewDataAppVizs(...args);
     }
 
-    /** The owning dashboard; uploading a chart a space owns is not served yet. */
-    private static requireDashboardOwner(owner: ComposerChartOwner): string {
+    /** A live chart's owner for a code write; a space owner only with `keep`. */
+    private static getLiveWriteOwner(
+        owner: ComposerChartOwner,
+        spaceOwner: 'refuse' | 'keep',
+    ): ComposerChartOwner {
         switch (owner.type) {
             case 'dashboard':
-                return owner.dashboardUuid;
+                return owner;
             case 'space':
+                if (spaceOwner === 'keep') return owner;
                 throw new NotSupportedError(
                     'Composer charts in a space are not supported yet',
                 );
@@ -662,6 +683,290 @@ export class ComposerChartService extends BaseService {
     ): Promise<ComposerChart> {
         await this.assertCanView(account, projectUuid, composerChartUuid);
         return this.composerChartModel.get(composerChartUuid);
+    }
+
+    /** The live chart's space, after checking write on it; a dashboard's chart lives and dies with its tile. */
+    private async assertCanWriteSpaceChart(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        action: 'update' | 'delete',
+    ): Promise<UUID> {
+        const { projectUuid: chartProjectUuid, owner } =
+            await this.composerChartModel.getOwner(composerChartUuid);
+        if (chartProjectUuid !== projectUuid) {
+            throw new NotFoundError('Composer chart not found');
+        }
+        await this.assertChartPermission(
+            account,
+            action,
+            projectUuid,
+            owner,
+            composerChartUuid,
+        );
+        switch (owner.type) {
+            case 'space':
+                return owner.spaceUuid;
+            case 'dashboard':
+                throw new ParameterError(
+                    'This composer chart belongs to a dashboard. Change it from that dashboard.',
+                );
+            default:
+                return assertUnreachable(owner, 'Unknown composer chart owner');
+        }
+    }
+
+    /** Renames a space-owned chart: no new version, the slug unchanged; works with the flag off. */
+    async update(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        data: UpdateComposerChart,
+    ): Promise<ComposerChart> {
+        const name = data.name?.trim();
+        if (name === '') {
+            throw new ParameterError('Composer chart name is required');
+        }
+        const spaceUuid = await this.assertCanWriteSpaceChart(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'update',
+        );
+        return this.composerChartModel.update(composerChartUuid, spaceUuid, {
+            ...(name !== undefined ? { name } : {}),
+            ...(data.description !== undefined
+                ? { description: data.description }
+                : {}),
+        });
+    }
+
+    /** Deletes a space-owned chart, soft or permanently by the instance setting; works with the flag off. */
+    async delete(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<void> {
+        const spaceUuid = await this.assertCanWriteSpaceChart(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'delete',
+        );
+        await this.composerChartModel.deleteFromSpace(
+            composerChartUuid,
+            spaceUuid,
+            this.lightdashConfig.softDelete.enabled
+                ? account.user.userUuid
+                : null,
+        );
+    }
+
+    /** Recently deleted rule, as for classic charts: the user who deleted it or `manage:DeletedContent`. */
+    private async assertCanManageDeleted(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        action: 'restore' | 'permanently delete',
+    ): Promise<{ spaceUuid: UUID; deletion: ComposerChartDeletion }> {
+        const deleted =
+            await this.composerChartModel.getDeleted(composerChartUuid);
+        if (deleted.projectUuid !== projectUuid) {
+            throw new NotFoundError('Deleted composer chart not found');
+        }
+        const isAdmin = this.createAuditedAbility(account).can(
+            'manage',
+            subject('DeletedContent', {
+                organizationUuid: deleted.organizationUuid,
+                projectUuid,
+                metadata: { composerChartUuid },
+            }),
+        );
+        if (
+            !isAdmin &&
+            deleted.deletion.deletedByUserUuid !== account.user.userUuid
+        ) {
+            throw new ForbiddenError(
+                `You can only ${action} content you deleted`,
+            );
+        }
+        switch (deleted.owner.type) {
+            case 'space':
+                return {
+                    spaceUuid: deleted.owner.spaceUuid,
+                    deletion: deleted.deletion,
+                };
+            case 'dashboard':
+                throw new ParameterError(
+                    'This composer chart belongs to a dashboard. You can only restore or delete it with that dashboard.',
+                );
+            default:
+                return assertUnreachable(
+                    deleted.owner,
+                    'Unknown composer chart owner',
+                );
+        }
+    }
+
+    /** 409 while its space is deleted. Works with the flag off. */
+    async restore(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<void> {
+        const { spaceUuid, deletion } = await this.assertCanManageDeleted(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'restore',
+        );
+        await this.composerChartModel.restoreToSpace(
+            composerChartUuid,
+            spaceUuid,
+            deletion,
+        );
+    }
+
+    /** Works with the flag off. */
+    async permanentDelete(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<void> {
+        const { spaceUuid, deletion } = await this.assertCanManageDeleted(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'permanently delete',
+        );
+        await this.composerChartModel.permanentlyDeleteFromSpace(
+            composerChartUuid,
+            spaceUuid,
+            deletion,
+        );
+    }
+
+    /** Dashboards whose latest version shows the chart, those the caller can view only. */
+    async getDashboardsShowing(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<ComposerChartDashboard[]> {
+        await this.assertCanView(account, projectUuid, composerChartUuid);
+        const dashboards = await this.composerChartModel.findDashboardsShowing(
+            projectUuid,
+            composerChartUuid,
+        );
+        if (dashboards.length === 0) return [];
+        const accessResults =
+            await this.spacePermissionService.resolveAccessBatch(
+                account.user.userUuid,
+                dashboards.map(({ uuid, spaceUuid }) => ({
+                    type: 'dashboard' as const,
+                    dashboardUuid: uuid,
+                    spaceUuid,
+                })),
+            );
+        const contexts = new Map(
+            accessResults.map(({ target, context }) => [
+                target.dashboardUuid,
+                context,
+            ]),
+        );
+        const ability = this.createAuditedAbility(account);
+        return dashboards.flatMap(({ uuid, name }) => {
+            const context = contexts.get(uuid);
+            return context &&
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        ...context,
+                        metadata: { dashboardUuid: uuid },
+                    }),
+                )
+                ? [{ uuid, name }]
+                : [];
+        });
+    }
+
+    private async assertCanMoveToSpace(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        targetSpaceUuid: UUID,
+    ): Promise<UUID> {
+        const sourceSpaceUuid = await this.assertCanWriteSpaceChart(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'update',
+        );
+        await this.assertChartPermission(
+            account,
+            'update',
+            projectUuid,
+            { type: 'space', spaceUuid: targetSpaceUuid },
+            composerChartUuid,
+        );
+        return sourceSpaceUuid;
+    }
+
+    /** The write checks of a space-owned chart's edit, so a caller can refuse before asking anyone to approve its SQL. */
+    async preflightSpaceChartEdit(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        { targetSpaceUuid }: { targetSpaceUuid: UUID | null },
+    ): Promise<void> {
+        if (targetSpaceUuid === null) {
+            await this.assertCanWriteSpaceChart(
+                account,
+                projectUuid,
+                composerChartUuid,
+                'update',
+            );
+            return;
+        }
+        await this.assertCanMoveToSpace(
+            account,
+            projectUuid,
+            composerChartUuid,
+            targetSpaceUuid,
+        );
+    }
+
+    /** Moves a space-owned chart to another space; needs write on both. */
+    async moveToSpace(
+        account: RegisteredAccount,
+        {
+            projectUuid,
+            itemUuid: composerChartUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: UUID;
+            itemUuid: UUID;
+            targetSpaceUuid: UUID | null;
+        },
+        { tx }: { tx?: Knex } = {},
+    ): Promise<void> {
+        if (targetSpaceUuid === null) {
+            throw new ParameterError('A composer chart must stay in a space');
+        }
+        const sourceSpaceUuid = await this.assertCanMoveToSpace(
+            account,
+            projectUuid,
+            composerChartUuid,
+            targetSpaceUuid,
+        );
+        await this.composerChartModel.moveToSpace(
+            {
+                projectUuid,
+                composerChartUuid,
+                sourceSpaceUuid,
+                targetSpaceUuid,
+            },
+            { tx },
+        );
     }
 
     /** Composer charts on these tiles the caller can view, with their semantic-layer nodes' explores; the rest are left out. */

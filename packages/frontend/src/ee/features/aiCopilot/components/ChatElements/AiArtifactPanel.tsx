@@ -387,8 +387,7 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                     key={artifact.versionUuid}
                     initialView="chart"
                     savedComposerChart={
-                        artifactData.savedComposerChartUuid &&
-                        artifactData.savedComposerChartDashboardUuid
+                        artifactData.savedComposerChartUuid
                             ? {
                                   composerChartUuid:
                                       artifactData.savedComposerChartUuid,
