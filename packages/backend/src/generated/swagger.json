@@ -1036,7 +1036,14 @@
                 "type": "object"
             },
             "ContentType": {
-                "enum": ["chart", "dashboard", "space", "data_app", "document"],
+                "enum": [
+                    "chart",
+                    "dashboard",
+                    "space",
+                    "data_app",
+                    "document",
+                    "composer_chart"
+                ],
                 "type": "string"
             },
             "ContentSlugRenameRequest": {
@@ -68828,7 +68835,14 @@
                 "type": "object"
             },
             "ResourceViewItemType": {
-                "enum": ["chart", "dashboard", "space", "data_app", "document"],
+                "enum": [
+                    "chart",
+                    "dashboard",
+                    "space",
+                    "data_app",
+                    "document",
+                    "composer_chart"
+                ],
                 "type": "string"
             },
             "Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data-or-ResourceViewDocumentItem-at-data.uuid-or-pinnedListOrder_": {
@@ -79708,6 +79722,163 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "ContentType.COMPOSER_CHART": {
+                "enum": ["composer_chart"],
+                "type": "string"
+            },
+            "ComposerChartContent": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.COMPOSER_CHART"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "description",
+                    "createdAt",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "project",
+                    "organization",
+                    "space",
+                    "pinnedList",
+                    "views",
+                    "firstViewedAt",
+                    "verification",
+                    "chartKind"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "SummaryContent": {
                 "anyOf": [
                     {
@@ -79724,6 +79895,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DataAppContent"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ComposerChartContent"
                     }
                 ]
             },
@@ -79835,6 +80009,18 @@
                         "properties": {
                             "contentType": {
                                 "$ref": "#/components/schemas/ContentType.DOCUMENT"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["contentType", "uuid"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.COMPOSER_CHART"
                             },
                             "uuid": {
                                 "type": "string"
@@ -80574,6 +80760,18 @@
                         },
                         "required": ["contentType", "uuid"],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.COMPOSER_CHART"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["contentType", "uuid"],
+                        "type": "object"
                     }
                 ]
             },
@@ -80734,6 +80932,148 @@
                 "required": ["chart", "pipeline", "name"],
                 "type": "object",
                 "description": "A dashboard owns the chart; with no dashboard, `spaceUuid` does. A missing field reads as null."
+            },
+            "ComposerChartWithDetails": {
+                "description": "A composer chart with what its page header shows.",
+                "properties": {
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "chart": {
+                        "$ref": "#/components/schemas/ComposerStoredChart"
+                    },
+                    "pipeline": {
+                        "$ref": "#/components/schemas/ComposerChartPipeline"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "owner": {
+                        "$ref": "#/components/schemas/ComposerChartOwner"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object",
+                        "description": "The space the chart lives in: its own, or its dashboard's."
+                    },
+                    "updatedByUser": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "Who wrote the current version; null when that user was deleted."
+                    }
+                },
+                "required": [
+                    "updatedByUserUuid",
+                    "updatedAt",
+                    "chart",
+                    "pipeline",
+                    "versionUuid",
+                    "createdByUserUuid",
+                    "createdAt",
+                    "slug",
+                    "description",
+                    "name",
+                    "owner",
+                    "projectUuid",
+                    "uuid",
+                    "space",
+                    "updatedByUser"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ApiComposerChartDetailsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ComposerChartWithDetails"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ComposerChartParameters": {
+                "properties": {
+                    "parameterDefinitions": {
+                        "$ref": "#/components/schemas/ParameterDefinitions"
+                    },
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["parameterDefinitions", "parameterReferences"],
+                "type": "object",
+                "description": "The parameters a composer chart's nodes reference, with their definitions."
+            },
+            "ApiComposerChartParametersResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ComposerChartParameters"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "KnexPaginatedData_CatalogField-Array_": {
                 "properties": {
@@ -81918,7 +82258,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.438.0",
+        "version": "3.440.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -129648,7 +129988,7 @@
                 }
             }
         },
-        "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}": {
+        "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuidOrSlug}": {
             "get": {
                 "operationId": "getComposerChart",
                 "responses": {
@@ -129657,7 +129997,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiComposerChartResponse"
+                                    "$ref": "#/components/schemas/ApiComposerChartDetailsResponse"
                                 }
                             }
                         }
@@ -129673,8 +130013,57 @@
                         }
                     }
                 },
-                "description": "Gets a composer chart's current version, pipeline included. Anyone who\ncan view charts in its owning dashboard or space can read it.",
+                "description": "Gets the current version of a composer chart, including its pipeline.\nThe response also includes the chart's space and the user who last\nchanged it. Takes the chart's UUID or slug. Anyone who can view charts\nin the chart's dashboard or space can read it.",
                 "summary": "Get composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "composerChartUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}/parameters": {
+            "get": {
+                "operationId": "getComposerChartParameters",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartParametersResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Lists the parameters that a composer chart's nodes reference. Each\nparameter includes its definition, from the project or from the\nreferencing node's model. Anyone who can view the chart can read them.",
+                "summary": "Get composer chart parameters",
                 "tags": ["v2", "Charts"],
                 "security": [],
                 "parameters": [
