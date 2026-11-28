@@ -629,6 +629,28 @@ export const parseDashboardComposerChartRunRequest = (
     return result.data as DashboardComposerChartRunRequest;
 };
 
+/** A chart run: a space-owned chart on its own, with no dashboard filters or date zoom. */
+export type ExecuteComposerChartRequest = {
+    composerChartUuid: UUID;
+    /** Override the values saved on the chart's nodes and the parameter defaults. */
+    parameters?: ParametersValuesMap;
+    invalidateCache: boolean;
+};
+
+const chartRunRequestSchema = z.strictObject({
+    composerChartUuid: z.string(),
+    parameters: z.record(z.string(), z.unknown()).optional(),
+    invalidateCache: z.boolean(),
+});
+
+export const parseExecuteComposerChartRequest = (
+    request: unknown,
+): ExecuteComposerChartRequest => {
+    const result = chartRunRequestSchema.safeParse(request);
+    if (!result.success) throw toParameterError('run request', result.error);
+    return result.data as ExecuteComposerChartRequest;
+};
+
 export type ComposerChartRunResults = {
     queries: Array<{
         nodeId: string;

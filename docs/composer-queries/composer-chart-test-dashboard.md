@@ -71,3 +71,16 @@ Scenarios every proof on a space-owned chart checks:
 - a user in the organization who cannot view the space is refused (403);
 - with `composer-charts` off, the create is refused (403, `featureFlagId`)
   while reading an existing chart still answers.
+
+Run it with the chart run, which applies no dashboard filters or date zoom.
+Then poll each node's query with `GET …/query/{queryUuid}`:
+
+```bash
+curl -X POST "$SITE_URL/api/v2/projects/<projectUuid>/query/composer-chart" \
+  -H "Authorization: ApiKey $LDPAT" -H 'Content-Type: application/json' \
+  -d '{"composerChartUuid": "<composerChartUuid>", "invalidateCache": false}'
+```
+
+Optional `parameters` override the values saved on the nodes. The chart run
+rejects a chart that belongs to a dashboard, and the 400 error names that
+dashboard. Run that chart with `…/query/dashboard-composer-chart`.

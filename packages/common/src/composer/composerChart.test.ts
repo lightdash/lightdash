@@ -10,6 +10,7 @@ import {
     parseComposerPipeline,
     parseComposerStoredChart,
     parseDashboardComposerChartRunRequest,
+    parseExecuteComposerChartRequest,
 } from './composerChart';
 
 const orders = {
@@ -465,6 +466,29 @@ describe('parseDashboardComposerChartRunRequest', () => {
             }),
         ).toThrow('nodes');
     });
+});
+
+describe('parseExecuteComposerChartRequest', () => {
+    const request = { composerChartUuid: 'chart-uuid', invalidateCache: false };
+
+    it('accepts a chart run with or without caller parameters', () => {
+        expect(parseExecuteComposerChartRequest(request)).toEqual(request);
+        expect(
+            parseExecuteComposerChartRequest({
+                ...request,
+                parameters: { region: 'EU' },
+            }),
+        ).toEqual({ ...request, parameters: { region: 'EU' } });
+    });
+
+    it.each(['dashboardUuid', 'tileUuid', 'dashboardFilters', 'dateZoom'])(
+        'refuses a request carrying %s',
+        (key) => {
+            expect(() =>
+                parseExecuteComposerChartRequest({ ...request, [key]: null }),
+            ).toThrow(key);
+        },
+    );
 });
 
 describe('getComposerChartDisplayedQueryUuid', () => {

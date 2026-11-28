@@ -2039,6 +2039,8 @@ export class ServiceRepository
                     appModel: this.models.getAppModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectParametersModel:
+                        this.models.getProjectParametersModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     getQuerySourceService: () => this.getQuerySourceService(),

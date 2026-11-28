@@ -1913,6 +1913,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'QueryController.executeAsyncComposeSqlQuery': [AgentCapability.RawSql],
     'QueryController.executeAsyncPythonQuery': [AgentCapability.RawSql],
     'QueryController.executeAsyncDashboardChartQuery': [AgentCapability.Query],
+    'QueryController.executeAsyncComposerChartQuery': [AgentCapability.Query],
     'QueryController.executeAsyncDashboardComposerChartQuery': [
         AgentCapability.Query,
     ],

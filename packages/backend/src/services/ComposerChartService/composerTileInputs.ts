@@ -19,6 +19,7 @@ import {
     isSubDayGranularity,
     MERGE_TABLE_NAME,
     metricQueryOfSemanticNode,
+    omitDisallowedParameterValues,
     QuerySourceType,
     resolveToBaseTimeDimension,
     type ChartZoomableField,
@@ -168,6 +169,9 @@ export const withSqlColumnFilters = (
     };
 };
 
+const getExploreDefinitions = (explore: Explore): ParameterDefinitions =>
+    getAvailableParametersFromTables(Object.values(explore.tables));
+
 // Classic tile precedence: each semantic-layer node's map becomes its explore's overrides; the shared map gets the dashboard's values
 export const applyDashboardParametersToComposerNodes = ({
     nodes,
@@ -180,18 +184,10 @@ export const applyDashboardParametersToComposerNodes = ({
     exploreByNodeId: ComposerNodeExplores;
     projectDefinitions: ParameterDefinitions;
 }): { nodes: ComposerChartPipelineNode[]; parameters: ParametersValuesMap } => {
-    const definitionsFor = (explores: Explore[]) =>
+    const definitionsFor = (explore: Explore) =>
         getEffectiveParameterDefinitions({
             projectDefinitions,
-            exploreDefinitions: explores.reduce<ParameterDefinitions>(
-                (acc, explore) => ({
-                    ...acc,
-                    ...getAvailableParametersFromTables(
-                        Object.values(explore.tables),
-                    ),
-                }),
-                {},
-            ),
+            exploreDefinitions: getExploreDefinitions(explore),
         });
     return {
         nodes: nodes.map((node): ComposerChartPipelineNode => {
@@ -201,7 +197,7 @@ export const applyDashboardParametersToComposerNodes = ({
             return {
                 ...node,
                 parameters: getDashboardTileParameterOverrides({
-                    definitions: definitionsFor([explore]),
+                    definitions: definitionsFor(explore),
                     dashboardValues,
                     chartSavedValues: node.parameters ?? {},
                     excludedKeys,
@@ -220,6 +216,62 @@ export const applyDashboardParametersToComposerNodes = ({
         }),
     };
 };
+
+// A project parameter wins over a model's copy of its name, as on saved charts
+const getModelOnlyDefinitions = (
+    explore: Explore,
+    projectDefinitions: ParameterDefinitions,
+): ParameterDefinitions =>
+    Object.fromEntries(
+        Object.entries(getExploreDefinitions(explore)).filter(
+            ([key]) => !(key in projectDefinitions),
+        ),
+    );
+
+/** A chart run's precedence: each semantic-layer node runs defaults < its saved value < the caller's; the shared map gets the caller's values only. */
+export const applyCallerParametersToComposerNodes = ({
+    nodes,
+    exploreByNodeId,
+    projectDefinitions,
+    callerValues,
+}: {
+    nodes: ComposerChartPipelineNode[];
+    exploreByNodeId: ComposerNodeExplores;
+    projectDefinitions: ParameterDefinitions;
+    callerValues: ParametersValuesMap;
+}): {
+    nodes: ComposerChartPipelineNode[];
+    parameters: ParametersValuesMap;
+} => ({
+    nodes: nodes.map((node): ComposerChartPipelineNode => {
+        const explore = exploreByNodeId[node.nodeId];
+        if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER || !explore)
+            return node;
+        const definitions = {
+            ...projectDefinitions,
+            ...getModelOnlyDefinitions(explore, projectDefinitions),
+        };
+        return {
+            ...node,
+            parameters: {
+                ...omitDisallowedParameterValues(
+                    node.parameters ?? {},
+                    definitions,
+                ),
+                ...omitDisallowedParameterValues(callerValues, definitions),
+            },
+        };
+    }),
+    // A model-only key must suit every model that defines it
+    parameters: Object.values(exploreByNodeId).reduce(
+        (values, explore) =>
+            omitDisallowedParameterValues(
+                values,
+                getModelOnlyDefinitions(explore, projectDefinitions),
+            ),
+        omitDisallowedParameterValues(callerValues, projectDefinitions),
+    ),
+});
 
 const getNodeParameterReferences = (
     node: ComposerChartPipelineNode,

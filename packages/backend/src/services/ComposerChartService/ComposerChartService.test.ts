@@ -24,6 +24,7 @@ import {
     type DashboardFilters,
     type DataAppVizSchema,
     type Explore,
+    type LightdashProjectParameter,
     type ParametersValuesMap,
     type PossibleAbilities,
 } from '@lightdash/common';
@@ -34,6 +35,7 @@ import type { AppModel } from '../../models/AppModel';
 import type { ComposerChartModel } from '../../models/ComposerChartModel';
 import type { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import type { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { ComposerChartService } from './ComposerChartService';
@@ -266,6 +268,7 @@ const setup = ({ flagEnabled = true } = {}) => {
             }: {
                 binding: ComposerRunBinding;
                 context: QueryExecutionContext;
+                invalidateCache: boolean;
             }) => ({
                 queries: binding.nodes.map(({ nodeId, sourceType }) => ({
                     nodeId,
@@ -361,6 +364,7 @@ const setup = ({ flagEnabled = true } = {}) => {
         })),
         getByIdOrSlug: vi.fn(async (uuidOrSlug: string) => ({
             uuid: uuidOrSlug,
+            name: 'Sales',
             filters: savedDashboardFilters,
             tiles: [
                 {
@@ -371,8 +375,18 @@ const setup = ({ flagEnabled = true } = {}) => {
             ],
         })),
     };
+    const projectParametersModel = {
+        find: vi.fn(async () => [
+            {
+                name: 'region',
+                config: { label: 'Region', options: ['EU', 'UK'] },
+            },
+        ]),
+    };
     const service = new ComposerChartService({
         composerChartModel: composerChartModel as unknown as ComposerChartModel,
+        projectParametersModel:
+            projectParametersModel as unknown as ProjectParametersModel,
         appModel: appModel as unknown as AppModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
         featureFlagModel: {
@@ -404,6 +418,7 @@ const setup = ({ flagEnabled = true } = {}) => {
         asyncQueryService,
         spacePermissionService,
         dashboardModel,
+        projectParametersModel,
     };
 };
 
@@ -1155,6 +1170,7 @@ describe('ComposerChartService.run', () => {
         const { service, submitComposerRun, dashboardModel } = setupRun();
         dashboardModel.getByIdOrSlug.mockImplementation(async () => ({
             uuid: dashboardUuid,
+            name: 'Sales',
             filters: savedDashboardFilters,
             tiles: [
                 {
@@ -1218,6 +1234,7 @@ describe('ComposerChartService.run', () => {
         const { service, submitComposerRun, dashboardModel } = setupRun();
         dashboardModel.getByIdOrSlug.mockResolvedValue({
             uuid: 'another-dashboard',
+            name: 'Another',
             filters: savedDashboardFilters,
             tiles: [
                 {
@@ -1299,6 +1316,267 @@ describe('ComposerChartService.run', () => {
             context,
         );
         expect(submitComposerRun.mock.calls[0][0].context).toBe(context);
+    });
+});
+
+describe('ComposerChartService.runChart', () => {
+    const spaceOwner: ComposerChartOwner = {
+        type: 'space',
+        spaceUuid: 'space-uuid',
+    };
+    const viewer = () =>
+        sessionAccount(
+            new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'view' as const },
+            ]),
+        );
+    const setupChartRun = (
+        options: {
+            flagEnabled?: boolean;
+            nodes?: ComposerChartPipelineNode[];
+            owner?: ComposerChartOwner;
+        } = {},
+    ) => {
+        const context = setup(options);
+        const body = createBody(options.nodes ?? PIPELINES.python);
+        const owner = options.owner ?? spaceOwner;
+        Object.assign(context.composerChartModel, {
+            getOwner: vi.fn(async () => ({ projectUuid, owner })),
+            get: vi.fn(async () => ({
+                uuid: 'chart-uuid',
+                projectUuid,
+                owner,
+                pipeline: body.pipeline,
+                chart: body.chart,
+            })),
+        });
+        return context;
+    };
+    const request = {
+        composerChartUuid: 'chart-uuid',
+        invalidateCache: false,
+    };
+
+    test('runs a chart a space owns with no dashboard or tile on its stamp, checking view on its space', async () => {
+        const {
+            service,
+            querySourceService,
+            spacePermissionService,
+            dashboardModel,
+            asyncQueryService,
+        } = setupChartRun();
+        const result = await service.runChart(
+            viewer(),
+            projectUuid,
+            request,
+            QueryExecutionContext.COMPOSER_CHART_VIEW,
+        );
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            expect.anything(),
+            { type: 'space', spaceUuid: 'space-uuid' },
+        );
+        const [{ binding, context }] =
+            querySourceService.submitComposerRun.mock.calls[0];
+        expect(context).toBe(QueryExecutionContext.COMPOSER_CHART_VIEW);
+        expect(binding.stamp).toEqual({
+            composerChartUuid: 'chart-uuid',
+            dashboardUuid: null,
+            tileUuid: null,
+        });
+        expect(binding.dateZoomByNodeId).toEqual({});
+        expect(dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
+        expect(asyncQueryService.getComposerTileContext).not.toHaveBeenCalled();
+        expect(result).toMatchObject({
+            appliedDashboardFilters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+            appliedDashboardFiltersByNodeId: {},
+            dateZoomApplied: false,
+            zoomableFields: [],
+        });
+        expect(result.queries.map(({ nodeId }) => nodeId)).toEqual([
+            'orders',
+            'other',
+            'result',
+        ]);
+    });
+
+    test('refuses a chart a dashboard owns, naming its dashboard', async () => {
+        const { service, querySourceService } = setupChartRun({
+            owner: { type: 'dashboard', dashboardUuid },
+        });
+        await expect(
+            service.runChart(
+                viewer(),
+                projectUuid,
+                request,
+                QueryExecutionContext.COMPOSER_CHART_VIEW,
+            ),
+        ).rejects.toThrow(/dashboard "Sales"/);
+        expect(querySourceService.submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('refuses a caller who cannot view the chart without naming its dashboard', async () => {
+        const { service, querySourceService } = setupChartRun({
+            owner: { type: 'dashboard', dashboardUuid },
+        });
+        const refusal = await service
+            .runChart(
+                sessionAccount(new Ability<PossibleAbilities>([])),
+                projectUuid,
+                request,
+                QueryExecutionContext.COMPOSER_CHART_VIEW,
+            )
+            .catch((error: unknown) => error);
+        expect(refusal).toBeInstanceOf(ForbiddenError);
+        expect((refusal as Error).message).not.toContain('Sales');
+        expect(querySourceService.submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('refuses a caller who cannot view the space', async () => {
+        const { service, querySourceService } = setupChartRun();
+        await expect(
+            service.runChart(
+                sessionAccount(new Ability<PossibleAbilities>([])),
+                projectUuid,
+                request,
+                QueryExecutionContext.COMPOSER_CHART_VIEW,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(querySourceService.submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('runs with the composer-charts flag off', async () => {
+        const { service, querySourceService } = setupChartRun({
+            flagEnabled: false,
+        });
+        await service.runChart(
+            viewer(),
+            projectUuid,
+            request,
+            QueryExecutionContext.COMPOSER_CHART_VIEW,
+        );
+        expect(querySourceService.submitComposerRun).toHaveBeenCalledTimes(1);
+    });
+
+    describe('parameters', () => {
+        const nodes: ComposerChartPipelineNode[] = [
+            semantic({ parameters: { region: 'UK' } }),
+            {
+                sourceType: QuerySourceType.SQL,
+                nodeId: 'result',
+                title: 'Result',
+                sql: 'select ${lightdash.parameters.region}',
+            },
+        ];
+        const runWith = async (
+            parameters?: ParametersValuesMap,
+            {
+                modelParameters,
+                projectParameterName,
+            }: {
+                modelParameters?: Record<string, LightdashProjectParameter>;
+                projectParameterName?: string;
+            } = {},
+        ) => {
+            const {
+                service,
+                querySourceService,
+                asyncQueryService,
+                projectParametersModel,
+            } = setupChartRun({ nodes });
+            if (modelParameters) {
+                const { getExplore } = asyncQueryService;
+                const original = getExplore.getMockImplementation()!;
+                getExplore.mockImplementation(async (...args) => {
+                    const explore = await original(...args);
+                    explore.tables.orders.parameters = modelParameters;
+                    return explore;
+                });
+            }
+            if (projectParameterName) {
+                projectParametersModel.find.mockResolvedValue([
+                    {
+                        name: projectParameterName,
+                        config: { label: 'Region', options: ['EU', 'UK'] },
+                    },
+                ]);
+            }
+            await service.runChart(
+                viewer(),
+                projectUuid,
+                { ...request, ...(parameters && { parameters }) },
+                QueryExecutionContext.COMPOSER_CHART_VIEW,
+            );
+            const [{ binding }] =
+                querySourceService.submitComposerRun.mock.calls[0];
+            return {
+                nodeParameters: binding.nodes.find(
+                    (
+                        node,
+                    ): node is Extract<
+                        ComposerChartPipelineNode,
+                        { sourceType: QuerySourceType.SEMANTIC_LAYER }
+                    > =>
+                        node.nodeId === 'orders' &&
+                        node.sourceType === QuerySourceType.SEMANTIC_LAYER,
+                )?.parameters,
+                shared: binding.parameters,
+            };
+        };
+
+        test('a semantic-layer node runs its saved value, which the shared map does not carry', async () => {
+            expect(await runWith()).toEqual({
+                nodeParameters: { region: 'UK' },
+                shared: {},
+            });
+        });
+
+        test("a caller's value beats the node's saved value and reaches the shared map", async () => {
+            expect(await runWith({ region: 'EU' })).toEqual({
+                nodeParameters: { region: 'EU' },
+                shared: { region: 'EU' },
+            });
+        });
+
+        test("a caller's value outside a model parameter's options is dropped from the shared map too", async () => {
+            expect(
+                await runWith(
+                    { 'orders.size': 'huge' },
+                    {
+                        modelParameters: {
+                            size: { label: 'Size', options: ['small'] },
+                        },
+                    },
+                ),
+            ).toEqual({ nodeParameters: { region: 'UK' }, shared: {} });
+        });
+
+        test("a project parameter keeps a caller value that a model's copy of its name refuses", async () => {
+            expect(
+                await runWith(
+                    { 'orders.region': 'EU' },
+                    {
+                        projectParameterName: 'orders.region',
+                        modelParameters: {
+                            region: { label: 'Region', options: ['US'] },
+                        },
+                    },
+                ),
+            ).toEqual({
+                nodeParameters: { region: 'UK', 'orders.region': 'EU' },
+                shared: { 'orders.region': 'EU' },
+            });
+        });
+
+        test("a caller's value outside the fixed options is dropped everywhere", async () => {
+            expect(await runWith({ region: 'MARS' })).toEqual({
+                nodeParameters: { region: 'UK' },
+                shared: {},
+            });
+        });
     });
 });
 
