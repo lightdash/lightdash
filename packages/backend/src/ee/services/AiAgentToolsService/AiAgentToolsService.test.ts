@@ -4563,10 +4563,12 @@ describe('AiAgentToolsService', () => {
                 .mockResolvedValue(dashboardsShowing);
             const service = makeService({
                 coderService: {
-                    // Like the real read, a uuid-shaped value is looked up as a uuid only
+                    // Like the real read, a uuid-shaped value never matches a slug
                     getComposerChartForRead: vi.fn(
                         async (_a, _p, uuidOrSlug: string) =>
-                            /^[0-9a-f-]{36}$/.test(uuidOrSlug)
+                            uuidOrSlug !== 'composer-chart-uuid' &&
+                            (uuidOrSlug !== current.slug ||
+                                /^[0-9a-f-]{36}$/.test(uuidOrSlug))
                                 ? null
                                 : {
                                       composerChart: current,

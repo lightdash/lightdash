@@ -202,7 +202,7 @@ export const DOCUMENT_CREATE_CONTENT_DESCRIPTION = (
 ): string =>
     `Create a Document from its JSON. ${getDocumentCreateGuidance(context)}`;
 
-export const MCP_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart, composer chart, data app or Document by its slug. ${READ_CONTENT_SHARED_DESCRIPTION} A Document returns Markdown where each chart is a short tag (id, title, type, explore), plus the latest version UUID that edits need; pass chartId to read one chart in full. A tag marked unsupported is a chart from a newer version: keep its tag unchanged when editing.`;
+export const MCP_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart, composer chart, data app or Document by its slug; a composer chart also by its uuid. ${READ_CONTENT_SHARED_DESCRIPTION} A Document returns Markdown where each chart is a short tag (id, title, type, explore), plus the latest version UUID that edits need; pass chartId to read one chart in full. A tag marked unsupported is a chart from a newer version: keep its tag unchanged when editing.`;
 
 export const MCP_EDIT_CONTENT_DESCRIPTION = (
     context: ToolDescriptionContext,
@@ -271,7 +271,7 @@ export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
 });
 
 export const documentEditContentArgsSchema = z.object({
-    slug: toolEditContentArgsSchema.shape.slug,
+    slug: z.string().min(1).describe('Exact slug of the Document to edit'),
     type: z.literal('document').describe('Type of Lightdash content to edit'),
     documentEdit: mcpDocumentEditSchema.describe(
         'A Document edit: replace the Markdown (content), patch one chart (chart), or update metadata (metadata).',
