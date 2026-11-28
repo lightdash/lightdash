@@ -4,10 +4,13 @@ import { MemoryRouter } from 'react-router';
 import { renderWithProviders } from '../../testing/testUtils';
 import AddTilesToDashboardModal from './AddTilesToDashboardModal';
 
-const mocks = vi.hoisted(() => ({ updateDashboard: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+    updateDashboard: vi.fn(),
+    chartLoaded: true,
+}));
 vi.mock('../../features/composerCharts/hooks/useComposerChartRun', () => ({
     useComposerChart: (_: string, uuid: string | null) => ({
-        isSuccess: uuid !== null,
+        isSuccess: uuid !== null && mocks.chartLoaded,
         data: {
             uuid,
             name: 'Orders by status',
@@ -59,7 +62,7 @@ vi.mock('../../hooks/dashboard/useDashboard', async (importOriginal) => ({
     useUpdateDashboard: () => ({ mutateAsync: mocks.updateDashboard }),
 }));
 
-it('adds a composer chart to a dashboard as a composer tile', async () => {
+const renderModal = () =>
     renderWithProviders(
         <MemoryRouter>
             <AddTilesToDashboardModal
@@ -70,6 +73,21 @@ it('adds a composer chart to a dashboard as a composer tile', async () => {
             />
         </MemoryRouter>,
     );
+
+afterEach(() => {
+    mocks.chartLoaded = true;
+});
+
+it('waits for the chart before it can add it', async () => {
+    mocks.chartLoaded = false;
+    renderModal();
+    expect(
+        await screen.findByRole('button', { name: 'Add to dashboard' }),
+    ).toBeDisabled();
+});
+
+it('adds a composer chart to a dashboard as a composer tile', async () => {
+    renderModal();
     const add = await screen.findByRole('button', { name: 'Add to dashboard' });
     await waitFor(() => expect(add).toBeEnabled());
     fireEvent.click(add);

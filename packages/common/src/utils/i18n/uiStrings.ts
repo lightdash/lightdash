@@ -132,6 +132,7 @@ export const DEFAULT_UI_STRINGS = {
     'tileMenu.viewUnderlyingData': 'View underlying data',
     'tileMenu.viewLineage': 'View lineage',
     'tile.composerChart.notAvailable': 'This chart is not available here',
+    'tile.composerChart.saveToShow': 'Save the dashboard to show this chart',
     'tile.composerChart.lineageTitle': 'Lineage: {chart}',
     'tile.composerChart.lineageRunFailed': 'The pipeline did not run',
     'tile.composerChart.lineageSavedSql':

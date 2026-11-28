@@ -364,6 +364,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const ADD_TO_DASHBOARD_FORM_ID = 'add-to-dashboard-form';
 
     const isSubmitDisabled =
+        !tile ||
         (isCreatingNewDashboard &&
             form.getInputProps('dashboardName').value === '') ||
         (isCreatingNewSpace && form.getInputProps('spaceName').value === '') ||

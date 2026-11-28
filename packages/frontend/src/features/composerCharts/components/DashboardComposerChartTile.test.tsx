@@ -16,6 +16,8 @@ const drawMocks = vi.hoisted(() => ({
     chartError: null as null | {
         error: { statusCode: number; message: string };
     },
+    savedTileUuids: ['tile-uuid'],
+    runEnabled: [] as boolean[],
 }));
 
 vi.mock('../../../api');
@@ -52,17 +54,20 @@ vi.mock('../hooks/useComposerChartRun', () => ({
                   },
                   error: null,
               },
-    useComposerChartRun: () => ({
-        data: {
-            queries: [{ nodeId: 'n1', queryUuid: 'query-uuid' }],
-            fields: {},
-            sqlColumns: [],
-            parameterReferences: [],
-            appliedDashboardFiltersByNodeId: {},
-            usedParameterValuesByNodeId: {},
-        },
-        error: null,
-    }),
+    useComposerChartRun: ({ enabled }: { enabled: boolean }) => {
+        drawMocks.runEnabled.push(enabled);
+        return {
+            data: {
+                queries: [{ nodeId: 'n1', queryUuid: 'query-uuid' }],
+                fields: {},
+                sqlColumns: [],
+                parameterReferences: [],
+                appliedDashboardFiltersByNodeId: {},
+                usedParameterValuesByNodeId: {},
+            },
+            error: null,
+        };
+    },
 }));
 vi.mock('../../../hooks/useQueryResults', () => ({
     useInfiniteQueryResults: () => ({
@@ -86,7 +91,15 @@ vi.mock('../../../hooks/dashboard/useDashboardFiltersForTile', () => ({
 vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector: (value: Record<string, unknown>) => unknown) =>
         selector({
-            dashboard: { uuid: 'dashboard-uuid', slug: 'dashboard' },
+            dashboard: {
+                uuid: 'dashboard-uuid',
+                slug: 'dashboard',
+                tiles: drawMocks.savedTileUuids.map((uuid) => ({
+                    uuid,
+                    type: 'composer_chart',
+                    properties: { composerChartUuid: 'composer-chart-uuid' },
+                })),
+            },
             projectUuid: 'project-uuid',
             hasTileComments: () => false,
             dashboardTiles: [],
@@ -281,5 +294,33 @@ describe('DashboardComposerChartTile with a deleted chart', () => {
         expect(
             await screen.findByText('This chart has been deleted.'),
         ).toBeInTheDocument();
+    });
+});
+
+describe('DashboardComposerChartTile before the dashboard is saved', () => {
+    afterEach(() => {
+        cleanup();
+        drawMocks.savedTileUuids = ['tile-uuid'];
+        drawMocks.runEnabled = [];
+    });
+
+    // The server runs only tiles it has stored, so an unsaved tile would fail
+    it('asks to save instead of running a tile the saved dashboard lacks', async () => {
+        drawMocks.savedTileUuids = [];
+        drawMocks.runEnabled = [];
+        renderWithProviders(
+            <DashboardStoreTestProvider store={createDashboardTestStore({})}>
+                <DashboardComposerChartTile
+                    tile={tile}
+                    isEditMode
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                />
+            </DashboardStoreTestProvider>,
+        );
+        expect(
+            await screen.findByText('Save the dashboard to show this chart'),
+        ).toBeInTheDocument();
+        expect(drawMocks.runEnabled).not.toContain(true);
     });
 });
