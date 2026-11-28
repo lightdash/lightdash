@@ -1,0 +1,116 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": "approved",
+    "title": "The user saves the agent's composer answer into a space (and, as a twin, onto a dashboard)",
+    "covers": [
+      "#33615"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "Chart payments of at least 20 by method.",
+    "expect": [
+      "the answer shows a composer chart artifact with a Save action",
+      "Save into Emulator scenarios creates a space-owned chart; its page opens and draws",
+      "twin run: Save onto Emulator dashboard adds a tile as before"
+    ],
+    "readBack": [
+      "composer_charts row owned by the chosen space (or dashboard)"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "query",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "query"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "query",
+          "arguments": {
+            "title": null,
+            "description": "Payments by method",
+            "terminalNodeId": null,
+            "queries": [
+              {
+                "nodeId": "payments_by_method",
+                "sourceType": "sql",
+                "title": "Payments by method",
+                "description": "Total payment amount per payment method.",
+                "sql": "SELECT payment_method, SUM(amount) AS total_amount FROM postgres.jaffle.payments WHERE amount >= 20 GROUP BY 1",
+                "limit": 500
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "visualize",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "visualize"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "visualize",
+          "arguments": {
+            "nodeId": "payments_by_method",
+            "title": "Payments of at least 20 by method",
+            "description": null,
+            "vizConfig": {
+              "type": "bar",
+              "x": "payment_method",
+              "y": [
+                "total_amount"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "Here are payments of at least 20 by method."
+        }
+      ]
+    }
+  ]
+}

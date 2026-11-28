@@ -1,0 +1,102 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": null,
+    "title": "Agent reads and runs a space-owned composer chart, answer links it as a chip",
+    "covers": [
+      "#33606",
+      "content link chips"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "What does the Emulator space payments chart show?",
+    "expect": [
+      "readContent returns the chart as code with dashboardSlug null and an href to /composer-charts/<uuid>",
+      "runContentQuery returns rows for payment methods; composerChart names the chart and terminal node payments",
+      "the answer's link renders as a chart chip; clicking it opens the composer chart page, which draws"
+    ],
+    "readBack": [
+      "ai_agent_tool_call and ai_agent_tool_result rows for both calls",
+      "a query_history row for the chart's run"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "read",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "readContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "readContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-space-payments"
+          }
+        }
+      ]
+    },
+    {
+      "id": "run",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "runContentQuery"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "runContentQuery",
+          "arguments": {
+            "source": {
+              "type": "chart",
+              "chartType": "composer_chart",
+              "chartSlug": "emulator-space-payments"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "The chart totals payment amounts by payment method. Open it here: [Emulator space payments](/projects/{{project}}/composer-charts/{{space_chart}})."
+        }
+      ]
+    }
+  ]
+}

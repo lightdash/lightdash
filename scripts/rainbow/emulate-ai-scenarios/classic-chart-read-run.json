@@ -1,0 +1,100 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": null,
+    "title": "Twin: agent reads and runs a classic chart",
+    "covers": [
+      "#33606 regression"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "What does the Emulator classic payments chart show?",
+    "expect": [
+      "readContent returns the chart as code",
+      "runContentQuery returns rows",
+      "the chip opens the classic chart's side preview"
+    ],
+    "readBack": [
+      "two tool results"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "read",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "readContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "readContent",
+          "arguments": {
+            "type": "chart",
+            "slug": "emulator-classic-payments"
+          }
+        }
+      ]
+    },
+    {
+      "id": "run",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "runContentQuery"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "runContentQuery",
+          "arguments": {
+            "source": {
+              "type": "chart",
+              "chartType": null,
+              "chartSlug": "emulator-classic-payments"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "It shows revenue per payment method: [Emulator classic payments](/projects/{{project}}/saved/{{classic_chart}}/view)."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": null,
+    "title": "Twin: agent repairs a dashboard composer tile whose stored series type is unknown",
+    "covers": [
+      "#33619",
+      "#33622"
+    ],
+    "persona": "admin",
+    "startFrom": "the Emulator dashboard, then the agent's chat page",
+    "prompt": "The second payments tile on the Emulator dashboard is broken, show it as a table.",
+    "expect": [
+      "before: the dashboard loads; the bad tile shows its own error state, the other tile draws",
+      "readContent returns the chart despite the unknown series type",
+      "editContent saves a table config; after, both tiles draw"
+    ],
+    "readBack": [
+      "composer_chart_versions: the new row has chartConfig type table"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "read",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "readContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "readContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-bad-series-payments"
+          }
+        }
+      ]
+    },
+    {
+      "id": "edit",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "editContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "editContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-bad-series-payments",
+            "patch": [
+              {
+                "op": "replace",
+                "path": "/chart/chartConfig",
+                "value": {
+                  "type": "table",
+                  "config": {}
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "The tile now shows a table. [Emulator dashboard](/projects/{{project}}/dashboards/{{dashboard}}/view)"
+        }
+      ]
+    }
+  ]
+}

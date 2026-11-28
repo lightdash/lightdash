@@ -1,0 +1,128 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": "approved",
+    "title": "Agent creates a composer chart into a space; the answer's link opens it",
+    "covers": [
+      "#33617"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "Save a chart of payments of at least 20 by method in Emulator scenarios.",
+    "expect": [
+      "approval card for the node SQL before anything is saved",
+      "createContent returns slug emulator-created-payments and an href to /composer-charts/<uuid>",
+      "the chip opens the new chart page, which draws; the chart lists under Emulator scenarios"
+    ],
+    "readBack": [
+      "composer_charts row with space_uuid of Emulator scenarios and no dashboard"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "create",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "createContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "createContent",
+          "arguments": {
+            "type": "composer_chart",
+            "content": {
+              "from": "json",
+              "name": "Emulator created payments",
+              "description": null,
+              "spaceSlug": "emulator-scenarios",
+              "dashboardSlug": null,
+              "pipeline": {
+                "schemaVersion": 1,
+                "terminalNodeId": "payments",
+                "nodes": [
+                  {
+                    "nodeId": "payments",
+                    "title": "Payments",
+                    "sourceType": "sql",
+                    "sql": "SELECT payment_method, SUM(amount) AS total_amount FROM postgres.jaffle.payments WHERE amount >= 20 GROUP BY 1"
+                  }
+                ]
+              },
+              "chart": {
+                "schemaVersion": 1,
+                "columns": [
+                  {
+                    "reference": "payment_method",
+                    "fieldType": "dimension"
+                  },
+                  {
+                    "reference": "total_amount",
+                    "fieldType": "metric"
+                  }
+                ],
+                "chartConfig": {
+                  "type": "cartesian",
+                  "config": {
+                    "layout": {
+                      "xField": "payment_method",
+                      "yField": [
+                        "total_amount"
+                      ]
+                    },
+                    "eChartsConfig": {}
+                  }
+                },
+                "pivotConfig": null,
+                "tableConfig": {
+                  "columnOrder": [
+                    "payment_method",
+                    "total_amount"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "Saved. [Emulator created payments](/projects/{{project}}/composer-charts/emulator-created-payments)"
+        }
+      ]
+    }
+  ]
+}

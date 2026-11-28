@@ -1,0 +1,104 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": null,
+    "title": "A user who can only view the space reads its composer chart, then is refused an edit",
+    "covers": [
+      "#33612"
+    ],
+    "persona": "editor",
+    "startFrom": "the agent's chat page",
+    "prompt": "Rename the Emulator view only payments chart to Quarterly payments.",
+    "expect": [
+      "readContent succeeds (the editor can view the space)",
+      "editContent is refused for lack of edit rights; no approval card",
+      "the answer streams and the thread ends idle"
+    ],
+    "readBack": [
+      "composer_charts.name unchanged"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "read",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "readContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "readContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-view-only-payments"
+          }
+        }
+      ]
+    },
+    {
+      "id": "edit",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "editContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "editContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-view-only-payments",
+            "patch": [
+              {
+                "op": "replace",
+                "path": "/name",
+                "value": "Quarterly payments"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "I can't change that chart; you can view it but not edit it."
+        }
+      ]
+    }
+  ]
+}

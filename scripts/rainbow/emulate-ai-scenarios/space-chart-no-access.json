@@ -1,0 +1,120 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": null,
+    "title": "A user without access to the space cannot list, read or run its composer chart",
+    "covers": [
+      "#33606"
+    ],
+    "persona": "editor",
+    "startFrom": "the agent's chat page",
+    "prompt": "Show me the Emulator private payments chart.",
+    "expect": [
+      "listContent of emulator-private returns an error or no items; the chart's name never appears",
+      "readContent and runContentQuery of emulator-private-payments both fail as not found",
+      "the answer streams and the thread ends idle"
+    ],
+    "readBack": [
+      "tool results carry no rows and no chart name",
+      "no query_history row for the private chart"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "list",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "listContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "listContent",
+          "arguments": {
+            "spaceSlug": "emulator-private",
+            "page": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "read",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "readContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "readContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "emulator-private-payments"
+          }
+        }
+      ]
+    },
+    {
+      "id": "run",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "runContentQuery"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "runContentQuery",
+          "arguments": {
+            "source": {
+              "type": "chart",
+              "chartType": "composer_chart",
+              "chartSlug": "emulator-private-payments"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "I could not open that chart. It may not exist, or you may not have access to it."
+        }
+      ]
+    }
+  ]
+}

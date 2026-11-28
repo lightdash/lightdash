@@ -1,0 +1,106 @@
+{
+  "scenario": {
+    "agent": "Emulated scenarios agent",
+    "composerCharts": "default",
+    "decision": null,
+    "title": "Twin: agent reads and edits a dashboard-owned composer chart by its uuid",
+    "covers": [
+      "#33619",
+      "#33622"
+    ],
+    "persona": "admin",
+    "startFrom": "the agent's chat page",
+    "prompt": "Add a description to the chart I linked saying it counts all payments.",
+    "expect": [
+      "readContent and editContent both accept the uuid as slug",
+      "the description saves on the dashboard's chart; owner and tile unchanged",
+      "the dashboard chip opens the dashboard; both tiles behave as before"
+    ],
+    "readBack": [
+      "composer_charts.description set",
+      "dashboard tile still points at the chart"
+    ]
+  },
+  "strict": false,
+  "timing": {
+    "ttftMs": 250,
+    "chunkDelayMs": 15
+  },
+  "rules": [
+    {
+      "id": "load-tools",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "loadAgentTools"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "loadAgentTools",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "id": "read",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "readContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "readContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "{{dashboard_chart}}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "edit",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "editContent"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "editContent",
+          "arguments": {
+            "type": "composer_chart",
+            "slug": "{{dashboard_chart}}",
+            "patch": [
+              {
+                "op": "replace",
+                "path": "/description",
+                "value": "Total amount across all payments, by method."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "hasToolResult": true
+      },
+      "reply": [
+        {
+          "type": "text",
+          "text": "I added the description. [Emulator dashboard](/projects/{{project}}/dashboards/{{dashboard}}/view)"
+        }
+      ]
+    }
+  ]
+}
