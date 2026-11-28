@@ -450,6 +450,34 @@ describe('composer charts follow their dashboard on the real schema', () => {
         });
     });
 
+    it('refuses a version for a live chart whose owner moved since it was authorized', async () => {
+        const composerChartUuid = await createSpaceChart();
+        const { slug, versionUuid } =
+            await composerChartModel.get(composerChartUuid);
+        const write = (spaceUuid: string) =>
+            composerChartModel.writeFromCode({
+                existing: { uuid: composerChartUuid, deleted: false },
+                slug,
+                projectUuid: fixture.projectUuid,
+                owner: { type: 'space', spaceUuid },
+                name: 'Changed',
+                description: null,
+                pipeline: pipeline('select 2'),
+                chart: storedChart,
+                createdByUserUuid: fixture.userUuid,
+            });
+
+        await expect(write(randomUUID())).rejects.toThrow(ConflictError);
+        await expect(
+            composerChartModel.get(composerChartUuid),
+        ).resolves.toMatchObject({ name: 'In a space', versionUuid });
+
+        await write(fixture.spaceUuid);
+        await expect(
+            composerChartModel.get(composerChartUuid),
+        ).resolves.toMatchObject({ name: 'Changed' });
+    });
+
     it('rolls a chart back to its version as of a dashboard version, to the microsecond', async () => {
         const { dashboard, composerChartUuid } =
             await createDashboardWithChart();
