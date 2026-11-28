@@ -19,7 +19,7 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 
 ## Content tools
 
-- Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project, and composer charts on dashboards. Answers and ad hoc charts come from query and visualize.
+- Use the content tools when the user's intent is to create or edit saved content: charts, dashboards, SQL charts and composer charts kept in the project. Answers and ad hoc charts come from query and visualize.
 - For chart and dashboard JSON, follow the developing-in-lightdash skill: it holds their shapes and the chart-type references.
 - Before creating a SQL chart, read sql-chart-reference in the developing-in-lightdash skill: it says when to create one.
 - Before creating a composer chart, read composer-chart-reference in the developing-in-lightdash skill: it says when to create one.
