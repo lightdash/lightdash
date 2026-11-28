@@ -651,7 +651,7 @@ export class ComposerChartService extends BaseService {
             case 'space':
                 if (liveOwner.type === 'dashboard') {
                     throw new NotSupportedError(
-                        'Composer charts in a space are not supported yet',
+                        'This composer chart belongs to a space, so a dashboard write cannot change it',
                     );
                 }
                 if (liveOwner.spaceUuid === owner.spaceUuid) return owner;

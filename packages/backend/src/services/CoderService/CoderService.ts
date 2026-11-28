@@ -3769,11 +3769,7 @@ export class CoderService extends BaseService {
         };
     }
 
-    /**
-     * An unchanged file writes nothing and needs only create:ContentAsCode. A
-     * new or changed one runs every composer chart write check. A file naming
-     * no dashboard writes a chart its space owns.
-     */
+    /** An unchanged file writes nothing and needs only create:ContentAsCode; any other runs every write check. */
     async upsertComposerChart(
         user: SessionUser,
         account: RegisteredAccount,
@@ -3993,8 +3989,8 @@ export class CoderService extends BaseService {
             );
             return space.uuid;
         };
-        // Slugs map to paths lossily; never guess between two spaces, or two parents of a new one
-        const assertOneSpaceAtPath = async () => {
+        // A slug must name one space, or one parent for a new one: slugs map to paths lossily
+        const assertUploadSpacePath = async () => {
             if (file.spaceSlug.trim() === '') {
                 throw new ParameterError(
                     `Composer chart "${slug}" needs a spaceSlug or a dashboardSlug`,
@@ -4027,7 +4023,7 @@ export class CoderService extends BaseService {
         };
 
         if (live === null) {
-            await assertOneSpaceAtPath();
+            await assertUploadSpacePath();
             await this.assertContentAccessForMissingSpace({
                 user,
                 auditedAbility,
@@ -4071,7 +4067,7 @@ export class CoderService extends BaseService {
         }
         let targetSpaceUuid: string | null = null;
         if (!isSameSpaceSlug(file.spaceSlug, current.spaceSlug)) {
-            await assertOneSpaceAtPath();
+            await assertUploadSpacePath();
             await this.assertContentAccessForMissingSpace({
                 user,
                 auditedAbility,
