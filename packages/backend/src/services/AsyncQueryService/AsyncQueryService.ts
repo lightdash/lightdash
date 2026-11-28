@@ -712,7 +712,10 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     getDocumentService: () => DocumentService;
     /** Lazy: renders chart images for XLSX exports via the headless browser. */
     getUnfurlService: () => UnfurlService;
-    getComposerChartService: () => Pick<ComposerChartService, 'assertCanView'>;
+    getComposerChartService: () => Pick<
+        ComposerChartService,
+        'assertCanViewRunSource'
+    >;
     contentDraftModel: ContentDraftModel;
     queryHistoryModel: QueryHistoryModel;
     downloadAuditModel: DownloadAuditModel;
@@ -2205,21 +2208,21 @@ export class AsyncQueryService extends ProjectService {
                 }
             }
             const composerSource = parameters?.composerChartSource;
+            const composerKey = composerSource
+                ? `composer:${composerSource.composerChartUuid}:${composerSource.dashboardUuid}`
+                : null;
             if (
                 composerSource &&
-                !checkedContent.has(
-                    `composer:${composerSource.composerChartUuid}`,
-                )
+                composerKey &&
+                !checkedContent.has(composerKey)
             ) {
                 assertRegisteredAccount(fresh);
-                await this.getComposerChartService().assertCanView(
+                await this.getComposerChartService().assertCanViewRunSource(
                     fresh,
                     projectUuid,
-                    composerSource.composerChartUuid,
+                    composerSource,
                 );
-                checkedContent.add(
-                    `composer:${composerSource.composerChartUuid}`,
-                );
+                checkedContent.add(composerKey);
             }
             if (chartUuid && !checkedContent.has(`chart:${chartUuid}`)) {
                 await this.assertSavedChartQuerySourceAccess(
@@ -2513,10 +2516,10 @@ export class AsyncQueryService extends ProjectService {
             queryHistory.requestParameters?.composerChartSource;
         if (composerSource) {
             assertRegisteredAccount(account);
-            await this.getComposerChartService().assertCanView(
+            await this.getComposerChartService().assertCanViewRunSource(
                 account,
                 projectUuid,
-                composerSource.composerChartUuid,
+                composerSource,
             );
         }
         const { chartUuid, references } = getQuerySourceParameters(

@@ -1855,3 +1855,42 @@ describe('ComposerChartService.get', () => {
         ).rejects.toThrow(NotFoundError);
     });
 });
+
+describe('ComposerChartService.assertCanViewRunSource', () => {
+    const chartViewer = () =>
+        sessionAccount(
+            new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'view' as const },
+            ]),
+        );
+    const setupSource = () => {
+        const { service, composerChartModel } = setup();
+        Object.assign(composerChartModel, {
+            getOwner: vi.fn(async () => ({
+                projectUuid,
+                owner: { type: 'space', spaceUuid: 'space-uuid' },
+            })),
+        });
+        return service;
+    };
+
+    test("refuses a tile run's results to a chart viewer who cannot view its dashboard", async () => {
+        await expect(
+            setupSource().assertCanViewRunSource(chartViewer(), projectUuid, {
+                composerChartUuid: 'chart-uuid',
+                dashboardUuid,
+                tileUuid: 'tile-uuid',
+            }),
+        ).rejects.toThrow("You don't have access to this dashboard");
+    });
+
+    test("lets a chart viewer read a chart run's results, which name no dashboard", async () => {
+        await expect(
+            setupSource().assertCanViewRunSource(chartViewer(), projectUuid, {
+                composerChartUuid: 'chart-uuid',
+                dashboardUuid: null,
+                tileUuid: null,
+            }),
+        ).resolves.toBeUndefined();
+    });
+});

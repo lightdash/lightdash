@@ -654,7 +654,7 @@ const getMockedAsyncQueryService = (
                 getChart: DocumentService.prototype.getChart,
             }) as DocumentService,
         getComposerChartService: () => ({
-            assertCanView: vi
+            assertCanViewRunSource: vi
                 .fn()
                 .mockRejectedValue(
                     new NotFoundError('Composer chart not found'),
@@ -33815,7 +33815,7 @@ describe('bound composer chart runs', () => {
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             featureFlagModel: flagsOff,
             getComposerChartService: () => ({
-                assertCanView: vi.fn(async () => undefined),
+                assertCanViewRunSource: vi.fn(async () => undefined),
             }),
             composeEngineClient: {
                 createExecutionWarehouseClient: vi.fn(
@@ -34005,12 +34005,12 @@ describe('bound composer chart runs', () => {
         ['a tile', stamp],
         ['outside a dashboard', chartPageStamp],
     ])(
-        'a row stamped %s is readable and streamable only while its reader can view the chart',
+        'a row stamped %s is readable and streamable only while its reader can view the chart, and the dashboard of a tile',
         async (_where, rowStamp) => {
             const account = viewer();
-            const assertCanView = vi.fn(async () => undefined);
+            const assertCanViewRunSource = vi.fn(async () => undefined);
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                getComposerChartService: () => ({ assertCanView }),
+                getComposerChartService: () => ({ assertCanViewRunSource }),
                 queryHistoryModel: {
                     get: vi.fn(async () => ({
                         ...referenced,
@@ -34033,13 +34033,13 @@ describe('bound composer chart runs', () => {
                 status: QueryHistoryStatus.ERROR,
                 error: 'node error',
             });
-            expect(assertCanView).toHaveBeenCalledWith(
+            expect(assertCanViewRunSource).toHaveBeenCalledWith(
                 account,
                 projectUuid,
-                rowStamp.composerChartUuid,
+                rowStamp,
             );
             const revoked = new ForbiddenError('Dashboard access revoked');
-            assertCanView.mockRejectedValue(revoked);
+            assertCanViewRunSource.mockRejectedValue(revoked);
             await expect(service.getAsyncQueryResults(args)).rejects.toBe(
                 revoked,
             );
