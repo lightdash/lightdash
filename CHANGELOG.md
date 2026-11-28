@@ -1,3 +1,10 @@
+# [3.446.0](https://github.com/lightdash/lightdash/compare/3.445.0...3.446.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** agent edits a space-owned composer chart ([#33612](https://github.com/lightdash/lightdash/issues/33612)) ([7d56a69](https://github.com/lightdash/lightdash/commit/7d56a69b4d61dd0c3beb014be729e7a4600db21f))
+
 # [3.445.0](https://github.com/lightdash/lightdash/compare/3.444.0...3.445.0) (2026-11-28)
 
 
