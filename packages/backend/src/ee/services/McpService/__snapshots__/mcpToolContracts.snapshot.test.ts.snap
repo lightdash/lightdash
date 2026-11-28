@@ -2703,7 +2703,7 @@ Usage tips:
         "readOnlyHint": true,
         "title": "Read content",
       },
-      "description": "Read a dashboard, chart, SQL chart, composer chart or data app as JSON by its slug. For a composer chart, a uuid also works. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. A composer_chart tile names a composer chart (a pipeline of queries plus a chart) by chartSlug; read it with type composer_chart, since a chart may share its slug. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.",
+      "description": "Read a dashboard, chart, SQL chart, composer chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. A composer_chart tile names a composer chart (a pipeline of queries plus a chart) by chartSlug; read it with type composer_chart, since a chart may share its slug. For a composer chart, a uuid also works as the slug. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -2720,7 +2720,7 @@ Usage tips:
             "type": "string",
           },
           "slug": {
-            "description": "Slug of the content to read. For a composer chart, a uuid also works.",
+            "description": "Slug of the content to read.",
             "minLength": 1,
             "type": "string",
           },
@@ -3406,7 +3406,7 @@ A custom chart type is chosen the same way: by its own description first, then a
         "readOnlyHint": false,
         "title": "Edit content",
       },
-      "description": "Edit a dashboard, chart, SQL chart or composer chart with an RFC6902 patch against its JSON as read_content last returned it; the edited content is validated before it is saved. The content's space must show canEdit true in find_content or list_content results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. A composer chart on a dashboard saves in place as a new version. For a composer chart in a space, where dashboardSlug is null, a change to only the name or description renames the chart without a new version. A pipeline or chart change saves a new version. A spaceSlug change moves the chart. The result's warnings name the dashboards that show the chart. New warehouse SQL in a composer chart's nodes waits for approval the same way.",
+      "description": "Edit a dashboard, chart, SQL chart or composer chart with an RFC6902 patch against its JSON as read_content last returned it; the edited content is validated before it is saved. For a composer chart, a uuid also works as the slug. The content's space must show canEdit true in find_content or list_content results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. A composer chart on a dashboard saves in place as a new version. For a composer chart in a space, where dashboardSlug is null, a change to only the name or description renames the chart without a new version. A pipeline or chart change saves a new version. A spaceSlug change moves the chart. The result's warnings name the dashboards that show the chart. New warehouse SQL in a composer chart's nodes waits for approval the same way.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -3428,7 +3428,7 @@ A custom chart type is chosen the same way: by its own description first, then a
             "type": "string",
           },
           "slug": {
-            "description": "Exact slug of the content to edit. For a composer chart, a uuid also works.",
+            "description": "Exact slug of the content to edit",
             "minLength": 1,
             "type": "string",
           },

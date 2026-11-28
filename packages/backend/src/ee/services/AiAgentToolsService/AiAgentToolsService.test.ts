@@ -4568,7 +4568,9 @@ describe('AiAgentToolsService', () => {
                         async (_a, _p, uuidOrSlug: string) =>
                             uuidOrSlug !== 'composer-chart-uuid' &&
                             (uuidOrSlug !== current.slug ||
-                                /^[0-9a-f-]{36}$/.test(uuidOrSlug))
+                                /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(
+                                    uuidOrSlug,
+                                ))
                                 ? null
                                 : {
                                       composerChart: current,

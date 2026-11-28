@@ -2632,7 +2632,7 @@ A custom chart type is chosen the same way: by its own description first, then a
     },
   },
   {
-    "description": "Edit a dashboard, chart, SQL chart or composer chart with an RFC6902 patch against its JSON as readContent last returned it; the edited content is validated before it is saved. The content's space must show canEdit true in findContent or listContent results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. A composer chart on a dashboard saves in place as a new version. For a composer chart in a space, where dashboardSlug is null, a change to only the name or description renames the chart without a new version. A pipeline or chart change saves a new version. A spaceSlug change moves the chart. The result's warnings name the dashboards that show the chart. New warehouse SQL in a composer chart's nodes waits for approval the same way.",
+    "description": "Edit a dashboard, chart, SQL chart or composer chart with an RFC6902 patch against its JSON as readContent last returned it; the edited content is validated before it is saved. For a composer chart, a uuid also works as the slug. The content's space must show canEdit true in findContent or listContent results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. A composer chart on a dashboard saves in place as a new version. For a composer chart in a space, where dashboardSlug is null, a change to only the name or description renames the chart without a new version. A pipeline or chart change saves a new version. A spaceSlug change moves the chart. The result's warnings name the dashboards that show the chart. New warehouse SQL in a composer chart's nodes waits for approval the same way.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -2643,7 +2643,7 @@ A custom chart type is chosen the same way: by its own description first, then a
           "type": "array",
         },
         "slug": {
-          "description": "Exact slug of the content to edit. For a composer chart, a uuid also works.",
+          "description": "Exact slug of the content to edit",
           "minLength": 1,
           "type": "string",
         },
@@ -15176,13 +15176,13 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
     },
   },
   {
-    "description": "Read a dashboard, chart, SQL chart, composer chart or data app as JSON by its slug. For a composer chart, a uuid also works. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. A composer_chart tile names a composer chart (a pipeline of queries plus a chart) by chartSlug; read it with type composer_chart, since a chart may share its slug. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.",
+    "description": "Read a dashboard, chart, SQL chart, composer chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. A composer_chart tile names a composer chart (a pipeline of queries plus a chart) by chartSlug; read it with type composer_chart, since a chart may share its slug. For a composer chart, a uuid also works as the slug. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "slug": {
-          "description": "Slug of the content to read. For a composer chart, a uuid also works.",
+          "description": "Slug of the content to read.",
           "minLength": 1,
           "type": "string",
         },
@@ -15591,7 +15591,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
 
 Sources:
 - metricQuery: an unsaved chart-as-code metricQuery with its tableName, exactly as the chart will save it, limit included.
-- chart: a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval. Set chartType "composer_chart" for a composer chart a space owns (its readContent dashboardSlug is null).
+- chart: a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval. Set chartType "composer_chart" for a composer chart a space owns (its readContent dashboardSlug is null); a uuid also works as its chartSlug.
 - dashboardChart: a saved chart by chartSlug in a dashboardSlug context, with the dashboard filters applied. chartType works the same; "composer_chart" runs the chart's tile as that dashboard shows it.
 A composer chart returns its final node's rows.
 - sql: a raw SELECT, to check a SQL chart's sql before saving it. The user approves the SQL first; saving the same SQL in a SQL chart in this response needs no second approval.",
@@ -15665,7 +15665,7 @@ A composer chart returns its final node's rows.
               "additionalProperties": false,
               "properties": {
                 "chartSlug": {
-                  "description": "Slug of the saved chart. For a composer chart, a uuid also works.",
+                  "description": "Slug of the saved chart.",
                   "type": "string",
                 },
                 "chartType": {

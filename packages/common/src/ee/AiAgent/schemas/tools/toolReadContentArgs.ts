@@ -2,17 +2,12 @@ import { z } from 'zod';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 
 export const READ_CONTENT_SHARED_DESCRIPTION =
-    'Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. A composer_chart tile names a composer chart (a pipeline of queries plus a chart) by chartSlug; read it with type composer_chart, since a chart may share its slug. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.';
+    'Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. A composer_chart tile names a composer chart (a pipeline of queries plus a chart) by chartSlug; read it with type composer_chart, since a chart may share its slug. For a composer chart, a uuid also works as the slug. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.';
 
-export const TOOL_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart, composer chart or data app as JSON by its slug. For a composer chart, a uuid also works. ${READ_CONTENT_SHARED_DESCRIPTION}`;
+export const TOOL_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart, composer chart or data app as JSON by its slug. ${READ_CONTENT_SHARED_DESCRIPTION}`;
 
 export const toolReadContentArgsSchema = z.object({
-    slug: z
-        .string()
-        .min(1)
-        .describe(
-            'Slug of the content to read. For a composer chart, a uuid also works.',
-        ),
+    slug: z.string().min(1).describe('Slug of the content to read.'),
     type: z
         .enum(['dashboard', 'chart', 'sql_chart', 'composer_chart', 'data_app'])
         .describe('Type of Lightdash content to read.'),
