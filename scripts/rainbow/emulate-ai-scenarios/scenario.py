@@ -27,6 +27,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -284,10 +285,17 @@ def max_persisted_id():
 def advance_emulator_ids():
     """Emulator ids restart at 1 on reset; an approval is keyed by its tool call id."""
     floor = max_persisted_id()
-    current = 0
-    while current <= floor:
+
+    def advance(_):
         reply = emulator("POST", "/v1/responses", {"model": "advance", "input": "advance"})
-        current = int(reply["id"].rsplit("_", 1)[1])
+        return int(reply["id"].rsplit("_", 1)[1])
+
+    current = 0
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        while current <= floor:
+            # Each plain reply takes two ids (response and message).
+            batch = max(1, (floor - current) // 2 + 1)
+            current = max(pool.map(advance, range(batch)))
     emulator("DELETE", "/_ai/calls")
 
 
