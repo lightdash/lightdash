@@ -59,6 +59,7 @@ describe('AiAgentModel.createOrUpdateArtifact concurrency (PostgreSQL)', () => {
             CREATE TABLE composer_charts (
                 composer_chart_uuid uuid PRIMARY KEY,
                 dashboard_uuid uuid,
+                slug text NOT NULL,
                 deleted_at timestamptz
             );
         `);
@@ -112,7 +113,7 @@ describe('AiAgentModel.createOrUpdateArtifact concurrency (PostgreSQL)', () => {
         const artifact = await writeChart(await createThread(), 'saved');
         const composerChartUuid = randomUUID();
         await database.raw(
-            'INSERT INTO composer_charts (composer_chart_uuid) VALUES (?)',
+            "INSERT INTO composer_charts (composer_chart_uuid, slug) VALUES (?, 'saved-chart')",
             [composerChartUuid],
         );
         await model.updateArtifactVersion(artifact.versionUuid, {
@@ -126,6 +127,7 @@ describe('AiAgentModel.createOrUpdateArtifact concurrency (PostgreSQL)', () => {
             return [
                 read.savedComposerChartUuid,
                 read.savedComposerChartDashboardUuid,
+                read.savedComposerChartSlug,
             ];
         };
         const setDeletedAt = (deletedAt: Date | null) =>
@@ -134,11 +136,19 @@ describe('AiAgentModel.createOrUpdateArtifact concurrency (PostgreSQL)', () => {
                 [deletedAt, composerChartUuid],
             );
 
-        expect(await savedLink()).toEqual([composerChartUuid, null]);
+        expect(await savedLink()).toEqual([
+            composerChartUuid,
+            null,
+            'saved-chart',
+        ]);
         await setDeletedAt(new Date());
-        expect(await savedLink()).toEqual([null, null]);
+        expect(await savedLink()).toEqual([null, null, null]);
         await setDeletedAt(null);
-        expect(await savedLink()).toEqual([composerChartUuid, null]);
+        expect(await savedLink()).toEqual([
+            composerChartUuid,
+            null,
+            'saved-chart',
+        ]);
     });
 
     it('creates one artifact when parallel writes start a thread', async () => {
