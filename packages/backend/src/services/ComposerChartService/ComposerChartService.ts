@@ -51,10 +51,12 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type RegisteredAccount,
+    type UpdateComposerChart,
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import type { Knex } from 'knex';
 import { validate as isUuid } from 'uuid';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import { ComposerChartModel } from '../../models/ComposerChartModel';
@@ -662,6 +664,100 @@ export class ComposerChartService extends BaseService {
     ): Promise<ComposerChart> {
         await this.assertCanView(account, projectUuid, composerChartUuid);
         return this.composerChartModel.get(composerChartUuid);
+    }
+
+    /** The live chart's space, after checking write on it; a dashboard's chart lives and dies with its tile. */
+    private async assertCanWriteSpaceChart(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<UUID> {
+        const { projectUuid: chartProjectUuid, owner } =
+            await this.composerChartModel.getOwner(composerChartUuid);
+        if (chartProjectUuid !== projectUuid) {
+            throw new NotFoundError('Composer chart not found');
+        }
+        await this.assertChartPermission(
+            account,
+            'update',
+            projectUuid,
+            owner,
+            composerChartUuid,
+        );
+        switch (owner.type) {
+            case 'space':
+                return owner.spaceUuid;
+            case 'dashboard':
+                throw new ParameterError(
+                    'This composer chart belongs to a dashboard. Edit it from the dashboard.',
+                );
+            default:
+                return assertUnreachable(owner, 'Unknown composer chart owner');
+        }
+    }
+
+    /** Renames a space-owned chart: no new version, the slug unchanged; works with the flag off. */
+    async update(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        data: UpdateComposerChart,
+    ): Promise<ComposerChart> {
+        const name = data.name?.trim();
+        if (name === '') {
+            throw new ParameterError('Composer chart name is required');
+        }
+        const spaceUuid = await this.assertCanWriteSpaceChart(
+            account,
+            projectUuid,
+            composerChartUuid,
+        );
+        return this.composerChartModel.update(composerChartUuid, spaceUuid, {
+            ...(name !== undefined ? { name } : {}),
+            ...(data.description !== undefined
+                ? { description: data.description }
+                : {}),
+        });
+    }
+
+    /** Moves a space-owned chart to another space; needs write on both. */
+    async moveToSpace(
+        account: RegisteredAccount,
+        {
+            projectUuid,
+            itemUuid: composerChartUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: UUID;
+            itemUuid: UUID;
+            targetSpaceUuid: UUID | null;
+        },
+        { tx }: { tx?: Knex } = {},
+    ): Promise<void> {
+        if (targetSpaceUuid === null) {
+            throw new ParameterError('A composer chart must stay in a space');
+        }
+        const sourceSpaceUuid = await this.assertCanWriteSpaceChart(
+            account,
+            projectUuid,
+            composerChartUuid,
+        );
+        await this.assertChartPermission(
+            account,
+            'update',
+            projectUuid,
+            { type: 'space', spaceUuid: targetSpaceUuid },
+            composerChartUuid,
+        );
+        await this.composerChartModel.moveToSpace(
+            {
+                projectUuid,
+                composerChartUuid,
+                sourceSpaceUuid,
+                targetSpaceUuid,
+            },
+            { tx },
+        );
     }
 
     /** Composer charts on these tiles the caller can view, with their semantic-layer nodes' explores; the rest are left out. */

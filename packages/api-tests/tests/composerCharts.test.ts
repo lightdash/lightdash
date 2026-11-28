@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    ChartSourceType,
     ChartType,
     ContentType,
     DashboardTileTypes,
@@ -51,6 +52,7 @@ import {
     createComposerSpaceChart,
 } from '../helpers/composerDashboard';
 import { mcpText, openMcpSession, personalAccessTokens } from '../helpers/mcp';
+import { chartMock } from '../helpers/mocks';
 import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
 const projectUuid = SEED_PROJECT.project_uuid;
@@ -2509,6 +2511,306 @@ describe('Composer charts', () => {
             expect(uploaded.body.error.message).toContain(
                 `Composer chart "${chart.slug}" belongs to a space`,
             );
+        });
+
+        describe('rename and move', () => {
+            const contentUrl = `/api/v2/content/${projectUuid}/move`;
+
+            const rename = (
+                uuid: string,
+                body: unknown,
+                client: ApiClient = admin,
+            ) =>
+                client.patch<Body<ComposerChart>>(
+                    `${chartsUrl}/${uuid}`,
+                    body,
+                    {
+                        failOnStatusCode: false,
+                    },
+                );
+
+            const move = (
+                uuid: string,
+                targetSpaceUuid: string | null,
+                client: ApiClient = admin,
+            ) =>
+                client.post(
+                    contentUrl,
+                    {
+                        item: { uuid, contentType: ContentType.COMPOSER_CHART },
+                        action: { type: 'move', targetSpaceUuid },
+                    },
+                    { failOnStatusCode: false },
+                );
+
+            const read = async (uuid: string) =>
+                (await getChart(uuid)).body.results;
+
+            it('renames with no new version and the same slug, with the flag off too', async () => {
+                const { chart } = await createSpaceChart();
+                const editor = await loginAsEditor();
+                const renamed = await rename(
+                    chart.uuid,
+                    { name: 'Renamed orders', description: 'Why it matters' },
+                    editor,
+                );
+                expect(renamed.status).toBe(200);
+                expect(await read(chart.uuid)).toMatchObject({
+                    name: 'Renamed orders',
+                    description: 'Why it matters',
+                    slug: chart.slug,
+                    versionUuid: chart.versionUuid,
+                });
+
+                expect(
+                    (await admin.post(flagUrl, { enabled: false })).status,
+                ).toBe(200);
+                try {
+                    expect(
+                        (await rename(chart.uuid, { description: null }))
+                            .status,
+                    ).toBe(200);
+                } finally {
+                    expect(
+                        (await admin.post(flagUrl, { enabled: true })).status,
+                    ).toBe(200);
+                }
+                expect(await read(chart.uuid)).toMatchObject({
+                    name: 'Renamed orders',
+                    description: null,
+                    versionUuid: chart.versionUuid,
+                });
+            });
+
+            it("refuses a rename by a viewer, in a space the editor cannot see, of a dashboard's chart, or to an empty name", async () => {
+                const { chart } = await createSpaceChart();
+                const viewer = await loginAsViewer();
+                expect(
+                    (await rename(chart.uuid, { name: 'No' }, viewer)).status,
+                ).toBe(403);
+
+                const privateSpace = await createSpace(false);
+                const hidden = await postChart(
+                    composerSpaceChartBody(privateSpace.uuid),
+                );
+                const editor = await loginAsEditor();
+                expect(
+                    (
+                        await rename(
+                            hidden.body.results.uuid,
+                            { name: 'No' },
+                            editor,
+                        )
+                    ).status,
+                ).toBe(403);
+
+                const dashboard = await createDashboard();
+                const owned = await createChart(dashboard.uuid);
+                expect((await rename(owned.uuid, { name: 'No' })).status).toBe(
+                    400,
+                );
+                expect((await rename(chart.uuid, { name: ' ' })).status).toBe(
+                    400,
+                );
+                expect((await read(chart.uuid)).name).toBe(chart.name);
+            });
+
+            it('moves between spaces with no new version, with the flag off too', async () => {
+                const { chart } = await createSpaceChart();
+                const target = await createSpace();
+                const editor = await loginAsEditor();
+                expect(
+                    (await move(chart.uuid, target.uuid, editor)).status,
+                ).toBe(200);
+                expect(await read(chart.uuid)).toMatchObject({
+                    owner: { type: 'space', spaceUuid: target.uuid },
+                    slug: chart.slug,
+                    versionUuid: chart.versionUuid,
+                });
+
+                const back = await createSpace();
+                expect(
+                    (await admin.post(flagUrl, { enabled: false })).status,
+                ).toBe(200);
+                try {
+                    expect((await move(chart.uuid, back.uuid)).status).toBe(
+                        200,
+                    );
+                } finally {
+                    expect(
+                        (await admin.post(flagUrl, { enabled: true })).status,
+                    ).toBe(200);
+                }
+                expect((await read(chart.uuid)).owner).toEqual({
+                    type: 'space',
+                    spaceUuid: back.uuid,
+                });
+            });
+
+            it("refuses a move without write on either space, to a deleted or missing space, out of every space, or of a dashboard's chart", async () => {
+                const { space, chart } = await createSpaceChart();
+                const target = await createSpace();
+                const privateSpace = await createSpace(false);
+                const editor = await loginAsEditor();
+                const viewer = await loginAsViewer();
+
+                expect(
+                    (await move(chart.uuid, target.uuid, viewer)).status,
+                ).toBe(403);
+                expect(
+                    (await move(chart.uuid, privateSpace.uuid, editor)).status,
+                ).toBe(403);
+                const hidden = await postChart(
+                    composerSpaceChartBody(privateSpace.uuid),
+                );
+                expect(
+                    (await move(hidden.body.results.uuid, target.uuid, editor))
+                        .status,
+                ).toBe(403);
+
+                const deleted = await createSpace();
+                expect(
+                    (
+                        await admin.delete(
+                            `/api/v1/projects/${projectUuid}/spaces/${deleted.uuid}`,
+                        )
+                    ).status,
+                ).toBe(200);
+                expect((await move(chart.uuid, deleted.uuid)).status).toBe(404);
+                expect((await move(chart.uuid, randomUUID())).status).toBe(404);
+                expect((await move(chart.uuid, null)).status).toBe(400);
+
+                const dashboard = await createDashboard();
+                const owned = await createChart(dashboard.uuid);
+                expect((await move(owned.uuid, target.uuid)).status).toBe(400);
+
+                expect((await read(chart.uuid)).owner).toEqual({
+                    type: 'space',
+                    spaceUuid: space.uuid,
+                });
+            });
+
+            it('bulk moves a classic chart, a SQL chart, a dashboard and a composer chart together', async () => {
+                const source = await createSpace();
+                const target = await createSpace();
+                const classic = await admin.post<Body<{ uuid: string }>>(
+                    `/api/v1/projects/${projectUuid}/saved`,
+                    {
+                        ...chartMock,
+                        name: uniqueName('Bulk move classic'),
+                        spaceUuid: source.uuid,
+                        dashboardUuid: null,
+                    },
+                );
+                expect(classic.status).toBe(200);
+                tracker.trackChart(classic.body.results.uuid);
+                const sql = await admin.post<Body<{ savedSqlUuid: string }>>(
+                    `/api/v1/projects/${projectUuid}/sqlRunner/saved`,
+                    {
+                        name: uniqueName('Bulk move SQL'),
+                        description: null,
+                        sql: 'SELECT * FROM postgres.jaffle.payments',
+                        limit: 21,
+                        config: {
+                            display: {},
+                            metadata: { version: 1 },
+                            type: ChartKind.TABLE,
+                            columns: {},
+                        },
+                        spaceUuid: source.uuid,
+                    },
+                );
+                expect(sql.status).toBe(200);
+                const dashboard = await admin.post<Body<Dashboard>>(
+                    `/api/v1/projects/${projectUuid}/dashboards`,
+                    {
+                        name: uniqueName('Bulk move dashboard'),
+                        spaceUuid: source.uuid,
+                        tiles: [],
+                        tabs: [],
+                    },
+                );
+                expect(dashboard.status).toBe(201);
+                tracker.trackDashboard(dashboard.body.results.uuid);
+                const composer = await postChart(
+                    composerSpaceChartBody(source.uuid),
+                );
+                expect(composer.status).toBe(201);
+
+                // One refused item rolls the whole bulk move back
+                const privateSpace = await createSpace(false);
+                const hidden = await postChart(
+                    composerSpaceChartBody(privateSpace.uuid),
+                );
+                const editor = await loginAsEditor();
+                const refused = await editor.post(
+                    `/api/v2/content/bulk-action/${projectUuid}/move`,
+                    {
+                        content: [
+                            {
+                                uuid: classic.body.results.uuid,
+                                contentType: ContentType.CHART,
+                                source: ChartSourceType.DBT_EXPLORE,
+                            },
+                            {
+                                uuid: hidden.body.results.uuid,
+                                contentType: ContentType.COMPOSER_CHART,
+                            },
+                        ],
+                        action: { type: 'move', targetSpaceUuid: target.uuid },
+                    },
+                    { failOnStatusCode: false },
+                );
+                expect(refused.status).toBe(403);
+                const unmoved = await admin.get<Body<{ spaceUuid: string }>>(
+                    `/api/v1/saved/${classic.body.results.uuid}`,
+                );
+                expect(unmoved.body.results.spaceUuid).toBe(source.uuid);
+
+                const moved = await admin.post(
+                    `/api/v2/content/bulk-action/${projectUuid}/move`,
+                    {
+                        content: [
+                            {
+                                uuid: classic.body.results.uuid,
+                                contentType: ContentType.CHART,
+                                source: ChartSourceType.DBT_EXPLORE,
+                            },
+                            {
+                                uuid: sql.body.results.savedSqlUuid,
+                                contentType: ContentType.CHART,
+                                source: ChartSourceType.SQL,
+                            },
+                            {
+                                uuid: dashboard.body.results.uuid,
+                                contentType: ContentType.DASHBOARD,
+                            },
+                            {
+                                uuid: composer.body.results.uuid,
+                                contentType: ContentType.COMPOSER_CHART,
+                            },
+                        ],
+                        action: { type: 'move', targetSpaceUuid: target.uuid },
+                    },
+                );
+                expect(moved.status).toBe(200);
+
+                const listed = async (spaceUuid: string) =>
+                    (
+                        await admin.get<Body<{ data: SummaryContent[] }>>(
+                            `/api/v2/content?projectUuids=${projectUuid}&spaceUuids=${spaceUuid}&contentTypes=${ContentType.CHART}&contentTypes=${ContentType.DASHBOARD}&contentTypes=${ContentType.COMPOSER_CHART}&pageSize=100`,
+                        )
+                    ).body.results.data.map((item) => item.uuid);
+                expect((await listed(target.uuid)).sort()).toEqual(
+                    [
+                        classic.body.results.uuid,
+                        sql.body.results.savedSqlUuid,
+                        dashboard.body.results.uuid,
+                        composer.body.results.uuid,
+                    ].sort(),
+                );
+                expect(await listed(source.uuid)).toEqual([]);
+            });
         });
     });
 });

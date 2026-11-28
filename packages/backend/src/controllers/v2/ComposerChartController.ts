@@ -8,6 +8,7 @@ import {
     type ApiErrorPayload,
     type ComposerChartRunRequest,
     type CreateComposerChart,
+    type UpdateComposerChart,
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
@@ -18,6 +19,7 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Request,
@@ -88,6 +90,36 @@ export class ComposerChartController extends BaseController {
         const results = await this.services
             .getComposerChartService()
             .getWithDetails(req.account, projectUuid, composerChartUuidOrSlug);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Renames a composer chart that a space owns, or changes its description.
+     * Does not create a new version and keeps the slug. Omitted fields keep
+     * their current value. Requires permission to save charts in the chart's
+     * space. Returns 400 for a composer chart that a dashboard owns, because
+     * that chart is edited through its dashboard.
+     * @summary Update composer chart
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{composerChartUuid}')
+    @OperationId('updateComposerChart')
+    async update(
+        @Path() projectUuid: UUID,
+        @Path() composerChartUuid: UUID,
+        @Body() body: UpdateComposerChart,
+        @Request() req: express.Request,
+    ): Promise<ApiComposerChartResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getComposerChartService()
+            .update(req.account, projectUuid, composerChartUuid, body);
         this.setStatus(200);
         return { status: 'ok', results };
     }

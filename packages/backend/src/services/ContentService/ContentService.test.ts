@@ -18,6 +18,7 @@ import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SpaceModel } from '../../models/SpaceModel';
 import type { ValidationModel } from '../../models/ValidationModel/ValidationModel';
+import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
 import type { DashboardService } from '../DashboardService/DashboardService';
 import type { DocumentService } from '../DocumentService/DocumentService';
 import type { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -146,6 +147,9 @@ const createService = ({
                 'dashboard-1': [SpaceMemberRole.EDITOR],
             }),
     };
+    const composerChartService = {
+        moveToSpace: vi.fn().mockResolvedValue(undefined),
+    };
     const documentService = {
         delete: vi.fn().mockResolvedValue(undefined),
         restore: vi.fn().mockResolvedValue(undefined),
@@ -179,6 +183,8 @@ const createService = ({
             appMoveService: undefined,
             appGenerateService: undefined,
             featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
+            composerChartService:
+                composerChartService as unknown as ComposerChartService,
         }),
         projectModel,
         savedChartService,
@@ -1059,21 +1065,6 @@ describe('ContentService composer chart actions', () => {
 
     it.each([
         [
-            'move',
-            (deps: ReturnType<typeof createService>) =>
-                deps.service.move(createUser(), projectUuid, item, 'space'),
-        ],
-        [
-            'bulk move',
-            (deps: ReturnType<typeof createService>) =>
-                deps.service.bulkMove(
-                    createUser(),
-                    projectUuid,
-                    [item],
-                    'space',
-                ),
-        ],
-        [
             'delete',
             (deps: ReturnType<typeof createService>) =>
                 deps.service.delete(createUser(), projectUuid, item),
@@ -1101,33 +1092,6 @@ describe('ContentService composer chart actions', () => {
             } as unknown as ContentModel,
         });
         await expect(act(deps)).rejects.toThrow(NotSupportedError);
-    });
-
-    it('moves nothing when a bulk move mixes a composer chart in', async () => {
-        const deps = createService({
-            contentModel: {
-                getDatabase: () => ({
-                    transaction: async (fn: (tx: unknown) => unknown) => fn({}),
-                }),
-            } as unknown as ContentModel,
-        });
-
-        await expect(
-            deps.service.bulkMove(
-                createUser(),
-                projectUuid,
-                [
-                    {
-                        uuid: 'chart-uuid',
-                        contentType: ContentType.CHART,
-                        source: ChartSourceType.DBT_EXPLORE,
-                    },
-                    item,
-                ],
-                'space',
-            ),
-        ).rejects.toThrow(NotSupportedError);
-        expect(deps.savedChartService.moveToSpace).not.toHaveBeenCalled();
     });
 
     it('deletes nothing when a bulk delete mixes a composer chart in', async () => {

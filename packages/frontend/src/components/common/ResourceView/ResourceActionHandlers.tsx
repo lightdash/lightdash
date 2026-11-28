@@ -18,6 +18,7 @@ import { useCallback, useEffect, type FC } from 'react';
 import { RequestReviewModal } from '../../../ee/features/contentReview';
 import { MoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useAppPinningMutation } from '../../../features/apps/hooks/useAppPinningMutation';
+import { ComposerChartUpdateModal } from '../../../features/composerCharts/components/ComposerChartUpdateModal';
 import { DeleteSqlChartModal } from '../../../features/sqlRunner/components/DeleteSqlChartModal';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
@@ -149,7 +150,16 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         },
                     });
                 case ResourceViewItemType.COMPOSER_CHART:
-                    return undefined;
+                    return contentAction({
+                        action: {
+                            type: 'move',
+                            targetSpaceUuid: spaceUuid,
+                        },
+                        item: {
+                            uuid: item.data.uuid,
+                            contentType: ContentType.COMPOSER_CHART,
+                        },
+                    });
                 default:
                     return assertUnreachable(
                         item,
@@ -274,7 +284,17 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         />
                     );
                 case ResourceViewItemType.COMPOSER_CHART:
-                    return null;
+                    return (
+                        <ComposerChartUpdateModal
+                            opened
+                            projectUuid={projectUuid}
+                            composerChartUuid={action.item.data.uuid}
+                            name={action.item.data.name}
+                            description={action.item.data.description ?? null}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
                 default:
                     return assertUnreachable(
                         action.item,

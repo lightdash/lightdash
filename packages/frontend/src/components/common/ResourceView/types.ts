@@ -1,5 +1,6 @@
 import {
     type ResourceViewChartItem,
+    type ResourceViewComposerChartItem,
     type ResourceViewDashboardItem,
     type ResourceViewDataAppItem,
     type ResourceViewDocumentItem,
@@ -66,7 +67,8 @@ export type ResourceViewItemActionState =
               | ResourceViewDashboardItem
               | ResourceViewSpaceItem
               | ResourceViewDocumentItem
-              | ResourceViewDataAppItem;
+              | ResourceViewDataAppItem
+              | ResourceViewComposerChartItem;
       }
     | {
           type: ResourceViewItemAction.SHARE;

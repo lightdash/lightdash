@@ -42,6 +42,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
+import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { DocumentService } from '../DocumentService/DocumentService';
@@ -75,6 +76,7 @@ type ContentServiceArguments = {
     appMoveService: BulkActionable<Knex> | undefined;
     appGenerateService: AppGenerateService | undefined;
     featureFlagModel: FeatureFlagModel;
+    composerChartService: ComposerChartService;
 };
 
 export class ContentService extends BaseService {
@@ -108,6 +110,8 @@ export class ContentService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly composerChartService: ComposerChartService;
+
     constructor(args: ContentServiceArguments) {
         super();
         this.documentService = args.documentService;
@@ -127,6 +131,7 @@ export class ContentService extends BaseService {
         this.appMoveService = args.appMoveService;
         this.appGenerateService = args.appGenerateService;
         this.featureFlagModel = args.featureFlagModel;
+        this.composerChartService = args.composerChartService;
     }
 
     private async isComposerChartsEnabled(
@@ -669,10 +674,6 @@ export class ContentService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        if (content.some((c) => c.contentType === ContentType.COMPOSER_CHART)) {
-            throw composerChartActionNotSupported('Moving');
-        }
-
         const database = this.contentModel.getDatabase();
 
         await database.transaction(async (tx) => {
@@ -736,7 +737,11 @@ export class ContentService extends BaseService {
                             moveToSpaceOptions,
                         );
                     case ContentType.COMPOSER_CHART:
-                        throw composerChartActionNotSupported('Moving');
+                        return this.composerChartService.moveToSpace(
+                            fromSession(user),
+                            moveToSpaceArgs,
+                            { tx },
+                        );
                     default:
                         return assertUnreachable(c, 'Unknown content type');
                 }
@@ -840,7 +845,10 @@ export class ContentService extends BaseService {
                     moveToSpaceOptions,
                 );
             case ContentType.COMPOSER_CHART:
-                throw composerChartActionNotSupported('Moving');
+                return this.composerChartService.moveToSpace(
+                    fromSession(user),
+                    moveToSpaceArgs,
+                );
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }

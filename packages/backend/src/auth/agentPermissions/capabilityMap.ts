@@ -723,6 +723,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'ComposerChartController.get': [AgentCapability.ReadDiscover],
     'ComposerChartController.getParameters': [AgentCapability.ReadDiscover],
     'ComposerChartController.run': [AgentCapability.Query],
+    'ComposerChartController.update': [AgentCapability.ContentWrite],
     'ContentController.bulkDeleteContent': [AgentCapability.Delete],
     'ContentController.bulkMoveContent': [AgentCapability.Publish],
     'ContentController.deleteContent': [AgentCapability.Delete],

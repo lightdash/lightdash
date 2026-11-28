@@ -185,6 +185,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'ComposerChartController.get',
     'ComposerChartController.getParameters',
     'ComposerChartController.run',
+    'ComposerChartController.update',
     'ContentController.listDeletedContent',
     'ContentReviewRequestController.findSimilar',
     'ContentReviewRequestController.get',
