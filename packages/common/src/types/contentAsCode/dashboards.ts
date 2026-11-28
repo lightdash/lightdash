@@ -80,13 +80,13 @@ export type DashboardSqlChartTileAsCode = DashboardTileAsCodeBase & {
     > & { chartSlug: string | null };
 };
 
-/** Names a composer chart the dashboard owns; the slug is looked up among composer charts only. */
+/** Names a composer chart the dashboard owns; the slug is looked up among composer charts only. Null when the chart is gone. */
 export type DashboardComposerChartTileAsCode = DashboardTileAsCodeBase & {
     type: DashboardTileTypes.COMPOSER_CHART;
     properties: Pick<
         DashboardComposerChartTileProperties['properties'],
         'title' | 'hideTitle'
-    > & { chartSlug: string };
+    > & { chartSlug: string | null };
 };
 
 export type DashboardMarkdownTileAsCode = DashboardTileAsCodeBase & {
