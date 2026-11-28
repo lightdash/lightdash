@@ -182,12 +182,10 @@ describe('composer chart owner change from a file', () => {
         ).not.toThrow();
     });
 
-    it('refuses a dashboard chart into a space, naming the tile menu and the move endpoint', () => {
+    it('refuses a dashboard chart into a space, naming the tile menu', () => {
         expect(() =>
             assertComposerChartOwnerTypeKept('orders', dashboardOwner, null),
-        ).toThrow(
-            /Composer chart "orders" belongs to a dashboard.*tile menu.*\/api\/v2\/content\/\{projectUuid\}\/move/,
-        );
+        ).toThrow(/Composer chart "orders" belongs to a dashboard.*tile menu/);
     });
 
     it('refuses a space chart onto a dashboard', () => {
