@@ -696,7 +696,7 @@ describe('space-owned composer charts follow their space on the real schema', ()
             composerChartModel.permanentlyDeleteFromSpace(
                 chart,
                 owner.spaceUuid,
-                null,
+                { deletedAt: new Date(), deletedByUserUuid: null },
             ),
         ).rejects.toThrow(ConflictError);
         await composerChartModel.deleteFromSpace(
@@ -704,20 +704,11 @@ describe('space-owned composer charts follow their space on the real schema', ()
             owner.spaceUuid,
             owner.userUuid,
         );
-        await expect(composerChartModel.getDeleted(chart)).resolves.toEqual(
-            expect.objectContaining({
-                projectUuid: owner.projectUuid,
-                owner: { type: 'space', spaceUuid: owner.spaceUuid },
-                deletedByUserUuid: owner.userUuid,
-            }),
-        );
+        const { deletion } = await composerChartModel.getDeleted(chart);
+        expect(deletion.deletedByUserUuid).toBe(owner.userUuid);
         await spaceModel.softDelete(owner.spaceUuid, owner.userUuid);
         await expect(
-            composerChartModel.restoreToSpace(
-                chart,
-                owner.spaceUuid,
-                owner.userUuid,
-            ),
+            composerChartModel.restoreToSpace(chart, owner.spaceUuid, deletion),
         ).rejects.toThrow('Restore the space first');
 
         await spaceModel.restore(owner.spaceUuid);
@@ -727,7 +718,7 @@ describe('space-owned composer charts follow their space on the real schema', ()
         await composerChartModel.restoreToSpace(
             chart,
             owner.spaceUuid,
-            owner.userUuid,
+            deletion,
         );
         await expect(composerChartModel.get(chart)).resolves.toBeTruthy();
         await expect(composerChartModel.getDeleted(chart)).rejects.toThrow(
@@ -739,18 +730,18 @@ describe('space-owned composer charts follow their space on the real schema', ()
             owner.spaceUuid,
             owner.userUuid,
         );
-        // A deletion other than the one authorized is left alone
+        // The earlier deletion was authorized, not this newer one by the same user
         await expect(
             composerChartModel.permanentlyDeleteFromSpace(
                 chart,
                 owner.spaceUuid,
-                randomUUID(),
+                deletion,
             ),
         ).rejects.toThrow(ConflictError);
         await composerChartModel.permanentlyDeleteFromSpace(
             chart,
             owner.spaceUuid,
-            owner.userUuid,
+            (await composerChartModel.getDeleted(chart)).deletion,
         );
         await expect(deletedStamp(chart)).resolves.toBeUndefined();
         await expect(

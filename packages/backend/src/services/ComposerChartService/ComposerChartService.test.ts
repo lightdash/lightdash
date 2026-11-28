@@ -2171,6 +2171,7 @@ describe('ComposerChartService lifecycle writes', () => {
 describe('ComposerChartService restore and permanent delete', () => {
     const spaceUuid = 'space-uuid';
     const otherUserUuid = 'other-user-uuid';
+    const deletedAt = new Date('2026-11-28T10:00:00.000Z');
 
     const setupDeleted = ({
         owner = { type: 'space', spaceUuid } as ComposerChartOwner,
@@ -2189,7 +2190,7 @@ describe('ComposerChartService restore and permanent delete', () => {
                 projectUuid,
                 organizationUuid,
                 owner,
-                deletedByUserUuid,
+                deletion: { deletedAt, deletedByUserUuid },
             })),
             restoreToSpace,
             permanentlyDeleteFromSpace,
@@ -2231,7 +2232,7 @@ describe('ComposerChartService restore and permanent delete', () => {
                 expect(calls[method]).toHaveBeenCalledWith(
                     'chart-uuid',
                     spaceUuid,
-                    deletedByUserUuid,
+                    { deletedAt, deletedByUserUuid },
                 );
             },
         );

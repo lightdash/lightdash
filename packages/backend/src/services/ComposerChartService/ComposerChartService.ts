@@ -61,7 +61,10 @@ import type { Knex } from 'knex';
 import { validate as isUuid } from 'uuid';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import type { LightdashConfig } from '../../config/parseConfig';
-import { ComposerChartModel } from '../../models/ComposerChartModel';
+import {
+    ComposerChartModel,
+    type ComposerChartDeletion,
+} from '../../models/ComposerChartModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectParametersModel } from '../../models/ProjectParametersModel';
@@ -758,7 +761,7 @@ export class ComposerChartService extends BaseService {
         projectUuid: UUID,
         composerChartUuid: UUID,
         action: 'restore' | 'permanently delete',
-    ): Promise<{ spaceUuid: UUID; deletedByUserUuid: string | null }> {
+    ): Promise<{ spaceUuid: UUID; deletion: ComposerChartDeletion }> {
         const deleted =
             await this.composerChartModel.getDeleted(composerChartUuid);
         if (deleted.projectUuid !== projectUuid) {
@@ -772,7 +775,10 @@ export class ComposerChartService extends BaseService {
                 metadata: { composerChartUuid },
             }),
         );
-        if (!isAdmin && deleted.deletedByUserUuid !== account.user.userUuid) {
+        if (
+            !isAdmin &&
+            deleted.deletion.deletedByUserUuid !== account.user.userUuid
+        ) {
             throw new ForbiddenError(
                 `You can only ${action} content you deleted`,
             );
@@ -781,7 +787,7 @@ export class ComposerChartService extends BaseService {
             case 'space':
                 return {
                     spaceUuid: deleted.owner.spaceUuid,
-                    deletedByUserUuid: deleted.deletedByUserUuid,
+                    deletion: deleted.deletion,
                 };
             case 'dashboard':
                 throw new ParameterError(
@@ -801,17 +807,16 @@ export class ComposerChartService extends BaseService {
         projectUuid: UUID,
         composerChartUuid: UUID,
     ): Promise<void> {
-        const { spaceUuid, deletedByUserUuid } =
-            await this.assertCanManageDeleted(
-                account,
-                projectUuid,
-                composerChartUuid,
-                'restore',
-            );
+        const { spaceUuid, deletion } = await this.assertCanManageDeleted(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'restore',
+        );
         await this.composerChartModel.restoreToSpace(
             composerChartUuid,
             spaceUuid,
-            deletedByUserUuid,
+            deletion,
         );
     }
 
@@ -821,17 +826,16 @@ export class ComposerChartService extends BaseService {
         projectUuid: UUID,
         composerChartUuid: UUID,
     ): Promise<void> {
-        const { spaceUuid, deletedByUserUuid } =
-            await this.assertCanManageDeleted(
-                account,
-                projectUuid,
-                composerChartUuid,
-                'permanently delete',
-            );
+        const { spaceUuid, deletion } = await this.assertCanManageDeleted(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'permanently delete',
+        );
         await this.composerChartModel.permanentlyDeleteFromSpace(
             composerChartUuid,
             spaceUuid,
-            deletedByUserUuid,
+            deletion,
         );
     }
 

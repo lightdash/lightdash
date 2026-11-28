@@ -74,6 +74,12 @@ const toOwner = (uuid: string, row: OwnerColumns): ComposerChartOwner => {
     );
 };
 
+/** One soft deletion of a chart: restore and permanent delete act on it only. */
+export type ComposerChartDeletion = {
+    deletedAt: Date;
+    deletedByUserUuid: string | null;
+};
+
 export class ComposerChartModel {
     private readonly database: Knex;
 
@@ -205,7 +211,7 @@ export class ComposerChartModel {
         projectUuid: string;
         organizationUuid: string;
         owner: ComposerChartOwner;
-        deletedByUserUuid: string | null;
+        deletion: ComposerChartDeletion;
     }> {
         const row = await this.database(ComposerChartsTableName)
             .innerJoin(
@@ -222,6 +228,7 @@ export class ComposerChartModel {
                 `${ComposerChartsTableName}.project_uuid`,
                 `${ComposerChartsTableName}.dashboard_uuid`,
                 `${ComposerChartsTableName}.space_uuid`,
+                `${ComposerChartsTableName}.deleted_at`,
                 `${ComposerChartsTableName}.deleted_by_user_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
             )
@@ -233,15 +240,18 @@ export class ComposerChartModel {
             projectUuid: row.project_uuid,
             organizationUuid: row.organization_uuid,
             owner: toOwner(uuid, row),
-            deletedByUserUuid: row.deleted_by_user_uuid,
+            deletion: {
+                deletedAt: row.deleted_at,
+                deletedByUserUuid: row.deleted_by_user_uuid,
+            },
         };
     }
 
-    /** Restores a chart still deleted by the user checked and in the space checked, once that space is live. */
+    /** Restores the deletion checked of a chart still in the space checked, once that space is live. */
     async restoreToSpace(
         uuid: string,
         spaceUuid: string,
-        deletedByUserUuid: string | null,
+        { deletedAt, deletedByUserUuid }: ComposerChartDeletion,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             const space = await trx(SpaceTableName)
@@ -258,8 +268,8 @@ export class ComposerChartModel {
             const count = await trx(ComposerChartsTableName)
                 .where('composer_chart_uuid', uuid)
                 .where('space_uuid', spaceUuid)
+                .where('deleted_at', deletedAt)
                 .where('deleted_by_user_uuid', deletedByUserUuid)
-                .whereNotNull('deleted_at')
                 .update({ deleted_at: null, deleted_by_user_uuid: null });
             if (count !== 1) {
                 throw new ConflictError(
@@ -269,17 +279,17 @@ export class ComposerChartModel {
         });
     }
 
-    /** Permanently deletes a chart still deleted by the user checked and in the space checked; its versions cascade. */
+    /** Permanently deletes the deletion checked of a chart still in the space checked; its versions cascade. */
     async permanentlyDeleteFromSpace(
         uuid: string,
         spaceUuid: string,
-        deletedByUserUuid: string | null,
+        { deletedAt, deletedByUserUuid }: ComposerChartDeletion,
     ): Promise<void> {
         const count = await this.database(ComposerChartsTableName)
             .where('composer_chart_uuid', uuid)
             .where('space_uuid', spaceUuid)
+            .where('deleted_at', deletedAt)
             .where('deleted_by_user_uuid', deletedByUserUuid)
-            .whereNotNull('deleted_at')
             .delete();
         if (count !== 1) {
             throw new ConflictError(
