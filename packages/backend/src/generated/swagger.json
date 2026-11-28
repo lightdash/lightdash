@@ -34538,6 +34538,204 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "QuerySourceType": {
+                "description": "Discriminator for every query source a project can execute queries against.\nA query source is anything that can scan a schema and run a query returning\nthe standard table format (ResultColumns + rows behind a queryUuid): the\nproject warehouse, the semantic layer, the DuckDB compose engine, and —\nlater — CSV uploads, HTTP APIs, Google Sheets, etc.\n\nDeliberately NOT WarehouseTypes: sources are not warehouses, they plug in\nabove the warehouse client layer.",
+                "enum": [
+                    "semanticLayer",
+                    "sql",
+                    "duckdb",
+                    "external",
+                    "python",
+                    "api",
+                    "merge"
+                ],
+                "type": "string"
+            },
+            "Record_string.ParametersValuesMap_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ParametersValuesMap"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ChartZoomableField": {
+                "properties": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "label", "fieldId"],
+                "type": "object"
+            },
+            "ComposerChartRunResults": {
+                "properties": {
+                    "zoomedFieldLabels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Each zoomed field's label at the zoomed grain, by field id."
+                    },
+                    "zoomableFields": {
+                        "items": {
+                            "$ref": "#/components/schemas/ChartZoomableField"
+                        },
+                        "type": "array",
+                        "description": "The date fields the tile can be zoomed on, so the dashboard offers its date zoom."
+                    },
+                    "dateZoomApplied": {
+                        "type": "boolean",
+                        "description": "Whether the date zoom re-grained at least one semantic-layer node."
+                    },
+                    "usedParameterValuesByNodeId": {
+                        "$ref": "#/components/schemas/Record_string.ParametersValuesMap_",
+                        "description": "The parameter values each node query ran with, keyed by node; nodes can run different values."
+                    },
+                    "sqlColumns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultColumn"
+                        },
+                        "type": "array",
+                        "description": "The SQL nodes' columns, one per name, that a filter can target on this tile."
+                    },
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The parameters the tile reports to its dashboard: its non-Python nodes' references."
+                    },
+                    "appliedDashboardFiltersByNodeId": {
+                        "$ref": "#/components/schemas/Record_string.DashboardFilters_",
+                        "description": "The same rules, keyed by the semantic-layer node they were pushed into."
+                    },
+                    "appliedDashboardFilters": {
+                        "$ref": "#/components/schemas/DashboardFilters",
+                        "description": "Dashboard filter rules that reached at least one node."
+                    },
+                    "chartStageQueryUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The server-built series-split stage the chart draws from; null without a group-by."
+                    },
+                    "fields": {
+                        "$ref": "#/components/schemas/ItemsMap",
+                        "description": "The terminal node's fields map from its run; the tile draws a semantic-layer or merge result from it."
+                    },
+                    "queries": {
+                        "items": {
+                            "properties": {
+                                "queryUuid": {
+                                    "type": "string"
+                                },
+                                "sourceType": {
+                                    "$ref": "#/components/schemas/QuerySourceType"
+                                },
+                                "nodeId": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["queryUuid", "sourceType", "nodeId"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "zoomedFieldLabels",
+                    "zoomableFields",
+                    "dateZoomApplied",
+                    "usedParameterValuesByNodeId",
+                    "sqlColumns",
+                    "parameterReferences",
+                    "appliedDashboardFiltersByNodeId",
+                    "appliedDashboardFilters",
+                    "chartStageQueryUuid",
+                    "fields",
+                    "queries"
+                ],
+                "type": "object"
+            },
+            "ApiComposerChartRunResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ComposerChartRunResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ComposerChartRunRequest": {
+                "properties": {
+                    "dateZoom": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DateZoom"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The tile's resolved date zoom; optional for clients that predate it."
+                    },
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "excludedParameterKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The parameter keys this tile keeps as its own."
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "dashboardFilters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "invalidateCache",
+                    "excludedParameterKeys",
+                    "parameters",
+                    "dashboardFilters",
+                    "tileUuid",
+                    "dashboardUuid"
+                ],
+                "type": "object",
+                "description": "A bound run of a stored chart where a dashboard shows it; it never carries nodes."
+            },
+            "DashboardComposerChartRunRequest": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ComposerChartRunRequest"
+                    },
+                    {
+                        "properties": {
+                            "composerChartUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            }
+                        },
+                        "required": ["composerChartUuid"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A tile run: the tile's run request plus the chart the tile shows."
+            },
             "ApiDownloadAsyncQueryResults": {
                 "properties": {
                     "fileUrl": {
@@ -77591,19 +77789,6 @@
                 "required": ["contentUuid", "contentType", "projectUuid"],
                 "type": "object"
             },
-            "QuerySourceType": {
-                "description": "Discriminator for every query source a project can execute queries against.\nA query source is anything that can scan a schema and run a query returning\nthe standard table format (ResultColumns + rows behind a queryUuid): the\nproject warehouse, the semantic layer, the DuckDB compose engine, and —\nlater — CSV uploads, HTTP APIs, Google Sheets, etc.\n\nDeliberately NOT WarehouseTypes: sources are not warehouses, they plug in\nabove the warehouse client layer.",
-                "enum": [
-                    "semanticLayer",
-                    "sql",
-                    "duckdb",
-                    "external",
-                    "python",
-                    "api",
-                    "merge"
-                ],
-                "type": "string"
-            },
             "QuerySourceDefinition": {
                 "properties": {
                     "description": {
@@ -80532,174 +80717,6 @@
                 "type": "object",
                 "description": "A dashboard owns the chart; with no dashboard, `spaceUuid` does. A missing field reads as null."
             },
-            "Record_string.ParametersValuesMap_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/ParametersValuesMap"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ChartZoomableField": {
-                "properties": {
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "fieldId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["tableName", "label", "fieldId"],
-                "type": "object"
-            },
-            "ComposerChartRunResults": {
-                "properties": {
-                    "zoomedFieldLabels": {
-                        "$ref": "#/components/schemas/Record_string.string_",
-                        "description": "Each zoomed field's label at the zoomed grain, by field id."
-                    },
-                    "zoomableFields": {
-                        "items": {
-                            "$ref": "#/components/schemas/ChartZoomableField"
-                        },
-                        "type": "array",
-                        "description": "The date fields the tile can be zoomed on, so the dashboard offers its date zoom."
-                    },
-                    "dateZoomApplied": {
-                        "type": "boolean",
-                        "description": "Whether the date zoom re-grained at least one semantic-layer node."
-                    },
-                    "usedParameterValuesByNodeId": {
-                        "$ref": "#/components/schemas/Record_string.ParametersValuesMap_",
-                        "description": "The parameter values each node query ran with, keyed by node; nodes can run different values."
-                    },
-                    "sqlColumns": {
-                        "items": {
-                            "$ref": "#/components/schemas/ResultColumn"
-                        },
-                        "type": "array",
-                        "description": "The SQL nodes' columns, one per name, that a filter can target on this tile."
-                    },
-                    "parameterReferences": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "The parameters the tile reports to its dashboard: its non-Python nodes' references."
-                    },
-                    "appliedDashboardFiltersByNodeId": {
-                        "$ref": "#/components/schemas/Record_string.DashboardFilters_",
-                        "description": "The same rules, keyed by the semantic-layer node they were pushed into."
-                    },
-                    "appliedDashboardFilters": {
-                        "$ref": "#/components/schemas/DashboardFilters",
-                        "description": "Dashboard filter rules that reached at least one node."
-                    },
-                    "chartStageQueryUuid": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "The server-built series-split stage the chart draws from; null without a group-by."
-                    },
-                    "fields": {
-                        "$ref": "#/components/schemas/ItemsMap",
-                        "description": "The terminal node's fields map from its run; the tile draws a semantic-layer or merge result from it."
-                    },
-                    "queries": {
-                        "items": {
-                            "properties": {
-                                "queryUuid": {
-                                    "type": "string"
-                                },
-                                "sourceType": {
-                                    "$ref": "#/components/schemas/QuerySourceType"
-                                },
-                                "nodeId": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["queryUuid", "sourceType", "nodeId"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "zoomedFieldLabels",
-                    "zoomableFields",
-                    "dateZoomApplied",
-                    "usedParameterValuesByNodeId",
-                    "sqlColumns",
-                    "parameterReferences",
-                    "appliedDashboardFiltersByNodeId",
-                    "appliedDashboardFilters",
-                    "chartStageQueryUuid",
-                    "fields",
-                    "queries"
-                ],
-                "type": "object"
-            },
-            "ApiComposerChartRunResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ComposerChartRunResults"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ComposerChartRunRequest": {
-                "properties": {
-                    "dateZoom": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DateZoom"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "The tile's resolved date zoom; optional for clients that predate it."
-                    },
-                    "invalidateCache": {
-                        "type": "boolean"
-                    },
-                    "excludedParameterKeys": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "The parameter keys this tile keeps as its own."
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
-                    "dashboardFilters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
-                    },
-                    "tileUuid": {
-                        "type": "string"
-                    },
-                    "dashboardUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "invalidateCache",
-                    "excludedParameterKeys",
-                    "parameters",
-                    "dashboardFilters",
-                    "tileUuid",
-                    "dashboardUuid"
-                ],
-                "type": "object",
-                "description": "A bound run of a stored chart where a dashboard shows it; it never carries nodes."
-            },
             "KnexPaginatedData_CatalogField-Array_": {
                 "properties": {
                     "pagination": {
@@ -81883,7 +81900,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.435.0",
+        "version": "3.436.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -91359,6 +91376,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/dashboard-composer-chart": {
+            "post": {
+                "operationId": "executeAsyncDashboardComposerChartQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Runs a composer chart shown on a dashboard tile, with the dashboard's\nfilters, parameters, and date zoom. The request does not include nodes.\nPoll each node's query with the standard results endpoint.",
+                "summary": "Execute dashboard composer chart",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DashboardComposerChartRunRequest"
                             }
                         }
                     }
@@ -129585,9 +129653,10 @@
                         }
                     }
                 },
-                "description": "Runs a composer chart's stored pipeline where a dashboard shows it, for\nanyone who can view the chart. The request carries no nodes; each node's\nquery is polled with the standard results endpoint.",
+                "description": "Deprecated — use the v2 Execute dashboard composer chart endpoint instead.\n\nThis endpoint was deprecated on 27 November 2026 and will be removed after 27 February 2027. It runs a composer chart shown on a dashboard tile. Execute dashboard composer chart takes the same request with composerChartUuid in the body.",
                 "summary": "Run composer chart",
                 "tags": ["v2", "Charts"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -129616,6 +129685,9 @@
                             }
                         }
                     }
+                },
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and will be removed after 27 February 2027.**\n\nUse [Execute dashboard composer chart](https://docs.lightdash.com/api-reference/v2/execute-dashboard-composer-chart), `POST /api/v2/projects/{projectUuid}/query/dashboard-composer-chart`, instead. It takes the same request with `composerChartUuid` in the body and returns the same response.\n</Warning>"
                 }
             }
         },
