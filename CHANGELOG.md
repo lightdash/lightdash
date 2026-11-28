@@ -1,3 +1,17 @@
+# [3.442.0](https://github.com/lightdash/lightdash/compare/3.441.0...3.442.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** the agent reads, runs, lists and finds space-owned composer charts; Ask AI on page and row ([#33606](https://github.com/lightdash/lightdash/issues/33606)) ([26a3a91](https://github.com/lightdash/lightdash/commit/26a3a91fdde9204b315aa53a731c443af1c18739))
+
+# [3.441.0](https://github.com/lightdash/lightdash/compare/3.440.0...3.441.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** a space lists its composer charts under Charts, with counts ([#33599](https://github.com/lightdash/lightdash/issues/33599)) ([0ad90b6](https://github.com/lightdash/lightdash/commit/0ad90b6fe842a12839b7c14d51e9b0dd34dbc1a0))
+
 # [3.440.0](https://github.com/lightdash/lightdash/compare/3.439.0...3.440.0) (2026-11-28)
 
 
