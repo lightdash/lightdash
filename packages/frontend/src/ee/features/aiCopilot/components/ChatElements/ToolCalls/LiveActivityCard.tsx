@@ -781,6 +781,17 @@ export const LiveActivityCard: FC<Props> = ({
     const olderGroups = toolGroups.filter(
         (group) => !leadGroups.includes(group),
     );
+    // Only a group the approval lead moved ahead of can still be running in the history.
+    const isRunningBehindLead = (group: LiveActivityToolGroup) =>
+        latest !== null &&
+        toolGroups.indexOf(group) > toolGroups.indexOf(latest) &&
+        group.calls.some(
+            (call) =>
+                call.toolOutput === undefined &&
+                !toolResults?.some(
+                    (result) => result.toolCallId === call.toolCallId,
+                ),
+        );
     const olderCount = olderGroups.reduce(
         (sum, group) => sum + group.calls.length,
         0,
@@ -1057,7 +1068,11 @@ export const LiveActivityCard: FC<Props> = ({
                                             toolName={group.toolName}
                                             toolCalls={group.calls}
                                             display={group.display}
-                                            status="done"
+                                            status={
+                                                isRunningBehindLead(group)
+                                                    ? 'running'
+                                                    : 'done'
+                                            }
                                             toolResults={toolResults}
                                             mcpServers={mcpServers}
                                             extraBody={(() => {

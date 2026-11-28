@@ -539,6 +539,44 @@ describe('LiveActivityCard approval behind a later call', () => {
         expect(screen.getByRole('button', { name: 'Reject' })).toBeDisabled();
     });
 
+    it('shows a chart run behind a pending edit as still running', async () => {
+        const toolGroups = [composerEdit, chartRun];
+        const { rerender, container } = renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={toolGroups}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: [],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+        await userEvent.click(screen.getByRole('button', { expanded: false }));
+
+        rerender(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={toolGroups}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: ['composer-edit'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+        expect(container.querySelector('[data-status="done"]')).toBeNull();
+        expect(
+            container.querySelector('[data-status="running"]'),
+        ).not.toBeNull();
+    });
+
     it('collapses once the edit is decided and the turn ends', () => {
         const toolGroups = [composerEdit, chartRun];
         const { rerender } = renderWithProviders(
