@@ -264,7 +264,6 @@ export enum EventName {
     HOMEPAGE_ASK_SUBMITTED = 'homepage_ask.submitted',
     HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION = 'homepage_recommended_action.impression',
     HOMEPAGE_RECOMMENDED_ACTION_RESTORED = 'homepage_recommended_action.restored',
-    HOMEPAGE_STARS_MEDIA_CARD_CLICKED = 'homepage_stars_media_card.clicked',
     AGENT_SETUP_PROMPT_COPIED = 'agent_setup_prompt.copied',
     MOBILE_PITCH_DISMISSED = 'mobile_pitch.dismissed',
     ONBOARDING_DONE_ACTION_CLICKED = 'onboarding_done.action_clicked',
