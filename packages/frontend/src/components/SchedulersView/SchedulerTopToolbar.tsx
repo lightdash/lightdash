@@ -1,8 +1,10 @@
 import {
     ActionIcon,
     Button,
+    Checkbox,
     Divider,
     Group,
+    Select,
     Text,
     Tooltip,
     useMantineTheme,
@@ -22,6 +24,10 @@ import classes from './SchedulerTopToolbar.module.css';
 type SchedulerTopToolbarProps = GroupProps &
     Pick<
         ReturnType<typeof useSchedulerFilters>,
+        | 'deliveryStatus'
+        | 'setDeliveryStatus'
+        | 'needsAttention'
+        | 'setNeedsAttention'
         | 'search'
         | 'selectedFormats'
         | 'selectedResourceType'
@@ -49,6 +55,10 @@ type SchedulerTopToolbarProps = GroupProps &
 
 export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
     ({
+        deliveryStatus,
+        setDeliveryStatus,
+        needsAttention,
+        setNeedsAttention,
         search,
         setSearch,
         selectedFormats,
@@ -81,13 +91,7 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                 wrap="nowrap"
                 {...props}
             >
-                <Group
-                    className={classes.filters}
-                    gap="xs"
-                    wrap="nowrap"
-                    flex={1}
-                    miw={0}
-                >
+                <Group className={classes.filters} gap="xs" flex={1} miw={0}>
                     <SearchFilter search={search} setSearch={setSearch} />
 
                     <Divider
@@ -131,6 +135,37 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     <DestinationFilter
                         selectedDestinations={selectedDestinations}
                         setSelectedDestinations={setSelectedDestinations}
+                    />
+
+                    <Select
+                        aria-label="Delivery status"
+                        size="xs"
+                        w={124}
+                        allowDeselect={false}
+                        value={deliveryStatus}
+                        data={[
+                            { value: 'all', label: 'All statuses' },
+                            { value: 'scheduled', label: 'Scheduled' },
+                            { value: 'paused', label: 'Paused' },
+                        ]}
+                        onChange={(value) => {
+                            if (
+                                value === 'all' ||
+                                value === 'scheduled' ||
+                                value === 'paused'
+                            ) {
+                                setDeliveryStatus(value);
+                            }
+                        }}
+                    />
+
+                    <Checkbox
+                        size="xs"
+                        label="Needs attention"
+                        checked={needsAttention}
+                        onChange={(event) =>
+                            setNeedsAttention(event.currentTarget.checked)
+                        }
                     />
                 </Group>
 

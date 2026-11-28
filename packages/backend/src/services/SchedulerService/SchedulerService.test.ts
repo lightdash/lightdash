@@ -121,6 +121,7 @@ const schedulerModel = {
 
 const schedulerProjectModel = {
     get: vi.fn(async () => ({ schedulerTimezone: 'Europe/London' })),
+    getSummary: vi.fn(async () => ({ projectUuid, organizationUuid })),
 };
 
 const savedChartModel = {
@@ -176,8 +177,9 @@ const buildUser = (
         ability: new Ability<PossibleAbilities>(abilities),
     }) as unknown as SessionUser;
 
-const buildService = () =>
+const buildService = (sendSheetsNotice = vi.fn()) =>
     new SchedulerService({
+        sendSheetsNotice,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         schedulerModel: schedulerModel as unknown as SchedulerModel,
@@ -202,6 +204,42 @@ describe('SchedulerService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    it('delivers the pause reason with a settings link when its source cannot be read', async () => {
+        const send = vi.fn();
+        const scheduler = {
+            ...chartSchedulerInPrivateSpace,
+            projectUuid,
+            name: 'Sales (EU) & Ops',
+            savedChartName: null,
+        };
+        schedulerModel.getScheduler.mockResolvedValueOnce(scheduler);
+        const event = {
+            type: 'paused',
+            scheduledTime: '2026-11-26T12:00:00.000Z',
+            reason: 'A resource required by this Google Sheets sync could not be found.',
+        } as const;
+        await buildService(send).deliverSheetsFailureNotice({
+            schedulerUuid: scheduler.schedulerUuid,
+            event,
+            channel: 'email',
+        });
+        expect(savedChartModel.getSummary).not.toHaveBeenCalled();
+        expect(schedulerProjectModel.getSummary).toHaveBeenCalledWith(
+            projectUuid,
+        );
+        expect(send).toHaveBeenCalledExactlyOnceWith(
+            {
+                schedulerUuid: scheduler.schedulerUuid,
+                ownerUuid: scheduler.createdBy,
+                schedulerName: scheduler.name,
+                event,
+                organizationUuid,
+                deliveryUrl: `${lightdashConfigMock.siteUrl}/generalSettings/projectManagement/${projectUuid}/scheduledDeliveries?needsAttention=true&nameSearch=Sales+%28EU%29+%26+Ops`,
+            },
+            'email',
+        );
     });
 
     describe('getSchedulerProjectContext', () => {
@@ -391,6 +429,7 @@ describe('SchedulerService', () => {
                     joinChannels: vi.fn(async () => {}),
                 };
                 const appSendService = new SchedulerService({
+                    sendSheetsNotice: vi.fn(),
                     lightdashConfig: lightdashConfigMock,
                     analytics: analyticsMock,
                     schedulerModel: {} as SchedulerModel,
@@ -779,6 +818,7 @@ describe('SchedulerService', () => {
                 ),
             };
             const appListService = new SchedulerService({
+                sendSheetsNotice: vi.fn(),
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
                 schedulerModel:
@@ -947,6 +987,7 @@ describe('SchedulerService', () => {
             };
 
             const reassignService = new SchedulerService({
+                sendSheetsNotice: vi.fn(),
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
                 schedulerModel:
@@ -1070,6 +1111,7 @@ describe('SchedulerService', () => {
             };
 
             const updateService = new SchedulerService({
+                sendSheetsNotice: vi.fn(),
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
                 schedulerModel:
@@ -1271,6 +1313,7 @@ describe('SchedulerService', () => {
             };
             const getRefreshToken = vi.fn().mockResolvedValue('refresh-token');
             const appService = new SchedulerService({
+                sendSheetsNotice: vi.fn(),
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
                 schedulerModel: appSchedulerModel as unknown as SchedulerModel,
@@ -1706,6 +1749,7 @@ describe('SchedulerService', () => {
                 deleteScheduledLogs: vi.fn(async () => {}),
             };
             const appUpdateService = new SchedulerService({
+                sendSheetsNotice: vi.fn(),
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
                 schedulerModel:
@@ -1955,6 +1999,7 @@ describe('checkForStuckJobs', () => {
         };
         const model = { logSchedulerJob: vi.fn(async () => {}) };
         const service = new SchedulerService({
+            sendSheetsNotice: vi.fn(),
             lightdashConfig: lightdashConfigMock,
             analytics: analyticsMock,
             schedulerModel: model as unknown as SchedulerModel,

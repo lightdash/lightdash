@@ -26,7 +26,10 @@ import { useMemo } from 'react';
 import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
-import { type DestinationType } from './useSchedulerFilters';
+import {
+    type DestinationType,
+    type SchedulerFilters,
+} from './useSchedulerFilters';
 
 const getScheduler = async (lightdashApi: LightdashApi, uuid: string) =>
     lightdashApi<SchedulerAndTargets>({
@@ -117,13 +120,7 @@ const getPaginatedSchedulers = async (
     searchQuery?: string,
     sortBy?: string,
     sortDirection?: 'asc' | 'desc',
-    filters?: {
-        createdByUserUuids?: string[];
-        formats?: string[];
-        resourceType?: 'chart' | 'dashboard';
-        resourceUuids?: string[];
-        destinations?: DestinationType[];
-    },
+    filters?: SchedulerFilters,
     includeLatestRun?: boolean,
 ) => {
     const urlParams = new URLSearchParams({
@@ -145,6 +142,10 @@ const getPaginatedSchedulers = async (
         ...(filters?.destinations
             ? { destinations: filters.destinations.join(',') }
             : {}),
+        ...(filters?.enabled !== undefined
+            ? { enabled: String(filters.enabled) }
+            : {}),
+        ...(filters?.needsAttention ? { needsAttention: 'true' } : {}),
         ...(includeLatestRun ? { includeLatestRun: 'true' } : {}),
     }).toString();
 
@@ -161,12 +162,7 @@ const getUserPaginatedSchedulers = async (
     searchQuery?: string,
     sortBy?: string,
     sortDirection?: 'asc' | 'desc',
-    filters?: {
-        formats?: string[];
-        resourceType?: 'chart' | 'dashboard';
-        resourceUuids?: string[];
-        destinations?: DestinationType[];
-    },
+    filters?: SchedulerFilters,
     includeLatestRun?: boolean,
 ) => {
     const urlParams = new URLSearchParams({
@@ -185,6 +181,10 @@ const getUserPaginatedSchedulers = async (
         ...(filters?.destinations
             ? { destinations: filters.destinations.join(',') }
             : {}),
+        ...(filters?.enabled !== undefined
+            ? { enabled: String(filters.enabled) }
+            : {}),
+        ...(filters?.needsAttention ? { needsAttention: 'true' } : {}),
         ...(includeLatestRun ? { includeLatestRun: 'true' } : {}),
     }).toString();
 
@@ -433,13 +433,7 @@ export const usePaginatedSchedulers = ({
     searchQuery?: string;
     sortBy?: string;
     sortDirection?: 'asc' | 'desc';
-    filters?: {
-        createdByUserUuids?: string[];
-        formats?: string[];
-        resourceType?: 'chart' | 'dashboard';
-        resourceUuids?: string[];
-        destinations?: DestinationType[];
-    };
+    filters?: SchedulerFilters;
     includeLatestRun?: boolean;
     isUserScope?: boolean;
 }) => {

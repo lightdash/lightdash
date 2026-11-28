@@ -13,6 +13,7 @@ import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
 import AppHeaderActions from './AppHeaderActions';
 
 vi.mock('react-router', () => ({
+    useLocation: () => ({ pathname: '/', search: '' }),
     useNavigate: () => vi.fn(),
     useParams: () => ({}),
 }));

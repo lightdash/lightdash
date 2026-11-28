@@ -126,14 +126,12 @@ import {
     ThresholdStatus,
     TimeZone,
     translateSlackError,
-    UnexpectedGoogleSheetsError,
     UnexpectedServerError,
     UploadGsheetFromRowsPayload,
     UploadGsheetPayload,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
-    WarehouseConnectionError,
     XlsxExportContent,
     type Account as AccountType,
     type AgentConnectionTaskEffect,
@@ -266,7 +264,10 @@ import {
     SchedulerClient,
     type SchedulerAiSummaryDelivery,
 } from './SchedulerClient';
-import { SchedulerDeliveryError } from './SchedulerDeliveryError';
+import {
+    getScheduledDeliveryDisableReason,
+    SchedulerDeliveryError,
+} from './SchedulerDeliveryError';
 
 // AI augmentation runner. Implemented by the EE SchedulerAiAugmentationService
 // and injected only by the commercial worker, so OSS deliveries skip it.
@@ -2884,6 +2885,7 @@ export default class SchedulerTask {
                     user,
                     schedulerUuid!,
                     false,
+                    'The Slack workspace is disconnected.',
                 );
                 return; // Do not cascade error
             }
@@ -4775,15 +4777,15 @@ export default class SchedulerTask {
 
         let deliveryUrl = `${this.lightdashConfig.siteUrl}/generalSettings/projectManagement/${notification.projectUuid}/scheduledDeliveries?tab=scheduled-deliveries&schedulerUuid=${schedulerUuid}`;
         try {
+            scheduler =
+                await this.schedulerService.schedulerModel.getSchedulerAndTargets(
+                    schedulerUuid,
+                );
             if (!this.googleDriveClient.isEnabled) {
                 throw new MissingConfigError(
                     'Unable to upload Google Sheet from scheduler, Google Drive is not enabled',
                 );
             }
-            scheduler =
-                await this.schedulerService.schedulerModel.getSchedulerAndTargets(
-                    schedulerUuid,
-                );
             const invalidateCache = scheduler.useCachedResults !== true;
 
             const {
@@ -5583,18 +5585,10 @@ export default class SchedulerTask {
                 },
             });
 
-            const shouldDisableSync =
-                e instanceof NotFoundError ||
-                e instanceof ForbiddenError ||
-                e instanceof MissingConfigError ||
-                e instanceof UnexpectedGoogleSheetsError ||
-                e instanceof WarehouseConnectionError;
-
             // Notify/disable is the worker's job (it knows the attempt count);
             // here we just report the failure with the context it needs.
             throw new SchedulerDeliveryError({
                 cause: e,
-                isNonRetryable: shouldDisableSync,
                 createdByUserUuid:
                     scheduler?.createdBy ?? notification.userUuid,
                 notification: {
@@ -5650,13 +5644,32 @@ export default class SchedulerTask {
     protected async disableGsheetsScheduler(
         schedulerUuid: string,
         createdByUserUuid: string,
+        disableReason: string,
+        context: Pick<
+            GsheetsNotificationPayload,
+            'organizationUuid' | 'projectUuid' | 'cronScheduledAt'
+        >,
     ): Promise<void> {
+        if (context.cronScheduledAt) {
+            await this.schedulerService.schedulerModel.pauseScheduledSheetsForError(
+                {
+                    schedulerUuid,
+                    ownerUuid: createdByUserUuid,
+                    projectUuid: context.projectUuid,
+                    organizationUuid: context.organizationUuid,
+                    scheduledTime: new Date(context.cronScheduledAt),
+                    reason: disableReason,
+                },
+            );
+            return;
+        }
         const sessionUser =
             await this.userService.getSessionByUserUuid(createdByUserUuid);
         await this.schedulerService.setSchedulerEnabled(
             sessionUser,
             schedulerUuid,
             false,
+            disableReason,
         );
     }
 
@@ -5819,6 +5832,7 @@ export default class SchedulerTask {
                     schedulerOwner,
                     schedulerUuid,
                     false,
+                    'The delivery has no recipients or destinations.',
                 );
             }
 
@@ -6225,6 +6239,9 @@ export default class SchedulerTask {
                     traceProperties,
                     perChannelPages,
                     aiSummaryDelivery,
+                    !isInlineScheduler
+                        ? schedulerPayload.cronScheduledAt
+                        : undefined,
                 );
 
             // The notification jobs are now queued: nothing below may
@@ -6396,13 +6413,18 @@ export default class SchedulerTask {
                 },
             });
 
-            // Send failure notification email to scheduler creator
+            const disableReason = getScheduledDeliveryDisableReason(e);
+            const pausesSheets =
+                !!schedulerUuid &&
+                scheduler.format === SchedulerFormat.GSHEETS &&
+                disableReason !== null;
+            // The Sheets pause queues the owner notification in the same transaction.
             try {
                 const user =
                     await this.userService.getSessionByUserUuid(
                         schedulerOwnerUuid,
                     );
-                if (user.email) {
+                if (!pausesSheets && user.email) {
                     const schedulerUrl =
                         scheduler.savedChartUuid || scheduler.dashboardUuid
                             ? appendUuidQueryParam(
@@ -6549,14 +6571,23 @@ export default class SchedulerTask {
                 return; // Do not cascade error
             }
 
-            if (
-                e instanceof FieldReferenceError ||
-                e instanceof WarehouseConnectionError ||
-                e instanceof ParameterError
-            ) {
-                // This captures both the error from thresholdAlert and metricQuery
-                // WarehouseConnectionError indicates misconfigured credentials (wrong password, unreachable host, etc.)
-                // ParameterError indicates invalid configuration (e.g., selected tabs no longer exist)
+            if (pausesSheets && schedulerUuid && disableReason !== null) {
+                await this.disableGsheetsScheduler(
+                    schedulerUuid,
+                    schedulerOwnerUuid,
+                    disableReason,
+                    {
+                        projectUuid: schedulerPayload.projectUuid,
+                        organizationUuid: schedulerPayload.organizationUuid,
+                        cronScheduledAt: !isInlineScheduler
+                            ? schedulerPayload.cronScheduledAt
+                            : undefined,
+                    },
+                );
+                return;
+            }
+
+            if (disableReason !== null) {
                 Logger.warn(
                     `Disabling scheduler with non-retryable error: ${e}`,
                 );
@@ -6568,6 +6599,7 @@ export default class SchedulerTask {
                     user,
                     schedulerUuid!,
                     false,
+                    disableReason,
                 );
                 return; // Do not cascade error
             }

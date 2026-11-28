@@ -4,8 +4,12 @@ import { useSearchParams } from 'react-router';
 
 export type DestinationType = 'slack' | 'email' | 'msteams' | 'googlechat';
 
+export type DeliveryStatusFilter = 'all' | 'scheduled' | 'paused';
+
 export type SchedulerFilters = {
+    enabled?: boolean;
     search?: string;
+    needsAttention?: boolean;
     createdByUserUuids?: string[];
     formats?: SchedulerFormat[];
     resourceType?: 'chart' | 'dashboard';
@@ -42,6 +46,13 @@ const DEFAULT_FILTERS: SchedulerFiltersState = {
  */
 export const useSchedulerFilters = () => {
     const [searchParams, setSearchParams] = useSearchParams();
+
+    const statusParam = searchParams.get('deliveryStatus');
+    const deliveryStatus: DeliveryStatusFilter =
+        statusParam === 'scheduled' || statusParam === 'paused'
+            ? statusParam
+            : 'all';
+    const needsAttention = searchParams.get('needsAttention') === 'true';
 
     // Initialize from URL params
     const initialSearch = searchParams.get('nameSearch') ?? undefined;
@@ -164,6 +175,32 @@ export const useSchedulerFilters = () => {
         [searchParams, setSearchParams],
     );
 
+    const setDeliveryStatus = useCallback(
+        (status: DeliveryStatusFilter) => {
+            const newParams = new URLSearchParams(searchParams);
+            if (status === 'all') {
+                newParams.delete('deliveryStatus');
+            } else {
+                newParams.set('deliveryStatus', status);
+            }
+            setSearchParams(newParams);
+        },
+        [searchParams, setSearchParams],
+    );
+
+    const setNeedsAttention = useCallback(
+        (selected: boolean) => {
+            const newParams = new URLSearchParams(searchParams);
+            if (selected) {
+                newParams.set('needsAttention', 'true');
+            } else {
+                newParams.delete('needsAttention');
+            }
+            setSearchParams(newParams);
+        },
+        [searchParams, setSearchParams],
+    );
+
     const setSorting = useCallback(
         (
             newSortField: SchedulerFiltersState['sortField'],
@@ -190,6 +227,8 @@ export const useSchedulerFilters = () => {
         // Clear filter-related URL params
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('nameSearch');
+        newParams.delete('deliveryStatus');
+        newParams.delete('needsAttention');
         newParams.delete('format');
         newParams.delete('type');
         newParams.delete('creator');
@@ -199,6 +238,8 @@ export const useSchedulerFilters = () => {
 
     const hasActiveFilters = useMemo(() => {
         return (
+            deliveryStatus !== 'all' ||
+            needsAttention ||
             search !== DEFAULT_FILTERS.search ||
             selectedCreatedByUserUuids.length !==
                 DEFAULT_FILTERS.selectedCreatedByUserUuids.length ||
@@ -212,6 +253,8 @@ export const useSchedulerFilters = () => {
             sortDirection !== DEFAULT_FILTERS.sortDirection
         );
     }, [
+        deliveryStatus,
+        needsAttention,
         search,
         selectedCreatedByUserUuids,
         selectedFormats,
@@ -224,6 +267,14 @@ export const useSchedulerFilters = () => {
 
     const apiFilters = useMemo(() => {
         const result: SchedulerFilters = {};
+
+        if (deliveryStatus !== 'all') {
+            result.enabled = deliveryStatus === 'scheduled';
+        }
+
+        if (needsAttention) {
+            result.needsAttention = true;
+        }
 
         if (search) {
             result.search = search;
@@ -251,6 +302,8 @@ export const useSchedulerFilters = () => {
 
         return result;
     }, [
+        deliveryStatus,
+        needsAttention,
         search,
         selectedCreatedByUserUuids,
         selectedFormats,
@@ -260,6 +313,10 @@ export const useSchedulerFilters = () => {
     ]);
 
     return {
+        deliveryStatus,
+        setDeliveryStatus,
+        needsAttention,
+        setNeedsAttention,
         search,
         selectedCreatedByUserUuids,
         selectedFormats,

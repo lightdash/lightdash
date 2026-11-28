@@ -64,6 +64,7 @@ export class SchedulerController extends BaseController {
      * @param searchQuery search query to filter logs by scheduler name
      * @param statuses filter by log statuses (comma-separated)
      * @param createdByUserUuids filter by creator user UUIDs (comma-separated)
+     * @param needsAttention show only deliveries automatically paused after a problem
      * @param destinations filter by destination types (comma-separated: email, slack, msteams, googlechat)
      *
      * @deprecated Use GET /api/v1/schedulers/{projectUuid}/runs instead
@@ -138,6 +139,7 @@ export class SchedulerController extends BaseController {
      * @param schedulerUuids filter by specific scheduler UUIDs (comma-separated)
      * @param statuses filter by run statuses (comma-separated: completed, partial_failure, failed, running, scheduled)
      * @param createdByUserUuids filter by creator user UUIDs (comma-separated)
+     * @param needsAttention show only deliveries automatically paused after a problem
      * @param destinations filter by destination types (comma-separated: email, slack, msteams, googlechat)
      * @param resourceType filter by resource type (chart or dashboard)
      * @param resourceUuids filter by resource UUIDs (comma-separated)
@@ -245,6 +247,7 @@ export class SchedulerController extends BaseController {
      * @param formats filter by scheduler formats (comma-separated)
      * @param resourceType filter by resource type (chart or dashboard)
      * @param resourceUuids filter by resource UUIDs (comma-separated)
+     * @param enabled filter by whether the delivery is enabled
      * @param destinations filter by destination types (comma-separated: email, slack, msteams, googlechat)
      * @param includeLatestRun include latest run information for each scheduler
      */
@@ -264,6 +267,8 @@ export class SchedulerController extends BaseController {
         @Query() resourceUuids?: string,
         @Query() destinations?: string,
         @Query() includeLatestRun?: boolean,
+        @Query() needsAttention?: boolean,
+        @Query() enabled?: boolean,
     ): Promise<ApiSchedulersResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -299,6 +304,8 @@ export class SchedulerController extends BaseController {
                         resourceUuids: resourceUuids
                             ? resourceUuids.split(',')
                             : undefined,
+                        needsAttention,
+                        enabled,
                         destinations: destinations
                             ? destinations.split(',')
                             : undefined,
@@ -322,6 +329,7 @@ export class SchedulerController extends BaseController {
      * @param formats filter by scheduler formats (comma-separated)
      * @param resourceType filter by resource type (chart or dashboard)
      * @param resourceUuids filter by resource UUIDs (comma-separated)
+     * @param enabled filter by whether the delivery is enabled
      * @param destinations filter by destination types (comma-separated: email, slack, msteams, googlechat)
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -342,6 +350,8 @@ export class SchedulerController extends BaseController {
         @Query() resourceUuids?: string,
         @Query() destinations?: string,
         @Query() includeLatestRun?: boolean,
+        @Query() needsAttention?: boolean,
+        @Query() enabled?: boolean,
     ): Promise<ApiSchedulersResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -370,6 +380,8 @@ export class SchedulerController extends BaseController {
             resourceType,
             resourceUuids: resourceUuids ? resourceUuids.split(',') : undefined,
             destinations: destinations ? destinations.split(',') : undefined,
+            needsAttention,
+            enabled,
         };
 
         return {

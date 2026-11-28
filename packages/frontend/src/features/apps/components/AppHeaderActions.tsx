@@ -2,6 +2,7 @@ import { ActionIcon, Divider, Tooltip } from '@mantine/core';
 import { IconExternalLink, IconPencil, IconRefresh } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useSchedulerDeepLink } from '../../scheduler/hooks/useSchedulerDeepLink';
 import AppActionsMenu, { type AppActionsMenuProps } from './AppActionsMenu';
 
 type Props = Pick<
@@ -67,6 +68,8 @@ const AppHeaderActions: FC<Props> = ({
     previewTools,
     ...menuProps
 }) => {
+    const schedulerDeepLink = useSchedulerDeepLink();
+
     return (
         <>
             {previewTools && (
@@ -149,6 +152,7 @@ const AppHeaderActions: FC<Props> = ({
             {fullscreenToggle}
             <AppActionsMenu
                 {...menuProps}
+                schedulerDeepLink={schedulerDeepLink}
                 target={{ variant: 'subtle' }}
                 onRefresh={null}
                 shareMenu={{ copyUrl: shareUrl }}

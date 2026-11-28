@@ -648,7 +648,11 @@ const ChartActionsMenu: FC<Props> = ({
                 <GoogleSheetsSyncModal
                     chart={savedChart}
                     opened={isSyncWithGoogleSheetsModalOpen}
-                    onClose={syncWithGoogleSheetsModalHandlers.close}
+                    initialSchedulerUuid={initialSchedulerUuid}
+                    onClose={() => {
+                        syncWithGoogleSheetsModalHandlers.close();
+                        setInitialSchedulerUuid(undefined);
+                    }}
                 />
             )}
             {isScheduledDeliveriesModalOpen && (
