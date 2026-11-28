@@ -7,6 +7,7 @@ import {
     type LiveSourceTestCheck,
 } from '@lightdash/common';
 import { getLiveIntegration } from './registry';
+import { type LiveHttpRequest } from './types';
 
 const toFailureSummary = (label: string, status: number, error: Error) => {
     if (status === 401) return `${label} didn't accept the credentials`;
@@ -26,6 +27,17 @@ const toFailureSummary = (label: string, status: number, error: Error) => {
 };
 
 /**
+ * The request an integration fixes for its setup test; null when the test
+ * sends what the dialog asked for.
+ */
+export const getLiveSourceTestRequest = (
+    apiSource: ExternalConnectionApiSource,
+): LiveHttpRequest | null =>
+    getLiveIntegration(apiSource.connector).connection.testRequest?.(
+        apiSource,
+    ) ?? null;
+
+/**
  * Reads a live data source test response the way an admin needs it: a 2xx
  * through the integration's `summarizeTest`, anything else through its
  * `toError`, which already says what to change.
@@ -37,7 +49,10 @@ export const getLiveSourceTestCheck = (
     const integration = getLiveIntegration(apiSource.connector);
     const { label } = integration;
     if (response.status >= 200 && response.status < 300) {
-        const summary = integration.summarizeTest?.(response.body, apiSource);
+        const summary = integration.connection.summarizeTest?.(
+            response.body,
+            apiSource,
+        );
         return {
             ok: true,
             summary: summary?.summary ?? `Connected to ${label}`,
@@ -45,7 +60,7 @@ export const getLiveSourceTestCheck = (
             facts: summary?.facts ?? [],
         };
     }
-    const error = integration.toError(response, apiSource);
+    const error = integration.query.toError(response, apiSource);
     return {
         ok: false,
         summary: toFailureSummary(label, response.status, error),

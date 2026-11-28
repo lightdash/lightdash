@@ -134,7 +134,6 @@ PGDATABASE = "postgres"
 PGMAXCONNECTIONS = "30"            # the API tests run four workers
 DBT_DEMO_DIR = "/usr/app/examples/full-jaffle-shop-demo"
 DBT_PROJECT_DIR = "/usr/app/examples/full-jaffle-shop-demo/dbt"
-LIVE_SOURCES_HYDRA_ENABLED = "true"  # Hydra, the test integration the API tests drive; never on Cloud
 # Object storage: the in-guest MinIO, unless the S3_* secrets are stored —
 # a stored secret is written after [env] and wins, so previews then use the
 # shared preview bucket (usage events, exports, data apps), and these lines
@@ -389,6 +388,10 @@ port = 443
 
 [[egress.allow]]
 host = "lightdash.github.io"        # chart type registry (Chart library)
+port = 443
+
+[[egress.allow]]
+host = "sentry.io"                  # Sentry live data source: the API host of US organizations
 port = 443
 
 [[egress.allow]]

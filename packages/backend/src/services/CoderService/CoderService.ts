@@ -2428,7 +2428,12 @@ export class CoderService extends BaseService {
         tilesAsCode: DashboardTileAsCode[],
         tabUuidsBySlug: ReadonlyMap<string, string> = new Map(),
     ): Promise<{ tiles: DashboardTileWithSlug[]; warnings: string[] }> {
-        const tiles = CoderService.withoutTileChartQuery(tilesAsCode);
+        // A composer tile whose chart is gone is left out until a tile can hold no chart
+        const tiles = CoderService.withoutTileChartQuery(tilesAsCode).filter(
+            (tile) =>
+                tile.type !== DashboardTileTypes.COMPOSER_CHART ||
+                tile.properties.chartSlug !== null,
+        );
         const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
             if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
                 return acc;

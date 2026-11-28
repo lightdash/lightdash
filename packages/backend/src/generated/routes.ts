@@ -6546,7 +6546,14 @@ const models: TsoaRoute.Models = {
                                     dataType: 'nestedObjectLiteral',
                                     nestedProperties: {
                                         chartSlug: {
-                                            dataType: 'string',
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                { dataType: 'string' },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                            ],
                                             required: true,
                                         },
                                     },
@@ -8585,7 +8592,13 @@ const models: TsoaRoute.Models = {
                 chart: { ref: 'ComposerStoredChartAsCode', required: true },
                 pipeline: { ref: 'ComposerChartPipeline', required: true },
                 spaceSlug: { dataType: 'string', required: true },
-                dashboardSlug: { dataType: 'string', required: true },
+                dashboardSlug: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 description: {
                     dataType: 'union',
                     subSchemas: [
@@ -16159,6 +16172,7 @@ const models: TsoaRoute.Models = {
             'amplitude',
             'mixpanel',
             'supabase',
+            'sentry',
             'hydra',
         ],
     },
@@ -16492,81 +16506,69 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.SENTRY': {
+        dataType: 'refEnum',
+        enums: ['sentry'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SentryApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                projectSlugs: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                organizationSlug: { dataType: 'string', required: true },
+                connector: { ref: 'ApiConnectorType.SENTRY', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ApiConnectorType.HYDRA': {
         dataType: 'refEnum',
         enums: ['hydra'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    HydraRateLimits: {
+    HydraObjectField: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                buckets: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            capacity: { dataType: 'double', required: true },
-                            windowMs: { dataType: 'double', required: true },
-                            id: { dataType: 'string', required: true },
-                        },
-                    },
-                    required: true,
-                },
-                callsPerSecond: {
+                system: { dataType: 'boolean' },
+                type: {
                     dataType: 'union',
                     subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                concurrentCalls: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    HydraOnLimit: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                body: { ref: 'Record_string.unknown_' },
-                retryAfterFormat: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['seconds'] },
+                        { dataType: 'enum', enums: ['string'] },
+                        { dataType: 'enum', enums: ['number'] },
                         { dataType: 'enum', enums: ['date'] },
-                        { dataType: 'enum', enums: ['none'] },
+                        { dataType: 'enum', enums: ['boolean'] },
                     ],
                     required: true,
                 },
-                status: { dataType: 'double', required: true },
+                label: { dataType: 'string', required: true },
+                id: { dataType: 'string', required: true },
             },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    HydraMockResponse: {
+    HydraObject: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                body: { ref: 'Record_string.unknown_' },
-                retryAfterSeconds: { dataType: 'double' },
-                status: { dataType: 'double', required: true },
-                toCall: { dataType: 'double' },
-                fromCall: { dataType: 'double' },
-                call: { dataType: 'double' },
+                fields: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'HydraObjectField' },
+                    required: true,
+                },
+                recordCount: { dataType: 'double' },
+                label: { dataType: 'string', required: true },
+                id: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -16577,31 +16579,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                mockResponses: {
+                objects: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'HydraMockResponse' },
+                    array: { dataType: 'refAlias', ref: 'HydraObject' },
                 },
-                declaredLimits: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['vendor'] },
-                        { ref: 'HydraRateLimits' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                onLimit: { ref: 'HydraOnLimit' },
-                vendorLimits: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'HydraRateLimits' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                failAuth: { dataType: 'boolean' },
-                errorRate: { dataType: 'double' },
-                jitterMs: { dataType: 'double' },
-                latencyMs: { dataType: 'double' },
-                pageSize: { dataType: 'double' },
                 rowCount: { dataType: 'double' },
                 connector: { ref: 'ApiConnectorType.HYDRA', required: true },
             },
@@ -16629,6 +16610,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'AmplitudeApiSource' },
                 { ref: 'MixpanelApiSource' },
                 { ref: 'SupabaseApiSource' },
+                { ref: 'SentryApiSource' },
                 { ref: 'HydraApiSource' },
             ],
             validators: {},
@@ -17918,6 +17900,46 @@ const models: TsoaRoute.Models = {
                     },
                 },
             ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LiveSourceRefreshSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                removedFields: {
+                    ref: 'Record_string.string-Array_',
+                    required: true,
+                },
+                addedFields: {
+                    ref: 'Record_string.string-Array_',
+                    required: true,
+                },
+                removedExplores: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                addedExplores: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiLiveSourceRefreshResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'LiveSourceRefreshSummary', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
             validators: {},
         },
     },
@@ -21643,6 +21665,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                apiName: { dataType: 'string' },
                 definitionHash: { dataType: 'string' },
                 baseVersion: { dataType: 'double', required: true },
                 integration: { ref: 'ApiConnectorType', required: true },
@@ -30377,6 +30400,7 @@ const models: TsoaRoute.Models = {
             'chartView',
             'chartHistory',
             'sqlChartView',
+            'composerChartView',
             'sqlRunner',
             'viewUnderlyingData',
             'alert',
@@ -32612,6 +32636,177 @@ const models: TsoaRoute.Models = {
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    QuerySourceType: {
+        dataType: 'refEnum',
+        enums: [
+            'semanticLayer',
+            'sql',
+            'duckdb',
+            'external',
+            'python',
+            'api',
+            'merge',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.ParametersValuesMap_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'ParametersValuesMap' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartZoomableField: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tableName: { dataType: 'string', required: true },
+                label: { dataType: 'string', required: true },
+                fieldId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerChartRunResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                zoomedFieldLabels: {
+                    ref: 'Record_string.string_',
+                    required: true,
+                },
+                zoomableFields: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ChartZoomableField' },
+                    required: true,
+                },
+                dateZoomApplied: { dataType: 'boolean', required: true },
+                usedParameterValuesByNodeId: {
+                    ref: 'Record_string.ParametersValuesMap_',
+                    required: true,
+                },
+                sqlColumns: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ResultColumn' },
+                    required: true,
+                },
+                parameterReferences: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                appliedDashboardFiltersByNodeId: {
+                    ref: 'Record_string.DashboardFilters_',
+                    required: true,
+                },
+                appliedDashboardFilters: {
+                    ref: 'DashboardFilters',
+                    required: true,
+                },
+                chartStageQueryUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                fields: { ref: 'ItemsMap', required: true },
+                queries: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            queryUuid: { dataType: 'string', required: true },
+                            sourceType: {
+                                ref: 'QuerySourceType',
+                                required: true,
+                            },
+                            nodeId: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiComposerChartRunResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'ComposerChartRunResults', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExecuteComposerChartRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                invalidateCache: { dataType: 'boolean', required: true },
+                parameters: { ref: 'ParametersValuesMap' },
+                composerChartUuid: { ref: 'UUID', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerChartRunRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dateZoom: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DateZoom' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                invalidateCache: { dataType: 'boolean', required: true },
+                excludedParameterKeys: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                parameters: { ref: 'ParametersValuesMap', required: true },
+                dashboardFilters: { ref: 'DashboardFilters', required: true },
+                tileUuid: { dataType: 'string', required: true },
+                dashboardUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardComposerChartRunRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ComposerChartRunRequest' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        composerChartUuid: { ref: 'UUID', required: true },
+                    },
+                },
+            ],
             validators: {},
         },
     },
@@ -82934,19 +83129,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    QuerySourceType: {
-        dataType: 'refEnum',
-        enums: [
-            'semanticLayer',
-            'sql',
-            'duckdb',
-            'external',
-            'python',
-            'api',
-            'merge',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     QuerySourceDefinition: {
         dataType: 'refAlias',
         type: {
@@ -85800,135 +85982,20 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 name: { dataType: 'string', required: true },
-                dashboardUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.ParametersValuesMap_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { ref: 'ParametersValuesMap' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ChartZoomableField: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                tableName: { dataType: 'string', required: true },
-                label: { dataType: 'string', required: true },
-                fieldId: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ComposerChartRunResults: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                zoomedFieldLabels: {
-                    ref: 'Record_string.string_',
-                    required: true,
-                },
-                zoomableFields: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'ChartZoomableField' },
-                    required: true,
-                },
-                dateZoomApplied: { dataType: 'boolean', required: true },
-                usedParameterValuesByNodeId: {
-                    ref: 'Record_string.ParametersValuesMap_',
-                    required: true,
-                },
-                sqlColumns: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'ResultColumn' },
-                    required: true,
-                },
-                parameterReferences: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                appliedDashboardFiltersByNodeId: {
-                    ref: 'Record_string.DashboardFilters_',
-                    required: true,
-                },
-                appliedDashboardFilters: {
-                    ref: 'DashboardFilters',
-                    required: true,
-                },
-                chartStageQueryUuid: {
+                spaceUuid: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
                         { dataType: 'enum', enums: [null] },
                     ],
-                    required: true,
                 },
-                fields: { ref: 'ItemsMap', required: true },
-                queries: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            queryUuid: { dataType: 'string', required: true },
-                            sourceType: {
-                                ref: 'QuerySourceType',
-                                required: true,
-                            },
-                            nodeId: { dataType: 'string', required: true },
-                        },
-                    },
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiComposerChartRunResponse: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: { ref: 'ComposerChartRunResults', required: true },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ComposerChartRunRequest: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                dateZoom: {
+                dashboardUuid: {
                     dataType: 'union',
                     subSchemas: [
-                        { ref: 'DateZoom' },
+                        { dataType: 'string' },
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
-                invalidateCache: { dataType: 'boolean', required: true },
-                excludedParameterKeys: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                parameters: { ref: 'ParametersValuesMap', required: true },
-                dashboardFilters: { ref: 'DashboardFilters', required: true },
-                tileUuid: { dataType: 'string', required: true },
-                dashboardUuid: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -110406,6 +110473,136 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'executeAsyncDashboardSqlChartQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsQueryController_executeAsyncComposerChartQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ExecuteComposerChartRequest',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/query/composer-chart',
+        ...fetchMiddlewares<RequestHandler>(QueryController),
+        ...fetchMiddlewares<RequestHandler>(
+            QueryController.prototype.executeAsyncComposerChartQuery,
+        ),
+
+        async function QueryController_executeAsyncComposerChartQuery(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsQueryController_executeAsyncComposerChartQuery,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'executeAsyncComposerChartQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsQueryController_executeAsyncDashboardComposerChartQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'DashboardComposerChartRunRequest',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/query/dashboard-composer-chart',
+        ...fetchMiddlewares<RequestHandler>(QueryController),
+        ...fetchMiddlewares<RequestHandler>(
+            QueryController.prototype.executeAsyncDashboardComposerChartQuery,
+        ),
+
+        async function QueryController_executeAsyncDashboardComposerChartQuery(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsQueryController_executeAsyncDashboardComposerChartQuery,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'executeAsyncDashboardComposerChartQuery',
                     controller,
                     response,
                     next,

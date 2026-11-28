@@ -40,9 +40,15 @@ type ApiSourceFieldDefinition = {
     sql?: string;
     /** Guidance only the AI agent reads; an admin's hint replaces it. */
     aiHint?: string;
-    /** Display labels by internal value, for fields that show an option's label. */
+    /** Display labels by stored value, for fields that show an option's label. */
     valueLabels?: Record<string, string>;
     groups?: string[];
+    /**
+     * Whether a source starts with the field in use; absent means it does.
+     * An admin's choice wins over it, and turning it off later never takes
+     * the field from a source that already has it.
+     */
+    onByDefault?: boolean;
 };
 
 export type LiveDimensionDefinition = ApiSourceFieldDefinition & {
@@ -62,9 +68,28 @@ export type LiveMetricDefinition = ApiSourceFieldDefinition & {
     aggregation?: ApiSourceMetricAggregation;
 };
 
-/** One explore of an integration's semantic layer, written by hand or found by a scan. */
+/** One explore of an integration's semantic layer, written by hand or added by `extend`. */
 export type LiveExploreDefinition = {
+    /**
+     * The model name, and the explore's one identity: the explore is
+     * `<source prefix>_<name>`, and charts, edits and a Refresh all go by
+     * it. For an explore only the vendor has, derive it from the vendor's
+     * stable id with `toLiveModelName`, never from a label people can
+     * rename.
+     */
     name: string;
+    /**
+     * The vendor's stable id of what the explore reads, e.g. Salesforce
+     * `Invoice__c`, when a request needs it. The built explore carries it
+     * for `compile` and for the source's access rules.
+     */
+    apiName?: string;
+    /**
+     * Whether a source starts with the explore on; absent means it does.
+     * An admin's choice wins over it, and turning it off later never takes
+     * the explore from a source that already has it.
+     */
+    onByDefault?: boolean;
     label: string;
     /** What the explore holds, written for people browsing it. */
     description: string;
@@ -215,6 +240,9 @@ export const buildLiveExplore = ({
             integration,
             baseVersion,
             definitionHash,
+            ...(definition.apiName !== undefined
+                ? { apiName: definition.apiName }
+                : {}),
             // Kept for readers of explores built before capabilities
             filterGroups: {
                 or: capabilities.filters.or,
@@ -311,6 +339,10 @@ export const getLiveExplore = (explore: Explore): ApiSourceExplore => {
     }
     return apiSource;
 };
+
+/** The vendor's id of what a live explore reads, or null when its integration gave none. */
+export const getLiveExploreApiName = (explore: Explore): string | null =>
+    getLiveExplore(explore).apiName ?? null;
 
 /**
  * The name of the definition a live explore was built from, such as

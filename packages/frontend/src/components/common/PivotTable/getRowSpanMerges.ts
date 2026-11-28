@@ -1,4 +1,5 @@
 import { FieldType, type PivotData } from '@lightdash/common';
+import { isCaptureRender } from '../../../hooks/resultsFirstPage';
 
 export type RowSpanMerge = {
     isBlockStart: boolean;
@@ -85,9 +86,13 @@ export const ROW_OVERSCAN = 25;
  * the virtualizer renders around the viewport. In a smaller table every row is
  * always rendered, so a merged value can show in full, as before row
  * virtualization.
+ *
+ * An image export or a scheduled delivery takes its screenshot without a
+ * scroll, so the rendered rows do not move and a merged value can show in
+ * full there too. The image then has the whole value, as before.
  */
 export const canRenderedRowsClipMergedCells = (rowCount: number) =>
-    rowCount > ROW_OVERSCAN;
+    rowCount > ROW_OVERSCAN && !isCaptureRender();
 
 // Table text is 13px at the theme's 1.4286 line height, 18.57px a line. Rounded
 // up, so the line count below never shows a line too many.

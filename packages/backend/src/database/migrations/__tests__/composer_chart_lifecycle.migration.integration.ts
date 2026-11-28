@@ -571,4 +571,138 @@ describe('composer charts follow their dashboard on the real schema', () => {
                 .pluck('pipeline'),
         ).toEqual([pipeline('select 1')]);
     });
+
+    describe('a tile showing a space chart its dashboard does not own', () => {
+        // Nothing writes such a tile yet, so the reference is inserted directly
+        const referenceFromVersion = async (
+            dashboardVersionUuid: string,
+            composerChartUuid: string,
+        ) => {
+            const [dashboardVersionId] = await database('dashboard_versions')
+                .where('dashboard_version_uuid', dashboardVersionUuid)
+                .pluck('dashboard_version_id');
+            const tileUuid = randomUUID();
+            await database('dashboard_tiles').insert({
+                dashboard_version_id: dashboardVersionId,
+                dashboard_tile_uuid: tileUuid,
+                type: DashboardTileTypes.COMPOSER_CHART,
+                height: 3,
+                width: 6,
+                x_offset: 6,
+                y_offset: 0,
+                tab_uuid: null,
+            });
+            await database('dashboard_tile_composer_charts').insert({
+                dashboard_version_id: dashboardVersionId,
+                dashboard_tile_uuid: tileUuid,
+                composer_chart_uuid: composerChartUuid,
+                title: null,
+                hide_title: false,
+            });
+        };
+
+        const setUp = async () => {
+            // Created first, so a rollback to the dashboard's version would find its history
+            const spaceChartUuid = await createSpaceChart();
+            const { dashboard, composerChartUuid } =
+                await createDashboardWithChart();
+            await referenceFromVersion(dashboard.versionUuid, spaceChartUuid);
+            return {
+                dashboard,
+                ownedChartUuid: composerChartUuid,
+                spaceChartUuid,
+            };
+        };
+
+        it('reads the tile with the chart name', async () => {
+            const { dashboard, spaceChartUuid } = await setUp();
+
+            const { tiles } = await dashboardModel.getByIdOrSlug(
+                dashboard.uuid,
+            );
+
+            expect(tiles).toContainEqual(
+                expect.objectContaining({
+                    type: DashboardTileTypes.COMPOSER_CHART,
+                    properties: expect.objectContaining({
+                        composerChartUuid: spaceChartUuid,
+                        chartName: 'In a space',
+                    }),
+                }),
+            );
+        });
+
+        it('lists only the charts the dashboard owns', async () => {
+            const { dashboard, ownedChartUuid, spaceChartUuid } = await setUp();
+
+            await expect(
+                composerChartModel.findOwnedByDashboard(dashboard.uuid, [
+                    ownedChartUuid,
+                    spaceChartUuid,
+                ]),
+            ).resolves.toEqual([ownedChartUuid]);
+        });
+
+        it('locks and reads rollback pipelines for owned charts only', async () => {
+            const { dashboard, ownedChartUuid, spaceChartUuid } = await setUp();
+
+            const pipelines = await database.transaction((trx) =>
+                composerChartModel.lockRollbackPipelines(
+                    dashboard.uuid,
+                    [ownedChartUuid, spaceChartUuid],
+                    dashboard.versionUuid,
+                    trx,
+                ),
+            );
+
+            expect(pipelines.map(({ uuid }) => uuid)).toEqual([ownedChartUuid]);
+        });
+
+        it('cleans up an orphan the dashboard owns and leaves a space chart it no longer shows', async () => {
+            const { dashboard, spaceChartUuid } = await setUp();
+            await database('dashboard_tile_composer_charts')
+                .where('composer_chart_uuid', spaceChartUuid)
+                .delete();
+            const orphanUuid = await composerChartModel.create({
+                uuid: null,
+                slug: null,
+                projectUuid: fixture.projectUuid,
+                owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
+                name: 'Orphan',
+                description: null,
+                pipeline: pipeline('select 1'),
+                chart: storedChart,
+                createdByUserUuid: fixture.userUuid,
+            });
+
+            await composerChartModel.deleteOrphans(dashboard.uuid, new Set());
+
+            await expect(composerChartModel.get(orphanUuid)).rejects.toThrow(
+                NotFoundError,
+            );
+            await expect(
+                composerChartModel.get(spaceChartUuid),
+            ).resolves.toMatchObject({
+                owner: { type: 'space', spaceUuid: fixture.spaceUuid },
+            });
+        });
+
+        it('leaves the space chart alive through soft delete, restore and permanent delete', async () => {
+            const { dashboard, spaceChartUuid } = await setUp();
+            const spaceOwner = {
+                owner: { type: 'space', spaceUuid: fixture.spaceUuid },
+            };
+
+            await dashboardModel.softDelete(dashboard.uuid, fixture.userUuid);
+            await expect(
+                composerChartModel.get(spaceChartUuid),
+            ).resolves.toMatchObject(spaceOwner);
+
+            await dashboardModel.restore(dashboard.uuid);
+            await dashboardModel.permanentDelete(dashboard.uuid);
+            await expect(
+                composerChartModel.get(spaceChartUuid),
+            ).resolves.toMatchObject(spaceOwner);
+        });
+    });
 });

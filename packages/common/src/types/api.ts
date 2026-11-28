@@ -97,6 +97,7 @@ import type {
     ApiLiveSourceAccessResponse,
     ApiLiveSourceContentUsageResponse,
     ApiLiveSourceFieldsResponse,
+    ApiLiveSourceRefreshResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
@@ -900,8 +901,6 @@ export type HealthState = {
     hasLinkedInAdsOAuth: boolean;
     hasSalesforceOAuth: boolean;
     hasGoogleLiveSources: boolean;
-    /** Whether the Hydra test integration is registered on this server. */
-    hasHydraLiveSource: boolean;
     hasHeadlessBrowser: boolean;
     hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;
@@ -1755,6 +1754,7 @@ type ApiResults =
     | ApiExternalConnectionAsCodeUpsertResponse['results']
     | ApiLiveSourceContentUsageResponse['results']
     | ApiLiveSourceFieldsResponse['results']
+    | ApiLiveSourceRefreshResponse['results']
     | ApiLiveSourceAccessResponse['results']
     | ApiExplorePrefixCheckResponse['results']
     | ApiReattachableLiveSourcesResponse['results']

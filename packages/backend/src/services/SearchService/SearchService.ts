@@ -17,6 +17,8 @@ import {
     SpaceSearchResult,
     TableErrorSearchResult,
     TableSearchResult,
+    type RegisteredAccount,
+    type UUID,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession } from '../../auth/account';
@@ -184,8 +186,7 @@ export class SearchService extends BaseService {
                       )
                 : Promise.resolve([]),
             this.findComposerCharts(
-                user,
-                organizationUuid,
+                fromSession(user),
                 projectUuid,
                 query,
                 verifiedOnly,
@@ -281,15 +282,17 @@ export class SearchService extends BaseService {
 
     /** Space-owned composer charts the user can view as charts in their space; none with the flag off or verified only. */
     private async findComposerCharts(
-        user: SessionUser,
-        organizationUuid: string,
-        projectUuid: string,
+        account: RegisteredAccount,
+        projectUuid: UUID,
         query: string,
         verifiedOnly: boolean,
     ): Promise<ComposerChartSearchResult[]> {
         if (verifiedOnly) return [];
         const { enabled } = await this.featureFlagModel.get({
-            user: { userUuid: user.userUuid, organizationUuid },
+            user: {
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid,
+            },
             featureFlagId: FeatureFlags.ComposerCharts,
         });
         if (!enabled) return [];
@@ -301,7 +304,7 @@ export class SearchService extends BaseService {
         );
         if (composerCharts.length === 0) return [];
         const resolved = await this.spacePermissionService.resolveAccessBatch(
-            user.userUuid,
+            account.user.userUuid,
             composerCharts.map(({ spaceUuid }) => ({
                 type: 'space' as const,
                 spaceUuid,
@@ -311,7 +314,7 @@ export class SearchService extends BaseService {
             const context = resolved[index]?.context;
             return context ? [{ composerChart, context }] : [];
         });
-        const allowed = this.createAuditedAbility(user).canBulk(
+        const allowed = this.createAuditedAbility(account).canBulk(
             'view',
             withContext.map(({ composerChart, context }) =>
                 subject('SavedChart', {

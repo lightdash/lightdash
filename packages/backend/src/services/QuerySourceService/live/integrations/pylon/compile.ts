@@ -10,15 +10,13 @@ import {
 } from '@lightdash/common';
 import {
     getApiName,
+    getLiveDateRange,
     getLiveDefinitionName,
     getLiveExplore,
-    type LiveCompiledRequest,
-} from '../../explores/definition';
-import {
-    getLiveDateRange,
     splitDateRangeFilter,
     toAbsoluteDateRange,
-} from '../../query/dateRange';
+    type LiveCompiledRequest,
+} from '../../sdk';
 import {
     type PylonFilter,
     type PylonFilterLeaf,

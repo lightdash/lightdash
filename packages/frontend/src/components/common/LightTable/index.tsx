@@ -31,6 +31,7 @@ import {
 import { useScroll } from 'react-use';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { TABLE_LINE_HEIGHT_PX } from '../PivotTable/getRowSpanMerges';
+import { setTitleWhenTextIsCut } from '../Table/clampedValueTitle';
 import {
     useMountedCellSelection,
     useRegisterMountedCell,
@@ -569,8 +570,19 @@ const BaseCell = (
                                         ? `${TABLE_LINE_HEIGHT_PX}px`
                                         : undefined
                                 }
-                                // The full value, unless a tooltip shows on the cell.
-                                title={withTooltip ? undefined : withValue}
+                                // The full value when the clamp cuts the text,
+                                // unless a tooltip shows on the cell.
+                                onMouseEnter={
+                                    withTooltip || withValue === undefined
+                                        ? undefined
+                                        : (
+                                              event: React.MouseEvent<HTMLElement>,
+                                          ) =>
+                                              setTitleWhenTextIsCut(
+                                                  event.currentTarget,
+                                                  withValue,
+                                              )
+                                }
                                 __vars={{
                                     '--lt-line-clamp': String(withLineClamp),
                                 }}
