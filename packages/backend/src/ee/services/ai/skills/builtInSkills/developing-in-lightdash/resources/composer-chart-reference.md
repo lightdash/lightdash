@@ -1,11 +1,11 @@
 ---
 name: composer-chart-reference
-description: Creating, reading, testing and editing a composer chart (a dashboard chart drawn from a pipeline of queries), and the SQL approval step for its warehouse SQL nodes.
+description: Creating, reading, testing and editing a composer chart (a chart drawn from a pipeline of queries, saved in a space or on a dashboard), and the SQL approval step for its warehouse SQL nodes.
 ---
 
 # Composer Chart Reference
 
-A composer chart is a dashboard chart whose definition is a pipeline of queries (nodes) plus a chart. A dashboard shows it in a `composer_chart` tile that names it by `chartSlug`. It belongs to that dashboard. You can create, read, run and edit one.
+A composer chart is a chart whose definition is a pipeline of queries (nodes) plus a chart. A space or a dashboard owns it. A space's composer chart opens on its own page, as a chart in a space does. A dashboard's composer chart shows in a `composer_chart` tile that names it by `chartSlug`. You can create, read, run and edit one.
 
 ## Always state the type
 
@@ -18,7 +18,7 @@ A new chart is a chart from explore fields by default. Pick its type with these 
 - The user asked for a composer chart: create it.
 - The node to chart reads other nodes (a merge, a duckdb or python node): create a composer chart. Judge that node and the nodes it reads, not every node of the `query` call.
 - A lone semanticLayer node is saved as a chart that keeps its fields, filters, sorts, custom metrics, period comparisons (`period-over-period-reference`) and parameters; a lone `sql` node follows `sql-chart-reference`.
-- Where the `query` tool is available, one explore cannot produce the dashboard chart but a `query` pipeline over explores can (a merge across explores, a duckdb or python step): build it with `query` and save it as a composer chart. A chart saved outside a dashboard follows `sql-chart-reference`.
+- Where the `query` tool is available, one explore cannot produce the chart but a `query` pipeline over explores can (a merge across explores, a duckdb or python step): build it with `query` and save it as a composer chart.
 
 When you save a composer chart, tell the user it is a composer chart built from that pipeline. Do not claim a normal chart could not show the result.
 
@@ -26,12 +26,12 @@ A pipeline with an `external` node cannot be saved. Composer charts already on a
 
 ## Create
 
-Create one only when the user wants the chart on a dashboard. It needs an existing dashboard (`dashboardSlug`) and gets a tile at the bottom of the dashboard's first tab. Pass the content in one of two shapes:
+Save it into a space, as a chart is saved: `spaceSlug` names a space whose `canEdit` is true, and `dashboardSlug` is null. Save it onto a dashboard only when the user names that dashboard or the conversation is bound to one: `dashboardSlug` names the existing dashboard, and the chart gets a tile at the bottom of the dashboard's first tab. In a conversation bound to a dashboard, only that dashboard can be named. Pass the content in one of two shapes:
 
-- **From a query node** (usual): `{ from: "node", nodeId, sessionId, dashboardSlug, name, description, vizConfig }`. `nodeId` names a node from a successful `query` call; the chart saves it and every node it reads. `vizConfig` references that node's result columns: pass the one the user saw with `visualize`, or over MCP the one you chose for the result. `sessionId` is the query result's session id over MCP, and null in an agent conversation. The node's SQL was approved when `query` ran it, so this asks no approval.
-- **From full JSON**: `{ from: "json", dashboardSlug, name, description, pipeline, chart }`, with `pipeline` and `chart` shaped as `readContent` returns them; a `slug` is not kept. Warehouse SQL in it needs approval, as for a SQL chart.
+- **From a query node** (usual): `{ from: "node", nodeId, sessionId, dashboardSlug, spaceSlug, name, description, vizConfig }`. `nodeId` names a node from a successful `query` call; the chart saves it and every node it reads. `vizConfig` references that node's result columns: pass the one the user saw with `visualize`, or over MCP the one you chose for the result. `sessionId` is the query result's session id over MCP, and null in an agent conversation. The node's SQL was approved when `query` ran it, so this asks no approval.
+- **From full JSON**: `{ from: "json", dashboardSlug, spaceSlug, name, description, pipeline, chart }`, with `pipeline` and `chart` shaped as `readContent` returns them; a `slug` is not kept. Warehouse SQL in it needs approval, as for a SQL chart.
 
-Done when the result links the dashboard and `runContentQuery` on the new chart returns the rows the user saw.
+Done when the result links the chart's page (the dashboard, for a dashboard's chart) and `runContentQuery` on the new chart returns the rows the user saw.
 
 ## Read, test, edit
 

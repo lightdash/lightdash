@@ -1020,7 +1020,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Create a dashboard, chart, SQL chart or composer chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in findContent or listContent results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. A composer chart (type composer_chart) is saved onto an existing dashboard, from a query node (from: "node") or from full pipeline and chart JSON (from: "json"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.",
+    "description": "Create a dashboard, chart, SQL chart or composer chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in findContent or listContent results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. A composer chart (type composer_chart) is saved into a space (spaceSlug, with dashboardSlug null) or onto an existing dashboard (dashboardSlug), from a query node (from: "node") or from full pipeline and chart JSON (from: "json"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -1271,9 +1271,12 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
               "description": "Composer chart built from a query node.",
               "properties": {
                 "dashboardSlug": {
-                  "description": "The existing dashboard the chart belongs to.",
+                  "description": "The existing dashboard the chart belongs to, which gets a tile for it; null saves the chart into spaceSlug.",
                   "minLength": 1,
-                  "type": "string",
+                  "type": [
+                    "string",
+                    "null",
+                  ],
                 },
                 "description": {
                   "type": [
@@ -1295,6 +1298,14 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 },
                 "sessionId": {
                   "description": "The query result's sessionId; null in an agent conversation.",
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "spaceSlug": {
+                  "description": "The space a chart saved with a null dashboardSlug belongs to. Ignored when dashboardSlug is set.",
+                  "minLength": 1,
                   "type": [
                     "string",
                     "null",
@@ -1546,9 +1557,12 @@ A custom chart type is chosen the same way: by its own description first, then a
                   "type": "object",
                 },
                 "dashboardSlug": {
-                  "description": "The existing dashboard the chart belongs to.",
+                  "description": "The existing dashboard the chart belongs to, which gets a tile for it; null saves the chart into spaceSlug.",
                   "minLength": 1,
-                  "type": "string",
+                  "type": [
+                    "string",
+                    "null",
+                  ],
                 },
                 "description": {
                   "type": [
@@ -1567,6 +1581,14 @@ A custom chart type is chosen the same way: by its own description first, then a
                 "pipeline": {
                   "additionalProperties": {},
                   "type": "object",
+                },
+                "spaceSlug": {
+                  "description": "The space a chart saved with a null dashboardSlug belongs to. Ignored when dashboardSlug is set.",
+                  "minLength": 1,
+                  "type": [
+                    "string",
+                    "null",
+                  ],
                 },
               },
               "required": [
@@ -25241,7 +25263,7 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 
 ## Content tools
 
-- Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project, and composer charts on dashboards. Answers and ad hoc charts come from runQuery and generateVisualization.
+- Use the content tools when the user's intent is to create or edit saved content: charts, dashboards, SQL charts and composer charts kept in the project. Answers and ad hoc charts come from runQuery and generateVisualization.
 - For chart and dashboard JSON, follow the developing-in-lightdash skill: it holds their shapes and the chart-type references.
 - Before creating a SQL chart, read sql-chart-reference in the developing-in-lightdash skill: it says when to create one.
 - Before creating a composer chart, read composer-chart-reference in the developing-in-lightdash skill: it says when to create one.

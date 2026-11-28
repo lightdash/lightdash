@@ -5986,7 +5986,9 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             expect(preflightCreate).toHaveBeenCalledWith(
                 expect.anything(),
                 expect.anything(),
-                expect.objectContaining({ dashboardUuid: 'sales-uuid' }),
+                expect.objectContaining({
+                    owner: { type: 'dashboard', dashboardUuid: 'sales-uuid' },
+                }),
             );
             expect(create).not.toHaveBeenCalled();
             getDashboard.mockResolvedValue({
@@ -6070,6 +6072,209 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             }),
         ).rejects.toThrow(/belongs to another user or project/);
         expect(listComposerQueryNodes).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentToolsService createContent composer_chart in a space', () => {
+    const rawNode = {
+        sourceType: 'sql',
+        nodeId: 'raw',
+        title: 'Orders',
+        sql: 'select status, amount from orders',
+        limit: 500,
+    };
+    const fromNode = {
+        from: 'node' as const,
+        dashboardSlug: null,
+        spaceSlug: 'jaffle',
+        name: 'Orders',
+        description: null,
+        nodeId: 'raw',
+        sessionId: null,
+        vizConfig: {
+            type: 'bar' as const,
+            x: 'status',
+            y: ['amount'],
+            groupBy: null,
+            stack: null,
+            horizontal: null,
+            y2: null,
+            labels: null,
+        },
+    };
+    const fromJson = {
+        from: 'json' as const,
+        dashboardSlug: null,
+        spaceSlug: 'jaffle',
+        name: 'Orders',
+        description: null,
+        pipeline: { schemaVersion: 1, terminalNodeId: 'raw', nodes: [rawNode] },
+        chart: { chartConfig: { type: 'table' } },
+    };
+
+    const makeSpaceCreateService = ({
+        threadBinding = null,
+        spaceAccess = null,
+        spaces = [{ uuid: 'jaffle-uuid', path: 'jaffle' }],
+    }: {
+        threadBinding?: AiAgentToolsRuntimeContext['threadBinding'];
+        spaceAccess?: string[] | null;
+        spaces?: { uuid: string; path: string }[];
+    } = {}) => {
+        const create = vi.fn().mockResolvedValue({
+            uuid: 'composer-chart-uuid',
+            slug: 'orders',
+            name: 'Orders',
+        });
+        const preflightCreate = vi.fn().mockResolvedValue(undefined);
+        const dashboardService = {
+            getByIdOrSlug: vi.fn(),
+            update: vi.fn(),
+        };
+        const service = makeService({
+            dashboardService,
+            dashboardModel: {
+                getByIdOrSlug: vi.fn().mockResolvedValue({
+                    uuid: 'bound-uuid',
+                    slug: 'ops',
+                }),
+            },
+            spaceModel: {
+                hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(true),
+                find: vi.fn(async ({ path }: { path: string }) =>
+                    spaces.filter((space) => space.path === path),
+                ),
+            },
+            coderService: {
+                toStoredComposerChart: vi.fn(async (_project, chart) => chart),
+                getComposerChartForRead: vi.fn(async () => ({
+                    composerChart: {
+                        slug: 'orders',
+                        dashboardSlug: null,
+                        spaceSlug: 'jaffle',
+                    },
+                    spaceUuid: 'jaffle-uuid',
+                })),
+            },
+            composerChartService: {
+                isEnabled: vi.fn().mockResolvedValue(true),
+                preflightCreate,
+                create,
+            },
+            aiAgentModel: {
+                listComposerQueryNodes: vi.fn().mockResolvedValue([rawNode]),
+                findComposerQueryNodeColumns: vi.fn().mockResolvedValue([
+                    { reference: 'status', type: 'string' },
+                    { reference: 'amount', type: 'number' },
+                ]),
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({
+                threadBinding,
+                spaceAccess,
+                threadUuid: 'thread-uuid',
+            }),
+        );
+        return { runtime, create, preflightCreate, dashboardService };
+    };
+
+    it('saves a query node into the named space with no dashboard tile, linking the chart page', async () => {
+        const { runtime, create, dashboardService } = makeSpaceCreateService();
+
+        const created = await runtime.createContent({
+            type: 'composer_chart',
+            content: fromNode,
+            approveSql: vi.fn(),
+        });
+
+        const [, , saved] = create.mock.calls[0];
+        expect(saved).toMatchObject({
+            dashboardUuid: null,
+            spaceUuid: 'jaffle-uuid',
+            name: 'Orders',
+        });
+        expect(dashboardService.getByIdOrSlug).not.toHaveBeenCalled();
+        expect(dashboardService.update).not.toHaveBeenCalled();
+        expect(created.href).toBe(
+            `/projects/${projectUuid}/composer-charts/composer-chart-uuid`,
+        );
+    });
+
+    it('checks the space owner before asking approval of full JSON warehouse SQL', async () => {
+        const { runtime, create, preflightCreate } = makeSpaceCreateService();
+        const approveSql = vi.fn(async () => {
+            expect(preflightCreate).toHaveBeenCalledWith(
+                expect.anything(),
+                projectUuid,
+                expect.objectContaining({
+                    owner: { type: 'space', spaceUuid: 'jaffle-uuid' },
+                }),
+            );
+            expect(create).not.toHaveBeenCalled();
+        });
+
+        await runtime.createContent({
+            type: 'composer_chart',
+            content: fromJson,
+            approveSql,
+        });
+
+        expect(approveSql).toHaveBeenCalled();
+        expect(create).toHaveBeenCalled();
+    });
+
+    it('refuses a null dashboard with no space, as a cached MCP tool list sends it', async () => {
+        const { runtime, create } = makeSpaceCreateService();
+        const { spaceSlug: _, ...withoutSpace } = fromNode;
+
+        await expect(
+            runtime.createContent({
+                type: 'composer_chart',
+                content: withoutSpace,
+                approveSql: vi.fn(),
+            }),
+        ).rejects.toThrow(/spaceSlug/);
+        expect(create).not.toHaveBeenCalled();
+    });
+
+    it('refuses a space that does not exist or is outside the agent spaces', async () => {
+        const missing = makeSpaceCreateService({ spaces: [] });
+        await expect(
+            missing.runtime.createContent({
+                type: 'composer_chart',
+                content: fromNode,
+                approveSql: vi.fn(),
+            }),
+        ).rejects.toThrow(NotFoundError);
+        expect(missing.create).not.toHaveBeenCalled();
+
+        const outside = makeSpaceCreateService({
+            spaceAccess: ['other-space-uuid'],
+        });
+        await expect(
+            outside.runtime.createContent({
+                type: 'composer_chart',
+                content: fromNode,
+                approveSql: vi.fn(),
+            }),
+        ).rejects.toThrow(NotFoundError);
+        expect(outside.create).not.toHaveBeenCalled();
+    });
+
+    it('refuses a space chart in a thread bound to a dashboard', async () => {
+        const { runtime, create } = makeSpaceCreateService({
+            threadBinding: { type: 'dashboard', dashboardUuid: 'bound-uuid' },
+        });
+
+        await expect(
+            runtime.createContent({
+                type: 'composer_chart',
+                content: fromNode,
+                approveSql: vi.fn(),
+            }),
+        ).rejects.toThrow(ParameterError);
         expect(create).not.toHaveBeenCalled();
     });
 });

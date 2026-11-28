@@ -479,16 +479,13 @@ export class ComposerChartService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         data: Pick<CreateComposerChart, 'pipeline' | 'chart'> & {
-            dashboardUuid: UUID;
+            owner: ComposerChartOwner;
         },
     ): Promise<void> {
         await this.authorizeWrite(
             account,
             projectUuid,
-            {
-                owner: { type: 'dashboard', dashboardUuid: data.dashboardUuid },
-                composerChartUuid: null,
-            },
+            { owner: data.owner, composerChartUuid: null },
             data,
         );
     }

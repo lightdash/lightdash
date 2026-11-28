@@ -239,7 +239,7 @@ For period comparisons, read `period-over-period-reference` in addition to the c
 - `custom-viz-reference` - Vega-Lite
 - `period-over-period-reference` - PoP comparisons
 - `sql-chart-reference` - Charts saved from raw warehouse SQL, their approval step, and dashboards built from them
-- `composer-chart-reference` - Dashboard charts drawn from a pipeline of queries: creating, reading, testing and editing them
+- `composer-chart-reference` - Charts drawn from a pipeline of queries, in a space or on a dashboard: creating, reading, testing and editing them
 - `field-formatting-reference` - Chart-level field formatting overrides for metrics and dimensions
 
 ### Dashboards

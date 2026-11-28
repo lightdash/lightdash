@@ -2069,6 +2069,102 @@ describe('Composer charts', () => {
             }
         });
 
+        describe('agent and MCP create into a space', () => {
+            it('saves a composer chart into a space through MCP create_content and links its page, refusing a viewer of the space and a null dashboard with no space', async () => {
+                const privateSpace = await createSpace(false);
+                const shareUrl = `/api/v1/projects/${projectUuid}/spaces/${privateSpace.uuid}/share`;
+                expect(
+                    (
+                        await admin.post(shareUrl, {
+                            userUuid: SEED_ORG_1_EDITOR.user_uuid,
+                            spaceRole: 'viewer',
+                        })
+                    ).status,
+                ).toBe(200);
+                const editorMcp = await openMcpSession(await loginAsEditor());
+                const adminMcp = await openMcpSession(admin);
+                const { pipeline, chart } = composerSpaceChartBody(
+                    privateSpace.uuid,
+                );
+                const name = uniqueName('MCP space chart');
+                const create = (
+                    callTool: typeof adminMcp,
+                    owner: Record<string, unknown>,
+                ) =>
+                    callTool('create_content', {
+                        projectUuid,
+                        type: 'composer_chart',
+                        content: {
+                            from: 'json',
+                            name,
+                            description: null,
+                            pipeline,
+                            chart,
+                            ...owner,
+                        },
+                    });
+                const spaceSlug = getContentAsCodePathFromLtreePath(
+                    privateSpace.path,
+                );
+                const listed = async () =>
+                    (
+                        await admin.get<Body<{ data: SummaryContent[] }>>(
+                            `/api/v2/content?projectUuids=${projectUuid}&spaceUuids=${privateSpace.uuid}&contentTypes=${ContentType.COMPOSER_CHART}`,
+                        )
+                    ).body.results.data.map((item) => item.name);
+                try {
+                    const refused = await create(editorMcp, {
+                        dashboardSlug: null,
+                        spaceSlug,
+                    });
+                    expect(mcpText(refused)).toContain(
+                        "You don't have permission to save composer charts here",
+                    );
+                    // A client with a cached tool list sends no spaceSlug
+                    const noSpace = await create(adminMcp, {
+                        dashboardSlug: null,
+                    });
+                    expect(mcpText(noSpace)).toContain('needs a spaceSlug');
+                    expect(await listed()).not.toContain(name);
+
+                    const created = await create(adminMcp, {
+                        dashboardSlug: null,
+                        spaceSlug,
+                    });
+                    const uuid = mcpText(created).match(
+                        /\/composer-charts\/([0-9a-f-]{36})/,
+                    )?.[1];
+                    expect(uuid).toBeDefined();
+                    const stored = (
+                        await admin.get<Body<ComposerChart>>(
+                            `${chartsUrl}/${uuid}`,
+                        )
+                    ).body.results;
+                    expect(stored).toMatchObject({
+                        name,
+                        owner: { type: 'space', spaceUuid: privateSpace.uuid },
+                        pipeline,
+                    });
+                    expect(await listed()).toContain(name);
+                } finally {
+                    for (const { client, uuid } of personalAccessTokens.splice(
+                        0,
+                    )) {
+                        await client.delete(
+                            `/api/v1/user/me/personal-access-tokens/${uuid}`,
+                        );
+                    }
+                    expect(
+                        (
+                            await admin.delete(
+                                `${shareUrl}/${SEED_ORG_1_EDITOR.user_uuid}`,
+                            )
+                        ).status,
+                    ).toBe(200);
+                }
+            });
+        });
+
         it('creates a chart the space owns, which a viewer of the space reads and no one from another organization', async () => {
             const { space, chart } = await createSpaceChart();
             expect(chart).toMatchObject({
