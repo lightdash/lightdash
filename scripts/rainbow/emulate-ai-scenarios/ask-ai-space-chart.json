@@ -12,7 +12,7 @@
     "prompt": "Summarise this chart.",
     "expect": [
       "the thread opens with the chart pinned in its context",
-      "the model request (emulator _ai/calls) carries the pinned chart's uuid",
+      "the first model request (emulator _ai/calls) carries the pinned chart's name and slug",
       "readContent succeeds and the answer chip opens the same chart"
     ],
     "readBack": [

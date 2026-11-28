@@ -72,6 +72,33 @@
       ]
     },
     {
+      "id": "visualize",
+      "match": {
+        "format": "openai-responses",
+        "stream": true,
+        "tool": "visualize"
+      },
+      "times": 1,
+      "reply": [
+        {
+          "type": "tool_call",
+          "name": "visualize",
+          "arguments": {
+            "nodeId": "payments_by_method",
+            "title": "Payments of at least 20 by method",
+            "description": null,
+            "vizConfig": {
+              "type": "bar",
+              "x": "payment_method",
+              "y": [
+                "total_amount"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "answer",
       "match": {
         "format": "openai-responses",

@@ -200,6 +200,15 @@ def ensure_agent():
     return app("POST", f"/api/v1/projects/{PROJECT}/aiAgents", body)["uuid"]
 
 
+def add_tiles(dashboard, charts):
+    tiles = [{
+        "type": "composer_chart", "x": 0, "y": 9 * i, "h": 9, "w": 12, "tabUuid": None,
+        "properties": {"title": None, "composerChartUuid": chart, "chartName": None},
+    } for i, chart in enumerate(charts)]
+    app("PATCH", f"/api/v1/dashboards/{dashboard['uuid']}",
+        {"tiles": tiles, "filters": dashboard["filters"], "tabs": dashboard["tabs"]})
+
+
 def build_fixtures():
     remove_fixtures()
     ids = {"project": PROJECT, "agent": ensure_agent()}
@@ -219,6 +228,12 @@ def build_fixtures():
         {"spaceUuid": private["uuid"]}, "Emulator private payments")["uuid"]
     ids["view_only_chart"] = composer(
         {"spaceUuid": view_only["uuid"]}, "Emulator view only payments")["uuid"]
+    view_only_dashboard = app("POST", f"/api/v1/projects/{PROJECT}/dashboards", {
+        "name": "Emulator view only dashboard", "tiles": [], "tabs": [],
+        "spaceUuid": view_only["uuid"]})
+    ids["view_only_dashboard_chart"] = composer(
+        {"dashboardUuid": view_only_dashboard["uuid"]},
+        "Emulator view only dashboard payments")["uuid"]
 
     dashboard = app("POST", f"/api/v1/projects/{PROJECT}/dashboards",
                     {"name": DASHBOARD, "tiles": [], "tabs": [], "spaceUuid": space["uuid"]})
@@ -236,14 +251,8 @@ def build_fixtures():
         "'{chartConfig,config,eChartsConfig,series,0,type}', '\"not_a_series\"') "
         f"where composer_chart_uuid = '{ids['bad_series_chart']}'"
     )
-    tile = lambda chart, y: {  # noqa: E731
-        "type": "composer_chart", "x": 0, "y": y, "h": 9, "w": 12, "tabUuid": None,
-        "properties": {"title": None, "composerChartUuid": chart, "chartName": None},
-    }
-    app("PATCH", f"/api/v1/dashboards/{dashboard['uuid']}", {
-        "tiles": [tile(ids["dashboard_chart"], 0), tile(ids["bad_series_chart"], 9)],
-        "filters": dashboard["filters"], "tabs": dashboard["tabs"],
-    })
+    add_tiles(dashboard, [ids["dashboard_chart"], ids["bad_series_chart"]])
+    add_tiles(view_only_dashboard, [ids["view_only_dashboard_chart"]])
 
     source = app("GET", f"/api/v1/saved/{CLASSIC_SOURCE}")
     classic = {k: source[k] for k in (
