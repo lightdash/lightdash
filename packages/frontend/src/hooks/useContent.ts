@@ -6,7 +6,6 @@ import {
     type ApiContentResponse,
     type ApiError,
     type ApiSuccessEmpty,
-    type ContentAction,
     type ContentSortByColumns,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -170,16 +169,15 @@ export const invalidateContent = async (
 };
 
 /** Only after composer actions: a deleted dashboard's open tiles would refetch into a 404. */
-const invalidateComposerCharts = async (
+export const invalidateComposerCharts = async (
     queryClient: QueryClient,
     projectUuid: string,
     items: { contentType: ContentType }[],
-    actionType: ContentAction['type'],
+    { refetch }: { refetch: boolean },
 ) => {
     if (items.some((i) => i.contentType === ContentType.COMPOSER_CHART)) {
-        // A deleted chart's open page would refetch into a 404 before it navigates away
         await queryClient.invalidateQueries(['composerChart', projectUuid], {
-            refetchType: actionType === 'delete' ? 'none' : 'active',
+            refetchType: refetch ? 'active' : 'none',
         });
     }
 };
@@ -221,7 +219,8 @@ export const useContentAction = (
                 queryClient,
                 projectUuid,
                 [variables.item],
-                variables.action.type,
+                // A deleted chart's open page would refetch into a 404 before it navigates away
+                { refetch: variables.action.type !== 'delete' },
             );
 
             options?.onSuccess?.(data, variables, context);
@@ -252,19 +251,16 @@ export const useContentAction = (
                         title: `Successfully deleted ${contentTypeLabel(
                             item.contentType,
                         )}.`,
-                        // Composer charts are not listed in Recently deleted yet
-                        action:
-                            isSoftDeleteEnabled &&
-                            item.contentType !== ContentType.COMPOSER_CHART
-                                ? {
-                                      children: 'Go to recently deleted',
-                                      icon: IconArrowRight,
-                                      onClick: () =>
-                                          navigate(
-                                              `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
-                                          ),
-                                  }
-                                : undefined,
+                        action: isSoftDeleteEnabled
+                            ? {
+                                  children: 'Go to recently deleted',
+                                  icon: IconArrowRight,
+                                  onClick: () =>
+                                      navigate(
+                                          `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                      ),
+                              }
+                            : undefined,
                     });
 
                 default:
@@ -320,7 +316,7 @@ export const useContentBulkAction = (
                 queryClient,
                 projectUuid,
                 variables.content,
-                variables.action.type,
+                { refetch: variables.action.type !== 'delete' },
             );
 
             options?.onSuccess?.(data, variables, context);

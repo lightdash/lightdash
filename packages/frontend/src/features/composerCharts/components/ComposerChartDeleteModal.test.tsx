@@ -50,7 +50,12 @@ describe('ComposerChartDeleteModal', () => {
         renderModal(true);
         expect(
             await screen.findByText(
-                'Tiles on 1 dashboard will show the chart as deleted:',
+                'This chart will be moved to Recently deleted and permanently removed after 30 days.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Tiles on 1 dashboard will show the chart as deleted. The chart can be restored from Recently deleted.',
             ),
         ).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Sales' })).toHaveAttribute(
