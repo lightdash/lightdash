@@ -2237,6 +2237,22 @@ describe('Composer charts', () => {
             }
         });
 
+        it("never gives a chart another chart's uuid as its slug", async () => {
+            const { space, chart: first } = await createSpaceChart();
+            const created = await postChart({
+                ...composerSpaceChartBody(space.uuid),
+                name: first.uuid,
+            });
+            expect(created.status).toBe(201);
+            const second = created.body.results;
+            expect(second.slug).not.toBe(first.uuid);
+
+            const bySlug = await admin.get<Body<ComposerChartWithDetails>>(
+                `${chartsUrl}/${second.slug}`,
+            );
+            expect(bySlug.body.results.uuid).toBe(second.uuid);
+        });
+
         it("lists the parameters its nodes reference for the page's parameter bar", async () => {
             const { chart } = await createSpaceChart({
                 pipeline: {

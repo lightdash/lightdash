@@ -5,6 +5,7 @@ import {
     truncateSlug,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { validate as isValidUuid } from 'uuid';
 import { AppsTableName } from '../database/entities/apps';
 import { AppSlugMappingsTableName } from '../database/entities/appSlugMappings';
 import { ComposerChartsTableName } from '../database/entities/composerCharts';
@@ -194,6 +195,20 @@ export async function generateUniqueSlugScopedToProject(
                 .where(`${mappingsTable}.slug`, candidate)
                 .first();
             isReserved = historical !== undefined;
+        }
+
+        // Page links resolve a uuid-shaped id as a uuid first, so a slug must not be another chart's uuid
+        if (
+            !isReserved &&
+            tableName === ComposerChartsTableName &&
+            isValidUuid(candidate)
+        ) {
+            // eslint-disable-next-line no-await-in-loop
+            const chartWithUuid = await trx(ComposerChartsTableName)
+                .select('composer_chart_uuid')
+                .where('composer_chart_uuid', candidate)
+                .first();
+            isReserved = chartWithUuid !== undefined;
         }
 
         if (!isReserved) return candidate;
