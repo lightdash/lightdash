@@ -1,6 +1,7 @@
 import {
     ApiConnectorType,
     ATTIO_OBJECTS,
+    ATTIO_OBJECTS_PATH,
     DimensionType,
     FilterOperator,
     getAttioAttributesPath,
@@ -12,6 +13,7 @@ import {
     defineLiveModel,
     dimension,
     pickLiveFields,
+    toLiveModelName,
     withFieldsOffByDefault,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -58,185 +60,85 @@ export const ATTIO_CHOICE_FILTERS = [
 
 export const ATTIO_BOOLEAN_FILTERS = [FilterOperator.EQUALS];
 
-export const ATTIO_COMPANIES_EXPLORE: LiveExploreDefinition = {
+const ATTIO_RECORDS_HINT = `Read live, one row per record; a query lists at most ${ATTIO_MAX_RECORDS.toLocaleString('en-US')} records. There is no Count metric: count or sum by aggregating rows in the query. Multi-select attributes join several values with commas. Owner name fields are empty when the access token lacks the user_management:read scope.`;
+
+/** An explore of one Attio object's records, with the fields every record has. */
+const toAttioRecordsExplore = ({
+    name,
+    label,
+    description,
+}: Pick<
+    LiveExploreDefinition,
+    'name' | 'label' | 'description'
+>): LiveExploreDefinition => ({
+    name,
+    label,
+    description,
+    aiHint: ATTIO_RECORDS_HINT,
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
+    dimensions: [
+        dimension({
+            name: 'record_id',
+            label: 'Record ID',
+            type: DimensionType.STRING,
+            filterOperators: ATTIO_CHOICE_FILTERS,
+            description: "Attio's ID for the record.",
+        }),
+        dimension({
+            name: 'web_url',
+            label: 'URL',
+            type: DimensionType.STRING,
+            filterOperators: [],
+            description: 'Link to open the record in Attio.',
+        }),
+        dimension({
+            name: 'created_at',
+            label: 'Created',
+            type: DimensionType.DATE,
+            filterOperators: ATTIO_DATE_FILTERS,
+            description: 'Day the record was created, in UTC.',
+        }),
+    ],
+    metrics: [],
+});
+
+export const ATTIO_COMPANIES_EXPLORE = toAttioRecordsExplore({
     name: 'companies',
     label: 'Companies',
     description:
         'Company records in Attio, one row per company, with their attributes.',
-    aiHint: `Read live, one row per record; a query lists at most ${ATTIO_MAX_RECORDS.toLocaleString('en-US')} records. There is no Count metric: count or sum by aggregating rows in the query. Multi-select attributes join several values with commas. Owner name fields are empty when the access token lacks the user_management:read scope.`,
-    maxDimensions: null,
-    maxMetrics: null,
-    dateRange: null,
-    incompatible: [],
-    dimensions: [
-        dimension({
-            name: 'record_id',
-            label: 'Record ID',
-            type: DimensionType.STRING,
-            filterOperators: ATTIO_CHOICE_FILTERS,
-            description: "Attio's ID for the record.",
-        }),
-        dimension({
-            name: 'web_url',
-            label: 'URL',
-            type: DimensionType.STRING,
-            filterOperators: [],
-            description: 'Link to open the record in Attio.',
-        }),
-        dimension({
-            name: 'created_at',
-            label: 'Created',
-            type: DimensionType.DATE,
-            filterOperators: ATTIO_DATE_FILTERS,
-            description: 'Day the record was created, in UTC.',
-        }),
-    ],
-    metrics: [],
-};
+});
 
-export const ATTIO_PEOPLE_EXPLORE: LiveExploreDefinition = {
+export const ATTIO_PEOPLE_EXPLORE = toAttioRecordsExplore({
     name: 'people',
     label: 'People',
     description:
         'People records in Attio, one row per person, with their attributes.',
-    aiHint: `Read live, one row per record; a query lists at most ${ATTIO_MAX_RECORDS.toLocaleString('en-US')} records. There is no Count metric: count or sum by aggregating rows in the query. Multi-select attributes join several values with commas. Owner name fields are empty when the access token lacks the user_management:read scope.`,
-    maxDimensions: null,
-    maxMetrics: null,
-    dateRange: null,
-    incompatible: [],
-    dimensions: [
-        dimension({
-            name: 'record_id',
-            label: 'Record ID',
-            type: DimensionType.STRING,
-            filterOperators: ATTIO_CHOICE_FILTERS,
-            description: "Attio's ID for the record.",
-        }),
-        dimension({
-            name: 'web_url',
-            label: 'URL',
-            type: DimensionType.STRING,
-            filterOperators: [],
-            description: 'Link to open the record in Attio.',
-        }),
-        dimension({
-            name: 'created_at',
-            label: 'Created',
-            type: DimensionType.DATE,
-            filterOperators: ATTIO_DATE_FILTERS,
-            description: 'Day the record was created, in UTC.',
-        }),
-    ],
-    metrics: [],
-};
+});
 
-export const ATTIO_DEALS_EXPLORE: LiveExploreDefinition = {
+export const ATTIO_DEALS_EXPLORE = toAttioRecordsExplore({
     name: 'deals',
     label: 'Deals',
     description:
         'Deal records in Attio, one row per deal, with their attributes.',
-    aiHint: `Read live, one row per record; a query lists at most ${ATTIO_MAX_RECORDS.toLocaleString('en-US')} records. There is no Count metric: count or sum by aggregating rows in the query. Multi-select attributes join several values with commas. Owner name fields are empty when the access token lacks the user_management:read scope.`,
-    maxDimensions: null,
-    maxMetrics: null,
-    dateRange: null,
-    incompatible: [],
-    dimensions: [
-        dimension({
-            name: 'record_id',
-            label: 'Record ID',
-            type: DimensionType.STRING,
-            filterOperators: ATTIO_CHOICE_FILTERS,
-            description: "Attio's ID for the record.",
-        }),
-        dimension({
-            name: 'web_url',
-            label: 'URL',
-            type: DimensionType.STRING,
-            filterOperators: [],
-            description: 'Link to open the record in Attio.',
-        }),
-        dimension({
-            name: 'created_at',
-            label: 'Created',
-            type: DimensionType.DATE,
-            filterOperators: ATTIO_DATE_FILTERS,
-            description: 'Day the record was created, in UTC.',
-        }),
-    ],
-    metrics: [],
-};
+});
 
-export const ATTIO_USERS_EXPLORE: LiveExploreDefinition = {
+export const ATTIO_USERS_EXPLORE = toAttioRecordsExplore({
     name: 'users',
     label: 'Users',
     description:
         "User records in Attio (users of your product, from Attio's Users object), one row per user, with their attributes.",
-    aiHint: `Read live, one row per record; a query lists at most ${ATTIO_MAX_RECORDS.toLocaleString('en-US')} records. There is no Count metric: count or sum by aggregating rows in the query. Multi-select attributes join several values with commas. Owner name fields are empty when the access token lacks the user_management:read scope.`,
-    maxDimensions: null,
-    maxMetrics: null,
-    dateRange: null,
-    incompatible: [],
-    dimensions: [
-        dimension({
-            name: 'record_id',
-            label: 'Record ID',
-            type: DimensionType.STRING,
-            filterOperators: ATTIO_CHOICE_FILTERS,
-            description: "Attio's ID for the record.",
-        }),
-        dimension({
-            name: 'web_url',
-            label: 'URL',
-            type: DimensionType.STRING,
-            filterOperators: [],
-            description: 'Link to open the record in Attio.',
-        }),
-        dimension({
-            name: 'created_at',
-            label: 'Created',
-            type: DimensionType.DATE,
-            filterOperators: ATTIO_DATE_FILTERS,
-            description: 'Day the record was created, in UTC.',
-        }),
-    ],
-    metrics: [],
-};
+});
 
-export const ATTIO_WORKSPACES_EXPLORE: LiveExploreDefinition = {
+export const ATTIO_WORKSPACES_EXPLORE = toAttioRecordsExplore({
     name: 'workspaces',
     label: 'Workspaces',
     description:
         "Workspace records in Attio (your product's customer workspaces, from Attio's Workspaces object), one row per workspace, with their attributes.",
-    aiHint: `Read live, one row per record; a query lists at most ${ATTIO_MAX_RECORDS.toLocaleString('en-US')} records. There is no Count metric: count or sum by aggregating rows in the query. Multi-select attributes join several values with commas. Owner name fields are empty when the access token lacks the user_management:read scope.`,
-    maxDimensions: null,
-    maxMetrics: null,
-    dateRange: null,
-    incompatible: [],
-    dimensions: [
-        dimension({
-            name: 'record_id',
-            label: 'Record ID',
-            type: DimensionType.STRING,
-            filterOperators: ATTIO_CHOICE_FILTERS,
-            description: "Attio's ID for the record.",
-        }),
-        dimension({
-            name: 'web_url',
-            label: 'URL',
-            type: DimensionType.STRING,
-            filterOperators: [],
-            description: 'Link to open the record in Attio.',
-        }),
-        dimension({
-            name: 'created_at',
-            label: 'Created',
-            type: DimensionType.DATE,
-            filterOperators: ATTIO_DATE_FILTERS,
-            description: 'Day the record was created, in UTC.',
-        }),
-    ],
-    metrics: [],
-};
+});
 
 /** Companies first: an integration's first explore is its main one. */
 export const ATTIO_EXPLORES = [
@@ -440,6 +342,9 @@ const MAX_SCANNED_ATTRIBUTES = 300;
 // Slugs are lowercase snake case; anything else would break API names
 const ATTIO_SLUG = /^[a-z0-9_]+$/;
 
+/** An object's slug, as a records query names it. */
+export const ATTIO_OBJECT_SLUG = /^[a-z][a-z0-9_]*$/;
+
 const MULTISELECT_HINT =
     'Multi-select attribute: values are joined with commas.';
 
@@ -584,19 +489,88 @@ export const withAttioAttributeFields = <D extends LiveExploreDefinition>(
     };
 };
 
+const objectsSchema = z.object({
+    data: z.array(
+        z.object({
+            api_slug: z.string().nullable(),
+            singular_noun: z.string().nullable().optional(),
+            plural_noun: z.string().nullable().optional(),
+        }),
+    ),
+});
+
+/** A custom object of the workspace, as a Refresh stores it. */
+const customObjectSchema = z.object({
+    slug: z.string(),
+    label: z.string(),
+    singular: z.string(),
+});
+
+type AttioCustomObject = z.infer<typeof customObjectSchema>;
+
+/** Custom objects a Refresh reads, each one call for its attributes. */
+const MAX_CUSTOM_OBJECTS = 50;
+
+const isStandardObject = (slug: string) =>
+    ATTIO_OBJECTS.some((object) => object === slug);
+
 /**
- * Reads each object's attributes, which become its explore's fields. An
- * object the token can't read, or the workspace lacks, keeps its declared
- * fields; any other failed call, such as a throttled one, fails the scan so
- * the last good scan stays.
+ * The workspace's custom objects: every object that isn't a standard one.
+ * A token without object_configuration:read reads none, so the standard
+ * objects still build.
+ */
+const scanAttioCustomObjects = async (
+    runtime: LiveRuntime,
+): Promise<AttioCustomObject[]> => {
+    try {
+        const { data } = await runtime.fetch(
+            { method: 'GET', path: ATTIO_OBJECTS_PATH, body: undefined },
+            objectsSchema,
+        );
+        return data
+            .flatMap(
+                ({
+                    api_slug: slug,
+                    singular_noun: singular,
+                    plural_noun: plural,
+                }): AttioCustomObject[] =>
+                    slug &&
+                    ATTIO_OBJECT_SLUG.test(slug) &&
+                    !isStandardObject(slug)
+                        ? [
+                              {
+                                  slug,
+                                  label: plural?.trim() || slug,
+                                  singular: singular?.trim() || slug,
+                              },
+                          ]
+                        : [],
+            )
+            .slice(0, MAX_CUSTOM_OBJECTS);
+    } catch (error) {
+        if (error instanceof AttioObjectAccessError) {
+            return [];
+        }
+        throw error;
+    }
+};
+
+/**
+ * Reads the workspace's custom objects, then each object's attributes,
+ * which become its explore's fields. A standard object the token can't
+ * read, or the workspace lacks, keeps its declared fields, and such a
+ * custom object is left out; any other failed call, such as
+ * a throttled one, fails the scan so the last good scan stays.
  */
 export const scanAttioAttributes = async ({
     runtime,
 }: {
     runtime: LiveRuntime;
 }): Promise<unknown> => {
+    const customObjects = await scanAttioCustomObjects(runtime);
+    const slugs = [...ATTIO_OBJECTS, ...customObjects.map(({ slug }) => slug)];
     const results = await Promise.allSettled(
-        ATTIO_OBJECTS.map((object) =>
+        slugs.map((object) =>
             runtime.fetch(
                 {
                     method: 'GET',
@@ -616,27 +590,61 @@ export const scanAttioAttributes = async ({
     if (unexpected !== undefined) {
         throw unexpected;
     }
-    const read = ATTIO_OBJECTS.flatMap((object, index) => {
+    const read = slugs.flatMap((object, index) => {
         const result = results[index];
         return result.status === 'fulfilled' ? [[object, result.value]] : [];
     });
     if (read.length === 0) {
         throw failed[0];
     }
-    return { attributes: Object.fromEntries(read) };
+    const attributes = Object.fromEntries(read);
+    return {
+        attributes,
+        // A custom object whose attributes the token can't read is left out
+        customObjects: customObjects.filter(({ slug }) =>
+            Object.hasOwn(attributes, slug),
+        ),
+    };
+};
+
+/**
+ * One custom object's explore, keyed by its slug and named by the core: the
+ * fields every record has, then one per attribute. It starts off, and
+ * reference ids start hidden, as on the standard objects.
+ */
+export const toAttioCustomObjectExplore = (
+    object: AttioCustomObject,
+    attributes: unknown,
+): LiveExploreDefinition => {
+    const declared: LiveExploreDefinition = {
+        ...toAttioRecordsExplore({
+            name: toLiveModelName(object.slug),
+            label: object.label,
+            description: `${object.label} records in Attio (a custom object of the workspace), one row per ${object.singular.toLowerCase()}, with their attributes.`,
+        }),
+        apiName: object.slug,
+        onByDefault: false,
+    };
+    return withFieldsOffByDefault(
+        declared,
+        withAttioAttributeFields(declared, attributes),
+        isAttioSystemField,
+    );
 };
 
 export const attioModel: LiveModel<ApiConnectorType.ATTIO> = defineLiveModel({
     explores: ATTIO_EXPLORES,
-    // Every object's explore gets the attributes the workspace has
+    // Every object's explore gets the attributes the workspace has, and
+    // each custom object adds an explore
     scan: scanAttioAttributes,
     metadata: z.object({
         attributes: z.record(
             z.string(),
             attributesSchema.optional().catch(undefined),
         ),
+        customObjects: z.array(customObjectSchema).optional().catch(undefined),
     }),
-    extend: ({ attributes }) => ({
+    extend: ({ attributes, customObjects = [] }) => ({
         fields: Object.fromEntries(
             ATTIO_EXPLORES.map((definition) => [
                 definition.name,
@@ -654,6 +662,15 @@ export const attioModel: LiveModel<ApiConnectorType.ATTIO> = defineLiveModel({
                     ),
                 ),
             ]),
+        ),
+        // Each custom object is an explore of its own, off until turned on
+        explores: customObjects.map((object) =>
+            toAttioCustomObjectExplore(
+                object,
+                Object.hasOwn(attributes, object.slug)
+                    ? attributes[object.slug]
+                    : undefined,
+            ),
         ),
     }),
 });

@@ -254,16 +254,21 @@ describe('attioIntegration discover', () => {
         '/v2/objects/workspaces/attributes',
     ];
 
+    // A workspace with only the standard objects
+    const NO_CUSTOM_OBJECTS = response({ data: [] });
+
     it("reads every standard object's attributes", async () => {
         const { source, send } = connect(
+            NO_CUSTOM_OBJECTS,
             ...ATTRIBUTES_PATHS.map(() => response(ATTIO_DEAL_ATTRIBUTES)),
         );
 
         const explores = await source.discover();
 
-        expect(send.mock.calls.map(([call]) => call.path)).toEqual(
-            ATTRIBUTES_PATHS,
-        );
+        expect(send.mock.calls.map(([call]) => call.path)).toEqual([
+            '/v2/objects',
+            ...ATTRIBUTES_PATHS,
+        ]);
         expect(withAttributeFields(explores)).toEqual([
             'companies',
             'people',
@@ -275,6 +280,7 @@ describe('attioIntegration discover', () => {
 
     it("skips objects the workspace lacks or the token can't read", async () => {
         const { source } = connect(
+            NO_CUSTOM_OBJECTS,
             response(ATTIO_DEAL_ATTRIBUTES),
             response(ATTIO_DEAL_ATTRIBUTES),
             response(ATTIO_DEAL_ATTRIBUTES),
@@ -299,6 +305,7 @@ describe('attioIntegration discover', () => {
 
     it('fails on a throttled call, so the last good scan stays', async () => {
         const { source } = connect(
+            NO_CUSTOM_OBJECTS,
             response(ATTIO_DEAL_ATTRIBUTES),
             response({ message: 'Slow down' }, 429),
             response(ATTIO_DEAL_ATTRIBUTES),
@@ -313,6 +320,7 @@ describe('attioIntegration discover', () => {
 
     it('fails when it can read no object', async () => {
         const { source } = connect(
+            NO_CUSTOM_OBJECTS,
             ...ATTRIBUTES_PATHS.map(() =>
                 response({ message: 'Forbidden' }, 403),
             ),

@@ -98,7 +98,10 @@ export type PylonApiSource = {
     connector: ApiConnectorType.PYLON;
 };
 
-/** The Attio standard objects a source reads, one explore each, companies first. */
+/**
+ * The Attio standard objects a source reads, one explore each, companies
+ * first. The workspace's custom objects are offered next to them.
+ */
 export const ATTIO_OBJECTS = [
     'companies',
     'people',
@@ -364,6 +367,9 @@ export const HYDRA_ORIGIN = 'https://hydra.invalid';
 export const ATTIO_ORIGIN = 'https://api.attio.com';
 /** Owner names; reading them needs the user_management:read scope. */
 export const ATTIO_WORKSPACE_MEMBERS_PATH = '/v2/workspace_members';
+
+/** The workspace's objects, standard and custom; needs object_configuration:read. */
+export const ATTIO_OBJECTS_PATH = '/v2/objects';
 
 export const getAttioAttributesPath = (object: string) =>
     `/v2/objects/${object}/attributes`;

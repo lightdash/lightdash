@@ -1,6 +1,5 @@
 import {
     ApiConnectorType,
-    ATTIO_OBJECTS,
     ATTIO_WORKSPACE_MEMBERS_PATH,
     DimensionType,
     getAttioRecordsQueryPath,
@@ -20,7 +19,11 @@ import {
     ATTIO_PAGE_SIZE,
     AttioObjectAccessError,
 } from './api';
-import { parseAttioApiName, type AttioValueProperty } from './model';
+import {
+    ATTIO_OBJECT_SLUG,
+    parseAttioApiName,
+    type AttioValueProperty,
+} from './model';
 
 const LABEL = 'Attio';
 
@@ -67,8 +70,10 @@ export type AttioSort = z.infer<typeof sortSchema>;
 /** One records query, as compile writes it: one row per record. */
 export const attioRequestSchema = z
     .object({
-        /** The standard object to read, by its slug. */
-        object: z.enum(ATTIO_OBJECTS),
+        /** The standard or custom object to read, by its slug. */
+        object: z
+            .string()
+            .regex(ATTIO_OBJECT_SLUG, 'object must be an Attio object slug'),
         columns: z.array(columnSchema).min(1),
         /** Attio's own filter object, sent as it is. */
         filter: z.record(z.string(), z.unknown()).optional(),
