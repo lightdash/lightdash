@@ -23,6 +23,15 @@ const SAMPLE_METADATA: Partial<Record<ApiConnectorType, unknown>> = {
             properties: { id: { type: 'integer', format: 'bigint' } },
         },
     },
+    [ApiConnectorType.AIRTABLE]: {
+        tables: [
+            {
+                id: 'tblAbCdEfGhIjKlMn',
+                name: 'Tickets',
+                fields: [{ id: 'fld1', name: 'Name', type: 'singleLineText' }],
+            },
+        ],
+    },
 };
 
 /**
@@ -84,6 +93,10 @@ const SAMPLE_SETTINGS: {
         connector: ApiConnectorType.SENTRY,
         organizationSlug: 'acme',
         projectSlugs: ['mobile-ios'],
+    },
+    [ApiConnectorType.AIRTABLE]: {
+        connector: ApiConnectorType.AIRTABLE,
+        baseId: 'appAbCdEfGhIjKlMn',
     },
     [ApiConnectorType.PYLON]: {
         connector: ApiConnectorType.PYLON,

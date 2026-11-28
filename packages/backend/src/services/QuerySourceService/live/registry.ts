@@ -4,6 +4,7 @@ import {
     ParameterError,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
+import { airtableIntegration } from './integrations/airtable';
 import { amplitudeIntegration } from './integrations/amplitude';
 import { attioIntegration } from './integrations/attio';
 import { ga4Integration } from './integrations/ga4';
@@ -43,6 +44,7 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.MIXPANEL]: mixpanelIntegration,
     [ApiConnectorType.SUPABASE]: supabaseIntegration,
     [ApiConnectorType.SENTRY]: sentryIntegration,
+    [ApiConnectorType.AIRTABLE]: airtableIntegration,
     [ApiConnectorType.HYDRA]: hydraIntegration,
 };
 

@@ -93,6 +93,16 @@ export type SentryApiSource = {
     projectSlugs: string[];
 };
 
+/**
+ * An Airtable base, read through the Web API with a personal access token:
+ * every table of the base is an explore. The id survives renames.
+ */
+export type AirtableApiSource = {
+    connector: ApiConnectorType.AIRTABLE;
+    /** The base id, app followed by 14 characters. */
+    baseId: string;
+};
+
 /** A Pylon workspace; the API token decides which one. */
 export type PylonApiSource = {
     connector: ApiConnectorType.PYLON;
@@ -228,6 +238,7 @@ export type ExternalConnectionApiSource =
     | MixpanelApiSource
     | SupabaseApiSource
     | SentryApiSource
+    | AirtableApiSource
     | HydraApiSource;
 
 /** The settings of one integration's sources. */
@@ -357,6 +368,18 @@ export const getSentryPaths = (organizationSlug: string) => {
         sessions: `${organization}/sessions/`,
     } as const;
 };
+
+export const AIRTABLE_ORIGIN = 'https://api.airtable.com';
+export const AIRTABLE_BASE_ID = /^app[A-Za-z0-9]{14}$/;
+export const AIRTABLE_TABLE_ID = /^tbl[A-Za-z0-9]{14}$/;
+
+/** The table's records; GET reads them, other methods write. */
+export const getAirtableRecordsPath = (baseId: string, tableId: string) =>
+    `/v0/${baseId}/${tableId}`;
+
+/** Every table of the base with its fields; needs schema.bases:read. */
+export const getAirtableTablesPath = (baseId: string) =>
+    `/v0/meta/bases/${baseId}/tables`;
 
 /** Never resolves: Hydra answers from seeded data, so nothing is sent to it. */
 export const HYDRA_ORIGIN = 'https://hydra.invalid';

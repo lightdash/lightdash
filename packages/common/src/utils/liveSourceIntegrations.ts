@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+    AIRTABLE_BASE_ID,
     getHubspotReadScopes,
     HUBSPOT_OBJECTS,
     isSentrySlug,
@@ -307,6 +308,23 @@ export const LIVE_INTEGRATION_CATALOG: {
         }),
         getTarget: ({ organizationSlug, projectSlugs }) =>
             `${organizationSlug}: ${projectSlugs.join(', ')}`,
+    },
+    [ApiConnectorType.AIRTABLE]: {
+        id: 'airtable',
+        label: 'Airtable',
+        defaultName: 'Airtable',
+        messageLabel: 'Airtable',
+        agentLabel: 'Airtable',
+        description: 'Records of the tables in an Airtable base',
+        setup: 'token',
+        scopes: ['data.records:read', 'schema.bases:read'],
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.AIRTABLE),
+            baseId: z.string().regex(AIRTABLE_BASE_ID, {
+                message: 'Use the base id, which starts with app',
+            }),
+        }),
+        getTarget: ({ baseId }) => `Base ${baseId}`,
     },
     [ApiConnectorType.HYDRA]: {
         id: 'hydra',
