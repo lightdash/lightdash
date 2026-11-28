@@ -353,7 +353,10 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamProjectUuid,
             expect.objectContaining({
                 slug: 'revenue',
-                dashboardUuid: upstreamDashboardUuid,
+                owner: {
+                    type: 'dashboard',
+                    dashboardUuid: upstreamDashboardUuid,
+                },
                 pipeline,
             }),
         );
