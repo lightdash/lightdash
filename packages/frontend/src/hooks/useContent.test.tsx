@@ -1,4 +1,8 @@
-import { ContentType } from '@lightdash/common';
+import {
+    ChartSourceType,
+    ContentType,
+    type ApiContentActionBody,
+} from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { type FC, type PropsWithChildren } from 'react';
@@ -18,6 +22,21 @@ vi.mock('./toaster/useToaster', () => ({
 }));
 vi.mock('react-router', () => ({ useNavigate: () => vi.fn() }));
 
+type Item = ApiContentActionBody['item'];
+const composerChart: Item = {
+    uuid: 'composer',
+    contentType: ContentType.COMPOSER_CHART,
+};
+const chart: Item = {
+    uuid: 'chart',
+    contentType: ContentType.CHART,
+    source: ChartSourceType.DBT_EXPLORE,
+};
+const dashboard: Item = {
+    uuid: 'dashboard',
+    contentType: ContentType.DASHBOARD,
+};
+
 const setup = () => {
     const queryClient = new QueryClient();
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
@@ -35,10 +54,10 @@ const setup = () => {
 
 // Refreshing composer charts on every action made a deleted dashboard's tiles refetch into a 404.
 describe('content actions refresh composer chart reads only when they include one', () => {
-    it.each([
-        [ContentType.COMPOSER_CHART, true],
-        [ContentType.DASHBOARD, false],
-    ])('single action on %s: %s', async (contentType, expected) => {
+    it.each<[Item, boolean]>([
+        [composerChart, true],
+        [dashboard, false],
+    ])('single action on %o: %s', async (item, expected) => {
         const { wrapper, refreshedComposerCharts } = setup();
         const { result } = renderHook(() => useContentAction('project'), {
             wrapper,
@@ -46,16 +65,16 @@ describe('content actions refresh composer chart reads only when they include on
         await act(() =>
             result.current.mutateAsync({
                 action: { type: 'delete' },
-                item: { uuid: 'item', contentType },
+                item,
             }),
         );
         expect(refreshedComposerCharts()).toBe(expected);
     });
 
-    it.each([
-        [[ContentType.CHART, ContentType.COMPOSER_CHART], true],
-        [[ContentType.CHART, ContentType.DASHBOARD], false],
-    ])('bulk action on %s: %s', async (contentTypes, expected) => {
+    it.each<[Item[], boolean]>([
+        [[chart, composerChart], true],
+        [[chart, dashboard], false],
+    ])('bulk action on %o: %s', async (content, expected) => {
         const { wrapper, refreshedComposerCharts } = setup();
         const { result } = renderHook(() => useContentBulkAction('project'), {
             wrapper,
@@ -63,10 +82,7 @@ describe('content actions refresh composer chart reads only when they include on
         await act(() =>
             result.current.mutateAsync({
                 action: { type: 'move', targetSpaceUuid: 'space' },
-                content: contentTypes.map((contentType, i) => ({
-                    uuid: `item-${i}`,
-                    contentType,
-                })),
+                content,
             }),
         );
         expect(refreshedComposerCharts()).toBe(expected);
