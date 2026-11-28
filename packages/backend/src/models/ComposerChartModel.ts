@@ -765,28 +765,25 @@ export class ComposerChartModel {
         projectUuid: UUID,
         composerChartUuidOrSlug: UuidOrSlug,
     ): Promise<UUID> {
+        const id = composerChartUuidOrSlug;
         const query = this.database(ComposerChartsTableName)
-            .select('composer_chart_uuid')
-            .where('project_uuid', projectUuid)
-            .whereNull('deleted_at');
-        // A slug can be uuid-shaped, so a uuid also matches a slug; the uuid wins
+            .select('composer_chart_uuid', 'deleted_at')
+            .where('project_uuid', projectUuid);
+        // A slug can be uuid-shaped; a chart's own uuid wins, even once deleted
         const row = await (
-            isValidUuid(composerChartUuidOrSlug)
+            isValidUuid(id)
                 ? query
                       .where((builder) =>
                           builder
-                              .where(
-                                  'composer_chart_uuid',
-                                  composerChartUuidOrSlug,
-                              )
-                              .orWhere('slug', composerChartUuidOrSlug),
+                              .where('composer_chart_uuid', id)
+                              .orWhere('slug', id),
                       )
-                      .orderByRaw('composer_chart_uuid = ? desc', [
-                          composerChartUuidOrSlug,
-                      ])
-                : query.where('slug', composerChartUuidOrSlug)
+                      .orderByRaw('composer_chart_uuid = ? desc', [id])
+                : query.where('slug', id)
         ).first();
-        if (!row) throw new NotFoundError('Composer chart not found');
+        if (!row || row.deleted_at !== null) {
+            throw new NotFoundError('Composer chart not found');
+        }
         return row.composer_chart_uuid;
     }
 
