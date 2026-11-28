@@ -506,7 +506,7 @@ describe('mixpanelIntegration run', () => {
             {
                 request: '/api/query/segmentation?project_id=12345',
                 status: 'error',
-                error: 'Your plan does not allow API calls. Upgrade at mixpanel.com/pricing',
+                error: 'Your plan does not allow API runtime. Upgrade at mixpanel.com/pricing',
                 error_code: 'query_api.request.plan_restricted',
             },
             WarehouseConnectionError,

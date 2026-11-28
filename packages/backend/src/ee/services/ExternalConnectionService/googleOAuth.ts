@@ -5,17 +5,17 @@ import {
     type GoogleLiveSourceChoice,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { GA4_DATA_ORIGIN } from '../../../services/QuerySourceService/live/integrations/ga4/run';
+import { GA4_DATA_ORIGIN } from '../../../services/QuerySourceService/live/integrations/ga4/api';
 import {
     getGoogleAdsSearchPath,
     GOOGLE_ADS_LIST_CUSTOMERS_PATH,
     GOOGLE_ADS_ORIGIN,
-} from '../../../services/QuerySourceService/live/integrations/googleAds/run';
+} from '../../../services/QuerySourceService/live/integrations/googleAds/api';
 import {
     SEARCH_CONSOLE_ORIGIN,
     SEARCH_CONSOLE_SITES_PATH,
-} from '../../../services/QuerySourceService/live/integrations/searchConsole/run';
-import { YOUTUBE_ANALYTICS_ORIGIN } from '../../../services/QuerySourceService/live/integrations/youtubeAnalytics/run';
+} from '../../../services/QuerySourceService/live/integrations/searchConsole/api';
+import { YOUTUBE_ANALYTICS_ORIGIN } from '../../../services/QuerySourceService/live/integrations/youtubeAnalytics/api';
 
 export const GOOGLE_AUTHORIZE_URL =
     'https://accounts.google.com/o/oauth2/v2/auth';

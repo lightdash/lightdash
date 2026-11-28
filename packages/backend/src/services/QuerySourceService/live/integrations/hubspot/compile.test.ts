@@ -13,14 +13,14 @@ import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { hubspotIntegration } from '.';
 import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
+import { HUBSPOT_MAX_ROWS } from './api';
 import { compileHubspotQuery } from './compile';
+import { HUBSPOT_DEAL_PROPERTIES } from './hubspot.fixtures';
 import {
     HUBSPOT_EXPLORES,
-    HUBSPOT_MAX_ROWS,
-    isInternalHubspotField,
+    isHubspotSystemField,
     withHubspotPropertyFields,
-} from './explores';
-import { HUBSPOT_DEAL_PROPERTIES } from './hubspot.fixtures';
+} from './model';
 
 const [DEALS_EXPLORE] = HUBSPOT_EXPLORES;
 
@@ -36,7 +36,7 @@ const DEALS = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.HUBSPOT,
     baseVersion: 1,
-    capabilities: hubspotIntegration.capabilities,
+    capabilities: hubspotIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),
@@ -163,7 +163,7 @@ describe('HubSpot fields', () => {
         ).toEqual(byName.dealstage_label.valueLabels);
     });
 
-    it('names built-in fields as HubSpot does', () => {
+    it('names declared fields as HubSpot does', () => {
         expect(DEALS_EXPLORE.dimensions.map(({ label }) => label)).toEqual([
             'Record ID',
             'Create Date',
@@ -172,13 +172,13 @@ describe('HubSpot fields', () => {
     });
 
     it('keeps most hs_ properties out of the default list', () => {
-        expect(isInternalHubspotField('hs_pipeline_stage:label')).toBe(false);
-        expect(isInternalHubspotField('hs_secret_thing:label')).toBe(true);
-        expect(
-            isInternalHubspotField('hs_analytics_latest_source_data_1'),
-        ).toBe(true);
-        expect(isInternalHubspotField('hs_is_closed_won')).toBe(false);
-        expect(isInternalHubspotField('dealname')).toBe(false);
+        expect(isHubspotSystemField('hs_pipeline_stage:label')).toBe(false);
+        expect(isHubspotSystemField('hs_secret_thing:label')).toBe(true);
+        expect(isHubspotSystemField('hs_analytics_latest_source_data_1')).toBe(
+            true,
+        );
+        expect(isHubspotSystemField('hs_is_closed_won')).toBe(false);
+        expect(isHubspotSystemField('dealname')).toBe(false);
     });
 
     it('builds one explore per object, tickets and leads included', () => {
@@ -195,9 +195,9 @@ describe('HubSpot fields', () => {
     });
 
     it('shows ticket pipeline and stage by default', () => {
-        expect(isInternalHubspotField('hs_pipeline')).toBe(false);
-        expect(isInternalHubspotField('hs_pipeline_stage')).toBe(false);
-        expect(isInternalHubspotField('hs_ticket_priority')).toBe(false);
+        expect(isHubspotSystemField('hs_pipeline')).toBe(false);
+        expect(isHubspotSystemField('hs_pipeline_stage')).toBe(false);
+        expect(isHubspotSystemField('hs_ticket_priority')).toBe(false);
     });
 
     it('lists every pipeline stage with its label, past the usual cap', () => {
@@ -220,7 +220,7 @@ describe('HubSpot fields', () => {
         expect(stage.aiHint).not.toContain('more');
     });
 
-    it('keeps the built-in fields when the list is unreadable', () => {
+    it('keeps the declared fields when the list is unreadable', () => {
         expect(withHubspotPropertyFields(DEALS_EXPLORE, {})).toBe(
             DEALS_EXPLORE,
         );
@@ -472,7 +472,7 @@ describe('compileHubspotQuery', () => {
         ).toThrow("HubSpot search returns one total, so Count can't be split");
     });
 
-    it('lets the shared check refuse Count by a built-in field', () => {
+    it('lets the shared check refuse Count by a declared field', () => {
         const issues = getApiSourceQueryIssues(
             DEALS.apiSource!,
             query({
@@ -587,7 +587,7 @@ describe('compileHubspotQuery pipeline stages', () => {
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.HUBSPOT,
         baseVersion: 1,
-        capabilities: hubspotIntegration.capabilities,
+        capabilities: hubspotIntegration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),

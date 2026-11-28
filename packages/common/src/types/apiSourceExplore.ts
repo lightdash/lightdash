@@ -102,6 +102,11 @@ export type ApiSourceExplore = {
      * explores built before hashes, which counts as out of date.
      */
     definitionHash?: string;
+    /**
+     * The vendor's id of what the explore reads, e.g. Salesforce
+     * `Invoice__c`, when its integration gave one.
+     */
+    apiName?: string;
     filterGroups: {
         or: boolean;
         nested: boolean;

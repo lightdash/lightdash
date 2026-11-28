@@ -7,10 +7,10 @@ import {
 } from '@lightdash/common';
 import type { LiveQueryOutcome } from './query/outcome';
 import type {
-    LiveCalls,
     LiveHttpRequest,
     LiveHttpResponse,
     LiveIntegration,
+    LiveRuntime,
 } from './types';
 
 /** Sends a request with the connection's credentials attached, so integrations never hold them. */
@@ -47,7 +47,7 @@ export const readLiveRateLimit = (
     now: Date,
 ): { resumesAt: Date | null } | null => {
     if (isOk(response.status)) return null;
-    const error = integration.toError(response, settings);
+    const error = integration.query.toError(response, settings);
     const isRateLimit =
         error instanceof TooManyRequestsError || response.status === 429;
     if (!isRateLimit) return null;
@@ -66,15 +66,15 @@ export const readLiveRateLimit = (
 };
 
 /** The calls an integration's `run` and scan make over one connection's transport. */
-export const createLiveCalls = (
+export const createLiveRuntime = (
     integration: LiveIntegration,
     settings: ExternalConnectionApiSource,
     transport: LiveTransport,
-): LiveCalls => {
+): LiveRuntime => {
     const send = async (request: LiveHttpRequest) => {
         const response = await transport(request);
         if (!isOk(response.status)) {
-            throw integration.toError(response, settings);
+            throw integration.query.toError(response, settings);
         }
         return response;
     };
@@ -142,7 +142,7 @@ export type MeteredLiveSource = {
     integration: LiveIntegration;
     settings: ExternalConnectionApiSource;
     cache: LiveCachePolicy;
-    calls: LiveCalls;
+    runtime: LiveRuntime;
     usage(): LiveCallUsage;
     /** Logs the finished query against its connection; never throws. */
     logCall(call: LiveQueryCall): Promise<void>;

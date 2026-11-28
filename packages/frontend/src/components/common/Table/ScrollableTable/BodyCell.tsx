@@ -32,6 +32,7 @@ import {
     getMergedValueLineClamp,
     TABLE_LINE_HEIGHT_PX,
 } from '../../PivotTable/getRowSpanMerges';
+import { setTitleWhenTextIsCut } from '../clampedValueTitle';
 import { ROW_HEIGHT_PX } from '../constants';
 import { Td, type CellStyleProps } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
@@ -167,9 +168,9 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         }
     }, [hasData, cell]);
 
-    // The full value of a clamped merged value. A cell with a tooltip would
-    // show two tooltips, and an image or rich-text cell does not show the raw
-    // value.
+    // The full value of a clamped merged value, shown on hover when the clamp
+    // cuts the text. A cell with a tooltip would show two tooltips, and an
+    // image or rich-text cell does not show the raw value.
     const showsOtherContent =
         !!item &&
         (('image' in item && !!item.image) ||
@@ -274,7 +275,15 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                                 ? `${TABLE_LINE_HEIGHT_PX}px`
                                 : undefined
                         }
-                        title={mergedValueTitle}
+                        onMouseEnter={
+                            mergedValueTitle === undefined
+                                ? undefined
+                                : (event: React.MouseEvent<HTMLElement>) =>
+                                      setTitleWhenTextIsCut(
+                                          event.currentTarget,
+                                          mergedValueTitle,
+                                      )
+                        }
                         __vars={{
                             '--merged-line-clamp': String(mergedLineClamp),
                         }}

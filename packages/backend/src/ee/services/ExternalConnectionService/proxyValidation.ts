@@ -27,11 +27,16 @@ function pathMatchesAllowedPrefixes(
 
 // Reject anything that could escape the configured origin or smuggle a host.
 // The decoded path must be a plain, host-free, relative path that prefix-matches
-// one of the connection's allowlisted prefixes.
+// one of the connection's allowlisted prefixes, or that `isAllowed` accepts
+// (a live source checks its access rules, method and path together).
 export function normalizeAndValidatePath(
     rawPath: string,
-    allowedPathPrefixes: string[],
+    allowed: string[] | ((path: string) => boolean),
 ): string {
+    const isAllowed =
+        typeof allowed === 'function'
+            ? allowed
+            : (path: string) => pathMatchesAllowedPrefixes(path, allowed);
     if (typeof rawPath !== 'string' || rawPath.length === 0) {
         throw new ParameterError('path is required');
     }
@@ -96,7 +101,7 @@ export function normalizeAndValidatePath(
     }
 
     // Prefix allowlist match against the decoded, host-free path.
-    if (!pathMatchesAllowedPrefixes(decoded, allowedPathPrefixes)) {
+    if (!isAllowed(decoded)) {
         throw new ParameterError('path is not allowed by this connection');
     }
 
@@ -116,7 +121,7 @@ export function normalizeAndValidatePath(
     } catch {
         throw new ParameterError('path could not be normalized');
     }
-    if (!pathMatchesAllowedPrefixes(collapsedPath, allowedPathPrefixes)) {
+    if (!isAllowed(collapsedPath)) {
         throw new ParameterError('path is not allowed by this connection');
     }
 
@@ -324,6 +329,7 @@ const EXPOSED_RESPONSE_HEADER_NAMES = new Set([
     'link',
     'ratelimit',
     'retry-after',
+    'x-sentry-rate-limit-reset',
 ]);
 
 const EXPOSED_RESPONSE_HEADER_PREFIXES = [
