@@ -564,6 +564,25 @@ describe('CoderService composer chart upload into a space', () => {
         ).toBeLessThan(chartService.moveToSpace.mock.invocationCallOrder[0]);
     });
 
+    it.each([
+        ['creating', null],
+        ['moving', liveInJaffle],
+    ])('refuses %s into a path two spaces share', async (_, existing) => {
+        const { upload, chartService, getOrCreateSpace } = setup({
+            existing,
+            spaces: [
+                { uuid: 'marketing-uuid', path: SPACE_PATH },
+                { uuid: 'other-marketing-uuid', path: SPACE_PATH },
+            ],
+        });
+        await expect(upload(spaceFile())).rejects.toThrow(
+            'More than one space has the path "marketing"',
+        );
+        expect(getOrCreateSpace).not.toHaveBeenCalled();
+        expect(chartService.writeFromCode).not.toHaveBeenCalled();
+        expect(chartService.moveToSpace).not.toHaveBeenCalled();
+    });
+
     it('checks write on the chart before creating a missing target space', async () => {
         const { upload, chartService, getOrCreateSpace } = setup({
             existing: liveInJaffle,

@@ -3981,7 +3981,21 @@ export class CoderService extends BaseService {
             );
             return space.uuid;
         };
+        // Slugs map to paths lossily; never guess between two spaces
+        const assertOneSpaceAtPath = async () => {
+            const spaces = await this.spaceModel.find({
+                projectUuid,
+                path: getLtreePathFromContentAsCodePath(file.spaceSlug),
+            });
+            if (spaces.length > 1) {
+                throw new ParameterError(
+                    `More than one space has the path "${file.spaceSlug}", so composer chart "${slug}" cannot be uploaded there. Rename one of those spaces.`,
+                );
+            }
+        };
+
         if (live === null) {
+            await assertOneSpaceAtPath();
             await this.assertContentAccessForMissingSpace({
                 user,
                 auditedAbility,
@@ -4027,6 +4041,7 @@ export class CoderService extends BaseService {
         }
         let targetSpaceUuid: string | null = null;
         if (file.spaceSlug !== current.spaceSlug) {
+            await assertOneSpaceAtPath();
             await this.assertContentAccessForMissingSpace({
                 user,
                 auditedAbility,
