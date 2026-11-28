@@ -64,6 +64,9 @@ export const useBubbleSend = (
         });
 
     const waitingRef = useRef<Waiting | null>(null);
+    // One send chooses its agent at a time; the rest wait their turn here.
+    const turnRef = useRef<Promise<void>>(Promise.resolve());
+    const queuedRef = useRef(new Set<string>());
     // The router's answer to the latest send it was asked about, and how to mark it in.
     const routedRef = useRef<Promise<void> | null>(null);
     const routedDoneRef = useRef<() => void>(() => {});
@@ -141,8 +144,18 @@ export const useBubbleSend = (
                 const thread = await createFor(input, selectedAgent.uuid);
                 return { threadId: thread.uuid, agentUuid: thread.agentUuid };
             }
-            if (waitingRef.current) {
-                throw new Error('Another bubble is choosing its agent');
+            const previous = turnRef.current;
+            let endTurn = () => {};
+            turnRef.current = new Promise<void>((resolve) => {
+                endTurn = resolve;
+            });
+            const queued = queuedRef.current;
+            queued.add(input.bubbleId);
+            await previous;
+            // Called off while it waited.
+            if (!queued.delete(input.bubbleId)) {
+                endTurn();
+                return 'cancelled';
             }
             return new Promise<DesignSendResult>((resolve, reject) => {
                 const waiting: Waiting = {
@@ -177,10 +190,10 @@ export const useBubbleSend = (
                         .finally(done);
                 };
                 // A cancelled send's route may still be out: let it land first.
-                const previous = routedRef.current;
-                if (previous) void previous.then(submit);
+                const stale = routedRef.current;
+                if (stale) void stale.then(submit);
                 else submit();
-            });
+            }).finally(endTurn);
         },
         [createFor, selectedAgent],
     );
@@ -188,8 +201,12 @@ export const useBubbleSend = (
     const cancel = useCallback(
         (bubbleId: string) => {
             const waiting = waitingRef.current;
-            if (!waiting || waiting.started) return;
-            if (waiting.input.bubbleId !== bubbleId) return;
+            if (waiting?.input.bubbleId !== bubbleId) {
+                // Still waiting its turn: it ends there.
+                queuedRef.current.delete(bubbleId);
+                return;
+            }
+            if (waiting.started) return;
             settle();
             waiting.resolve('cancelled');
         },

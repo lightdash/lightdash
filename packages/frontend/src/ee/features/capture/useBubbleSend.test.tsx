@@ -195,6 +195,81 @@ describe('useBubbleSend', () => {
         expect(result.current.picker).toBeNull();
     });
 
+    it('on Auto, a second send waits for the first to choose its agent', async () => {
+        select(LAUNCHER_AUTO_AGENT);
+        mocks.routePrompt.mockResolvedValue(routed('show_picker'));
+        const { result } = renderHook(() => useBubbleSend('project-1'));
+        let first: unknown = null;
+        let second: unknown = null;
+        let secondError: unknown = null;
+        act(() => {
+            void result.current.send(input()).then((value) => {
+                first = value;
+            });
+        });
+        await waitFor(() => expect(result.current.picker).not.toBeNull());
+        act(() => {
+            result.current
+                .send({ ...input(), bubbleId: 'bubble-2' })
+                .then((value) => {
+                    second = value;
+                })
+                .catch((error: unknown) => {
+                    secondError = error;
+                });
+        });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(secondError).toBeNull();
+        expect(result.current.picker?.bubbleId).toBe('bubble-1');
+        expect(mocks.routePrompt).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            result.current.picker?.onPick('agent-a');
+        });
+        await waitFor(() => expect(first).not.toBeNull());
+        await waitFor(() =>
+            expect(result.current.picker?.bubbleId).toBe('bubble-2'),
+        );
+        expect(mocks.routePrompt).toHaveBeenCalledTimes(2);
+        await act(async () => {
+            result.current.picker?.onPick('agent-b');
+        });
+        await waitFor(() =>
+            expect(second).toEqual({
+                threadId: 'thread-1',
+                agentUuid: 'agent-b',
+            }),
+        );
+        expect(secondError).toBeNull();
+    });
+
+    it('a send cancelled while it waits its turn creates nothing', async () => {
+        select(LAUNCHER_AUTO_AGENT);
+        mocks.routePrompt.mockResolvedValue(routed('show_picker'));
+        const { result } = renderHook(() => useBubbleSend('project-1'));
+        let second: unknown = null;
+        act(() => {
+            void result.current.send(input());
+        });
+        await waitFor(() => expect(result.current.picker).not.toBeNull());
+        act(() => {
+            void result.current
+                .send({ ...input(), bubbleId: 'bubble-2' })
+                .then((value) => {
+                    second = value;
+                });
+        });
+        act(() => result.current.cancel('bubble-2'));
+        await act(async () => {
+            result.current.picker?.onPick('agent-a');
+        });
+        await waitFor(() => expect(second).toBe('cancelled'));
+        expect(mocks.routePrompt).toHaveBeenCalledTimes(1);
+        expect(mocks.createThread).toHaveBeenCalledTimes(1);
+    });
+
     it('cancelling the picker creates nothing and uploads nothing', async () => {
         select(LAUNCHER_AUTO_AGENT);
         mocks.routePrompt.mockResolvedValue(routed('show_picker'));
