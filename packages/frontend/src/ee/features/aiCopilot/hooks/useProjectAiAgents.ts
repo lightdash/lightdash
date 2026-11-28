@@ -1527,7 +1527,7 @@ export const useCreateAgentThreadMutation = (
                 );
             } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
-                    title: 'Failed to create AI agent',
+                    title: 'Failed to create AI agent thread',
                     apiError: error,
                 });
             }
