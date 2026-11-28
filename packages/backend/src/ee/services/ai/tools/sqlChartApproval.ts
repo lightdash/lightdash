@@ -69,15 +69,7 @@ const getSqlChartApproveSql =
                   sql: nodes.map(({ sql }) => sql).join('\n\n'),
                   nodes,
                   heading: getSqlChartApprovalHeading(chartName),
-                  // One block per pipeline node, titled by its id.
-                  steps:
-                      nodes.length > 1
-                          ? nodes.map(({ nodeId, sql }, index) => ({
-                                title: nodeId ?? `SQL step ${index + 1}`,
-                                description: null,
-                                sql,
-                            }))
-                          : null,
+                  steps: null,
               })
             : call.settleUnchangedSql();
 
