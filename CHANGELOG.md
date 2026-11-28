@@ -1,3 +1,10 @@
+## [3.449.2](https://github.com/lightdash/lightdash/compare/3.449.1...3.449.2) (2026-11-28)
+
+
+### Performance Improvements
+
+* **ai:** chart pages ignore unrelated agent stream chunks ([#33623](https://github.com/lightdash/lightdash/issues/33623)) ([62f077d](https://github.com/lightdash/lightdash/commit/62f077dd412904ff3580b3d449e04d82916026d1))
+
 ## [3.449.1](https://github.com/lightdash/lightdash/compare/3.449.0...3.449.1) (2026-11-28)
 
 
