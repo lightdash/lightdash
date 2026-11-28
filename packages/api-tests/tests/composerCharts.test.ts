@@ -3194,5 +3194,245 @@ describe('Composer charts', () => {
                 expect(await status(`${chartsUrl}/${owned.uuid}`)).toBe(200);
             });
         });
+
+        // Skipped when SOFT_DELETE_ENABLED is off (delete is permanent)
+        describe('restore and permanent delete', () => {
+            const skipWithoutSoftDelete = async (ctx: { skip: () => void }) => {
+                const health =
+                    await admin.get<Body<{ softDelete: { enabled: boolean } }>>(
+                        '/api/v1/health',
+                    );
+                if (!health.body.results.softDelete.enabled) {
+                    // oxlint-disable-next-line vitest-js/no-disabled-tests -- runtime skip when soft delete is disabled on the server
+                    ctx.skip();
+                }
+            };
+
+            const composerItem = (uuid: string) => ({
+                uuid,
+                contentType: ContentType.COMPOSER_CHART,
+            });
+
+            const restore = (uuid: string, client: ApiClient = admin) =>
+                client.post<Body<undefined> & { error: { message: string } }>(
+                    `/api/v2/content/${projectUuid}/restore`,
+                    { item: composerItem(uuid) },
+                    { failOnStatusCode: false },
+                );
+
+            const permanentlyDelete = (
+                uuid: string,
+                client: ApiClient = admin,
+            ) =>
+                client.delete(`/api/v2/content/${projectUuid}/permanent`, {
+                    body: { item: composerItem(uuid) },
+                    failOnStatusCode: false,
+                });
+
+            const deleteChart = (uuid: string, client: ApiClient = admin) =>
+                client.delete(`${chartsUrl}/${uuid}`, {
+                    failOnStatusCode: false,
+                });
+
+            const recentlyDeleted = async (client: ApiClient = admin) =>
+                (
+                    await client.get<ApiDeletedContentResponse>(
+                        `/api/v2/content/deleted?projectUuids=${projectUuid}&contentTypes=${ContentType.CHART}&contentTypes=${ContentType.COMPOSER_CHART}&pageSize=100`,
+                    )
+                ).body.results.data;
+
+            it('lists a deleted chart under Charts for its deleter, who restores it', async (ctx) => {
+                await skipWithoutSoftDelete(ctx);
+                const { space, chart } = await createSpaceChart();
+                const editor = await loginAsEditor();
+                expect((await deleteChart(chart.uuid, editor)).status).toBe(
+                    200,
+                );
+
+                expect(
+                    (await recentlyDeleted(editor)).find(
+                        (item) => item.uuid === chart.uuid,
+                    ),
+                ).toMatchObject({
+                    contentType: ContentType.COMPOSER_CHART,
+                    spaceUuid: space.uuid,
+                    deletedBy: { userUuid: SEED_ORG_1_EDITOR.user_uuid },
+                });
+
+                expect((await restore(chart.uuid, editor)).status).toBe(200);
+                expect((await getChart(chart.uuid)).status).toBe(200);
+                expect(
+                    (await recentlyDeleted()).map((item) => item.uuid),
+                ).not.toContain(chart.uuid);
+                expect((await restore(chart.uuid)).status).toBe(404);
+            });
+
+            it('lets anyone who manages deleted content restore it, and no one else', async (ctx) => {
+                await skipWithoutSoftDelete(ctx);
+                const { chart } = await createSpaceChart();
+                const editor = await loginAsEditor();
+                expect((await deleteChart(chart.uuid, editor)).status).toBe(
+                    200,
+                );
+                const viewer = await loginAsViewer();
+                expect((await restore(chart.uuid, viewer)).status).toBe(403);
+                expect(
+                    (await permanentlyDelete(chart.uuid, viewer)).status,
+                ).toBe(403);
+                expect((await restore(chart.uuid)).status).toBe(200);
+                expect((await getChart(chart.uuid)).status).toBe(200);
+            });
+
+            it('refuses a restore into a deleted space with 409 until the space is back', async (ctx) => {
+                await skipWithoutSoftDelete(ctx);
+                const { space, chart } = await createSpaceChart();
+                expect((await deleteChart(chart.uuid)).status).toBe(200);
+                expect(
+                    (
+                        await admin.delete(
+                            `/api/v1/projects/${projectUuid}/spaces/${space.uuid}`,
+                        )
+                    ).status,
+                ).toBe(200);
+
+                const refused = await restore(chart.uuid);
+                expect(refused.status).toBe(409);
+                expect(refused.body.error.message).toContain(
+                    'Restore the space first',
+                );
+
+                expect(
+                    (
+                        await admin.post(
+                            `/api/v2/content/${projectUuid}/restore`,
+                            {
+                                item: {
+                                    uuid: space.uuid,
+                                    contentType: ContentType.SPACE,
+                                },
+                            },
+                        )
+                    ).status,
+                ).toBe(200);
+                // Deleted before its space, so the space's restore leaves it deleted
+                expect((await getChart(chart.uuid)).status).toBe(404);
+                expect((await restore(chart.uuid)).status).toBe(200);
+                expect((await getChart(chart.uuid)).status).toBe(200);
+            });
+
+            it("takes a space's composer, classic and SQL charts and dashboards with it, and restores them all", async (ctx) => {
+                await skipWithoutSoftDelete(ctx);
+                const { space, chart } = await createSpaceChart();
+                const classic = await admin.post<Body<{ uuid: string }>>(
+                    `/api/v1/projects/${projectUuid}/saved`,
+                    {
+                        ...chartMock,
+                        name: uniqueName('Cascade classic'),
+                        spaceUuid: space.uuid,
+                        dashboardUuid: null,
+                    },
+                );
+                expect(classic.status).toBe(200);
+                const sql = await admin.post<Body<{ savedSqlUuid: string }>>(
+                    `/api/v1/projects/${projectUuid}/sqlRunner/saved`,
+                    {
+                        name: uniqueName('Cascade SQL'),
+                        description: null,
+                        sql: 'SELECT * FROM postgres.jaffle.payments',
+                        limit: 21,
+                        config: {
+                            display: {},
+                            metadata: { version: 1 },
+                            type: ChartKind.TABLE,
+                            columns: {},
+                        },
+                        spaceUuid: space.uuid,
+                    },
+                );
+                expect(sql.status).toBe(200);
+                const dashboard = await admin.post<Body<Dashboard>>(
+                    `/api/v1/projects/${projectUuid}/dashboards`,
+                    {
+                        name: uniqueName('Cascade dashboard'),
+                        spaceUuid: space.uuid,
+                        tiles: [],
+                        tabs: [],
+                    },
+                );
+                expect(dashboard.status).toBe(201);
+                const urls = [
+                    `${chartsUrl}/${chart.uuid}`,
+                    `/api/v1/saved/${classic.body.results.uuid}`,
+                    `/api/v1/projects/${projectUuid}/sqlRunner/saved/${sql.body.results.savedSqlUuid}`,
+                    `/api/v1/dashboards/${dashboard.body.results.uuid}`,
+                ];
+                const statuses = () =>
+                    Promise.all(
+                        urls.map(
+                            async (url) =>
+                                (
+                                    await admin.get(url, {
+                                        failOnStatusCode: false,
+                                    })
+                                ).status,
+                        ),
+                    );
+
+                const editor = await loginAsEditor();
+                expect(
+                    (
+                        await editor.delete(
+                            `/api/v1/projects/${projectUuid}/spaces/${space.uuid}`,
+                        )
+                    ).status,
+                ).toBe(200);
+                expect(await statuses()).toEqual([404, 404, 404, 404]);
+                // Listed through its space, not on its own
+                expect(
+                    (await recentlyDeleted(editor)).map((item) => item.uuid),
+                ).not.toContain(chart.uuid);
+
+                expect(
+                    (
+                        await editor.post(
+                            `/api/v2/content/${projectUuid}/restore`,
+                            {
+                                item: {
+                                    uuid: space.uuid,
+                                    contentType: ContentType.SPACE,
+                                },
+                            },
+                        )
+                    ).status,
+                ).toBe(200);
+                expect(await statuses()).toEqual([200, 200, 200, 200]);
+            });
+
+            it('permanently deletes a deleted chart for good, and refuses a live or dashboard-owned one', async (ctx) => {
+                await skipWithoutSoftDelete(ctx);
+                const { chart } = await createSpaceChart();
+                expect((await permanentlyDelete(chart.uuid)).status).toBe(404);
+                const editor = await loginAsEditor();
+                expect((await deleteChart(chart.uuid, editor)).status).toBe(
+                    200,
+                );
+                expect(
+                    (await permanentlyDelete(chart.uuid, editor)).status,
+                ).toBe(200);
+                expect((await restore(chart.uuid)).status).toBe(404);
+                expect(
+                    (await recentlyDeleted()).map((item) => item.uuid),
+                ).not.toContain(chart.uuid);
+
+                const dashboard = await createDashboard();
+                const owned = await createChart(dashboard.uuid);
+                expect(
+                    (await admin.delete(`/api/v1/dashboards/${dashboard.uuid}`))
+                        .status,
+                ).toBe(200);
+                expect((await restore(owned.uuid)).status).toBe(400);
+                expect((await permanentlyDelete(owned.uuid)).status).toBe(400);
+            });
+        });
     });
 });
