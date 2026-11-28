@@ -13148,7 +13148,9 @@ export class AsyncQueryService extends ProjectService {
             toResult: (result) => {
                 const {
                     label,
-                    limits: { maxRows },
+                    query: {
+                        limits: { maxRows },
+                    },
                 } = source.integration;
                 assertLiveResultComplete({
                     compiled,

@@ -7,7 +7,7 @@ allowed-tools: Read, Edit, Write, Glob, Grep, Bash
 
 # hydra
 
-Every live integration carries a spec on its definition: `level`, `auth`, `paging`, `rateLimits` and `useCases`. The types are in `packages/backend/src/services/QuerySourceService/live/spec/types.ts`, and each integration's use cases are in `integrations/<name>/useCases.ts`. Each use case says whether it is `possible` today. Cases that span tools are in `spec/crossToolUseCases.ts`.
+Every live integration carries a `kind`, a `spec` (`auth` and `useCases`) and `query.limits`, which hold its rate limits. The types are in `packages/backend/src/services/QuerySourceService/live/spec/types.ts`, and each integration's use cases are in `integrations/<name>/spec.ts`. Each use case says whether it is `possible` today. Cases that span tools are in `spec/crossToolUseCases.ts`.
 
 Every mode ends with an HTML page in `~/.hydra/`. Give the user its path. `hydra.sh` is in this folder; run it from anywhere in the checkout:
 
@@ -15,7 +15,7 @@ Every mode ends with an HTML page in `~/.hydra/`. Give the user its path. `hydra
 - `hydra.sh view` writes `~/.hydra/view.html`.
 - `hydra.sh render <page.json>` writes `~/.hydra/<mode>-<name>.html` from a page you wrote.
 
-A page is `{ mode, title, summary?, integrations: [...] }`. Each integration has the same shape as `specs` prints: `name`, `label`, `level`, `auth`, `paging`, `rateLimits`, `useCases`. Write the JSON to the scratchpad, not into the repo.
+A page is `{ mode, title, summary?, integrations: [...] }`. Each integration has the same shape as `specs` prints: `name`, `label`, `kind`, `auth`, `rateLimits`, `useCases`. Write the JSON to the scratchpad, not into the repo.
 
 ## view
 
@@ -41,11 +41,11 @@ Decide whether a tool we don't have yet is worth an integration, and how hard it
 Check that the integration still answers what its use cases say. How far to go is up to you. A few cases on a connected instance are usually enough, but go deeper when something looks off.
 
 - Run `hydra.sh specs <integration>`. Pick a handful of cases, mixing possible and not possible, and lean towards whatever recent changes touched.
-- Ask them the way a customer would, on a local instance or a Rainbow Machine env with the integration connected. To test the shared engine without vendor credentials (the cache, limits, 429s, failed sign-in), connect `hydra` instead: `packages/backend/src/services/QuerySourceService/live/integrations/hydra/AGENTS.md`. When a number matters, check it against the vendor directly.
+- Ask them the way a customer would, on a local instance or a Rainbow Machine env with the integration connected. To try the shared engine without vendor credentials (queries, the cache, the explores a Refresh adds), connect `hydra` instead: `packages/backend/src/services/QuerySourceService/live/integrations/hydra/AGENTS.md`. When a number matters, check it against the vendor directly.
 - Judge each case against `possible`:
   - `pass` when it matches.
   - `regression` when a possible case fails.
-  - `flip` when an impossible case now works; flip it in `useCases.ts`.
+  - `flip` when an impossible case now works; flip it in `spec.ts`.
   - `blocked` when you couldn't try it, with the reason.
 - Add `results: { <case id>: { outcome, note? } }` to the integration from `specs`, set `mode: "test"`, and render it. A note says what happened, in a line.
 
