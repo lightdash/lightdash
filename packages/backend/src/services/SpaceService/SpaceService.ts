@@ -859,14 +859,17 @@ export class SpaceService
 
         const spaces = await this.spaceModel.find({ spaceUuids: allUuids });
 
-        const [charts, sqlCharts, dashboards, apps] = await Promise.all([
-            this.spaceModel.getSpaceQueries(allUuids),
-            this.spaceModel.getSpaceSqlCharts(allUuids),
-            this.spaceModel.getSpaceDashboards(allUuids),
-            this.spaceModel.getSpaceApps(allUuids),
-        ]);
+        // Composer charts count with the flag off too: deleting the space takes them.
+        const [charts, sqlCharts, composerCharts, dashboards, apps] =
+            await Promise.all([
+                this.spaceModel.getSpaceQueries(allUuids),
+                this.spaceModel.getSpaceSqlCharts(allUuids),
+                this.spaceModel.getSpaceComposerCharts(allUuids),
+                this.spaceModel.getSpaceDashboards(allUuids),
+                this.spaceModel.getSpaceApps(allUuids),
+            ]);
 
-        const allCharts = [...charts, ...sqlCharts];
+        const allCharts = [...charts, ...sqlCharts, ...composerCharts];
         const contexts = await this.spacePermissionService.resolveAccessBatch(
             user.userUuid,
             allUuids.map((uuid) => ({ type: 'space', spaceUuid: uuid })),
@@ -887,12 +890,22 @@ export class SpaceService
             );
         });
 
+        const composerChartCounts = new Map<string, number>();
+        composerCharts.forEach(({ spaceUuid: composerSpaceUuid }) => {
+            composerChartCounts.set(
+                composerSpaceUuid,
+                (composerChartCounts.get(composerSpaceUuid) ?? 0) + 1,
+            );
+        });
+
         return {
             spaces: spaces.map((s) => ({
                 uuid: s.uuid,
                 name: s.name,
                 parentSpaceUuid: s.parentSpaceUuid,
-                chartCount: Number(s.chartCount),
+                chartCount:
+                    Number(s.chartCount) +
+                    (composerChartCounts.get(s.uuid) ?? 0),
                 dashboardCount: Number(s.dashboardCount),
                 appCount: Number(s.appCount),
                 documentCount: documentCounts.get(s.uuid) ?? 0,

@@ -2122,6 +2122,7 @@ export class ServiceRepository
                     appGenerateService: this.providers.appGenerateService
                         ? this.getAppGenerateService<AppGenerateService>()
                         : undefined,
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

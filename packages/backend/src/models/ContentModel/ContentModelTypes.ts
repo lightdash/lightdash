@@ -28,6 +28,11 @@ export type ContentFilters = {
             adminProjectUuids: string[];
         };
     };
+    /** Server-resolved; absent (flag off) hides composer charts and leaves them out of space counts. */
+    composerCharts?: {
+        /** Spaces where the caller may view charts (`view:SavedChart`). */
+        allowedSpaceUuids: string[];
+    };
     projectUuids?: string[];
     spaceUuids?: string[];
     /** Restrict to specific content uuids (e.g. resolving curated collections) */

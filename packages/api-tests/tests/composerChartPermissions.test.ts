@@ -1,4 +1,5 @@
 import {
+    ContentType,
     FeatureFlags,
     SEED_ORG_1,
     SEED_PROJECT,
@@ -6,6 +7,7 @@ import {
     type ComposerChartRunResults,
     type Dashboard,
     type DashboardComposerChartRunRequest,
+    type SummaryContent,
 } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, type Body } from '../helpers/api-client';
@@ -19,6 +21,7 @@ import {
     apiClientSend,
     composerChartBody,
     createComposerDashboard,
+    createComposerSpaceChart,
 } from '../helpers/composerDashboard';
 import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
@@ -197,6 +200,22 @@ describe('Composer chart permissions', () => {
             { failOnStatusCode: false },
         );
         expect(run.status).toBe(403);
+    });
+
+    it('lists a space chart only for a role that views charts', async () => {
+        const created = await createComposerSpaceChart(apiClientSend(admin));
+        tracker.trackSpace(created.space.uuid);
+        const listedFor = async (client: ApiClient) =>
+            (
+                await client.get<Body<{ data: SummaryContent[] }>>(
+                    `/api/v2/content?projectUuids=${projectUuid}&spaceUuids=${created.space.uuid}&contentTypes=${ContentType.COMPOSER_CHART}`,
+                )
+            ).body.results.data.map((item) => item.uuid);
+
+        expect(await listedFor(await roleUser(['view:Dashboard']))).toEqual([]);
+        expect(await listedFor(await roleUser(['view:SavedChart']))).toEqual([
+            created.chart.uuid,
+        ]);
     });
 
     const authorScopes = [

@@ -176,6 +176,9 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         if (selected === CHART_TYPES_FILTER_VALUE) {
             return [ContentType.DATA_APP];
         }
+        if (selected === ContentType.CHART) {
+            return [ContentType.CHART, ContentType.COMPOSER_CHART];
+        }
         return [selected];
     }, [debouncedSearchAndFilters]);
 

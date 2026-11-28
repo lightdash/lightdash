@@ -1,6 +1,7 @@
 import {
     FeatureFlags,
     getResourceViewItemName,
+    isResourceViewComposerChartItem,
     isResourceViewDataAppItem,
     isResourceViewDocumentItem,
     isResourceViewItemChart,
@@ -194,7 +195,8 @@ const InfiniteResourceTableColumnName = ({
         (item.data.description || isResourceViewItemChart(item)) &&
         (isChartOrDashboard ||
             isResourceViewDataAppItem(item) ||
-            isResourceViewDocumentItem(item));
+            isResourceViewDocumentItem(item) ||
+            isResourceViewComposerChartItem(item));
 
     const renderContent = (hideInlineInfo = false) => (
         <Box miw={0}>
@@ -247,6 +249,11 @@ const InfiniteResourceTableColumnName = ({
                     {isResourceViewDocumentItem(item) && (
                         <Text fz="xs" c="dimmed">
                             Document
+                        </Text>
+                    )}
+                    {isResourceViewComposerChartItem(item) && (
+                        <Text fz="xs" c="dimmed">
+                            {getResourceTypeName(item)}
                         </Text>
                     )}
                     {showTypeAndViews && (

@@ -1,13 +1,16 @@
 import {
+    createComposerSpaceChart as createSpaceChartVia,
     createComposerDashboard as createVia,
+    deleteComposerSpace as deleteSpaceVia,
     deleteComposerDashboard as deleteVia,
     type ComposerApiSend,
     type ComposerDashboard,
+    type ComposerSpaceChart,
 } from '../../api-tests/helpers/composerDashboard';
 import { json } from './api';
 import type { TrackedApi } from './test';
 
-export type { ComposerDashboard };
+export type { ComposerDashboard, ComposerSpaceChart };
 
 // Through the tracked `api`, so cleanup.ts still deletes the dashboard if a test skips deleting it.
 const trackedApiSend =
@@ -41,3 +44,12 @@ export const deleteComposerDashboard = (
     api: TrackedApi,
     dashboardUuid: string,
 ) => deleteVia(trackedApiSend(api), dashboardUuid);
+
+export const createComposerSpaceChart = (
+    api: TrackedApi,
+    options?: Parameters<typeof createSpaceChartVia>[1],
+) => createSpaceChartVia(trackedApiSend(api), options);
+
+// Deleting the space deletes the composer charts it owns.
+export const deleteComposerSpace = (api: TrackedApi, spaceUuid: string) =>
+    deleteSpaceVia(trackedApiSend(api), spaceUuid);
