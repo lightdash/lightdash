@@ -109,17 +109,42 @@ describe("a composer chart slug that is another chart's uuid", () => {
         ).resolves.toBe(chart);
     });
 
-    it("up renames only a slug that is another chart's uuid", async () => {
+    it("up renames only a slug that is another chart's uuid in its project", async () => {
         const { owner, other } = await createCollision();
+        const upperOwner = await createChart(null);
+        const upper = await createChart(upperOwner.toUpperCase());
         const lone = randomUUID();
         const loneChart = await createChart(lone);
         const ownerSlug = await slugOf(owner);
+        // Another project's chart uuid as a slug here is no collision
+        const elsewhere = await createFixture(database);
+        const foreign = await new ComposerChartModel({ database }).create({
+            uuid: null,
+            slug: null,
+            projectUuid: elsewhere.projectUuid,
+            owner: { type: 'space', spaceUuid: elsewhere.spaceUuid },
+            name: 'Elsewhere',
+            description: null,
+            pipeline,
+            chart: storedChart,
+            createdByUserUuid: elsewhere.userUuid,
+        });
+        const foreignSlugChart = await createChart(foreign);
+        // A collision whose new slug is already taken is left as it is
+        const blockedOwner = await createChart(null);
+        const blocked = await createChart(blockedOwner);
+        await createChart(`${blockedOwner}-${blocked}`);
 
         await database.transaction((trx) => up(trx));
 
         expect(await slugOf(other)).toBe(`${owner}-${other}`);
+        expect(await slugOf(upper)).toBe(
+            `${upperOwner.toUpperCase()}-${upper}`,
+        );
         expect(await slugOf(owner)).toBe(ownerSlug);
         expect(await slugOf(loneChart)).toBe(lone);
+        expect(await slugOf(foreignSlugChart)).toBe(foreign);
+        expect(await slugOf(blocked)).toBe(blockedOwner);
         await expect(
             model.getUuidByUuidOrSlug(fixture.projectUuid, `${owner}-${other}`),
         ).resolves.toBe(other);

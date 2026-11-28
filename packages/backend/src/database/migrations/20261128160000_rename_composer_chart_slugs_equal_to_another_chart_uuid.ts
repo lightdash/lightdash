@@ -7,15 +7,22 @@ export const classification = {
 
 export async function up(knex: Knex): Promise<void> {
     await knex.raw(`SET LOCAL lock_timeout = '60s'`);
-    // Suffixing the chart's own uuid keeps the new slug unique in its project
+    // Suffixing the chart's own uuid; a row whose new slug is somehow taken keeps its slug
     await knex.raw(`
         UPDATE composer_charts AS charts
         SET slug = charts.slug || '-' || charts.composer_chart_uuid::text
         WHERE EXISTS (
             SELECT 1
             FROM composer_charts AS other
-            WHERE other.composer_chart_uuid::text = charts.slug
+            WHERE other.project_uuid = charts.project_uuid
+              AND other.composer_chart_uuid::text = lower(charts.slug)
               AND other.composer_chart_uuid <> charts.composer_chart_uuid
+        )
+        AND NOT EXISTS (
+            SELECT 1
+            FROM composer_charts AS taken
+            WHERE taken.project_uuid = charts.project_uuid
+              AND taken.slug = charts.slug || '-' || charts.composer_chart_uuid::text
         )
     `);
 }
