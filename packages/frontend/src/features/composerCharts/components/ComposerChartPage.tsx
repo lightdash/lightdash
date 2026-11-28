@@ -222,40 +222,35 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
         [chart, composerChartUuid, projectUuid, user.data?.organizationUuid],
     );
 
-    const renderChart = (minimal: boolean) =>
-        isDrawn ? (
-            <Sentry.ErrorBoundary
-                beforeCapture={(scope) =>
-                    scope.setTags(COMPOSER_CHART_SENTRY_TAGS)
-                }
-                fallback={({ error }) => (
-                    <ErrorState
-                        error={toErrorDetail(
-                            error instanceof Error
-                                ? error.message
-                                : String(error),
-                        )}
-                    />
-                )}
-            >
-                <ComposerChartVisualization
-                    key={chart.versionUuid}
-                    projectUuid={projectUuid}
-                    composerChartUuid={composerChartUuid}
-                    dashboardUuid={null}
-                    tileUuid={null}
-                    isDashboard={false}
-                    isTitleHidden
-                    minimal={minimal}
-                    draw={draw}
-                    results={results}
-                    rows={rows}
-                    onScreenshotReady={noop}
-                    onScreenshotError={noop}
-                    setEchartsRef={minimal ? undefined : setEchartRef}
+    const chartView = isDrawn ? (
+        <Sentry.ErrorBoundary
+            beforeCapture={(scope) => scope.setTags(COMPOSER_CHART_SENTRY_TAGS)}
+            fallback={({ error }) => (
+                <ErrorState
+                    error={toErrorDetail(
+                        error instanceof Error ? error.message : String(error),
+                    )}
                 />
-            </Sentry.ErrorBoundary>
-        ) : null;
+            )}
+        >
+            <ComposerChartVisualization
+                key={chart.versionUuid}
+                projectUuid={projectUuid}
+                composerChartUuid={composerChartUuid}
+                dashboardUuid={null}
+                tileUuid={null}
+                isDashboard={false}
+                isTitleHidden
+                minimal={false}
+                draw={draw}
+                results={results}
+                rows={rows}
+                onScreenshotReady={noop}
+                onScreenshotError={noop}
+                setEchartsRef={setEchartRef}
+            />
+        </Sentry.ErrorBoundary>
+    ) : null;
 
     return (
         <Page
@@ -478,9 +473,7 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                 error={runError ?? toErrorDetail(errorMessage)}
                             />
                         ) : isDrawn ? (
-                            <Box className={styles.chart}>
-                                {renderChart(false)}
-                            </Box>
+                            <Box className={styles.chart}>{chartView}</Box>
                         ) : (
                             <EmptyStateLoader title="Loading chart" />
                         ))}
@@ -493,7 +486,8 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                 pipeline={chart.pipeline}
                                 run={run}
                                 runError={runError?.message ?? null}
-                                chart={renderChart(true)}
+                                // The Chart tab draws the chart; Lineage shows only the pipeline
+                                chart={null}
                             />
                         </ComposerRunParametersContext.Provider>
                     )}
