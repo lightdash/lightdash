@@ -3844,6 +3844,7 @@ describe('AiAgentToolsService', () => {
                     dashboardSlug: null,
                     spaceSlug: 'shared',
                 },
+                composerChartUuid: `${slug}-chart-uuid`,
                 spaceUuid,
             });
             const { service } = makeComposerService({
@@ -3860,7 +3861,7 @@ describe('AiAgentToolsService', () => {
             await expect(
                 runtime.readContent({ type: 'composer_chart', slug: 'mine' }),
             ).resolves.toMatchObject({
-                href: `/projects/${projectUuid}/spaces/allowed-space-uuid`,
+                href: `/projects/${projectUuid}/composer-charts/mine-chart-uuid`,
             });
             await expect(
                 runtime.readContent({ type: 'composer_chart', slug: 'theirs' }),
