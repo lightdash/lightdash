@@ -50,7 +50,7 @@ export type ResourceViewItemActionState =
       }
     | {
           type: ResourceViewItemAction.ADD_TO_DASHBOARD;
-          item: ResourceViewChartItem;
+          item: ResourceViewChartItem | ResourceViewComposerChartItem;
       }
     | {
           type: ResourceViewItemAction.CREATE_SPACE;

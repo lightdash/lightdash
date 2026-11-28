@@ -3,6 +3,7 @@ import {
     FeatureFlags,
     ChartKind,
     ContentType,
+    DashboardTileTypes,
     getChartKind,
     getComposerChartExportLabels,
     ResourceViewItemType,
@@ -20,6 +21,7 @@ import {
     IconDownload,
     IconEdit,
     IconFolderSymlink,
+    IconLayoutGridAdd,
     IconPhoto,
     IconRefresh,
     IconTableExport,
@@ -51,6 +53,7 @@ import { type EChartsReact } from '../../../components/EChartsReactWrapper';
 import explorerClasses from '../../../components/Explorer/Explorer.module.css';
 import { TitleBreadCrumbs } from '../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { NO_CELL_LIMITED_SCOPES } from '../../../components/ExportResults/exportCellEstimate';
+import AddTilesToDashboardModal from '../../../components/SavedDashboards/AddTilesToDashboardModal';
 import { AskAiAgentButton } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import { useRefreshComposerChartOnAgentEdit } from '../../../ee/features/aiCopilot/hooks/useRefreshComposerChartOnAgentEdit';
 import { useContentAction } from '../../../hooks/useContent';
@@ -178,6 +181,10 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
         useDisclosure(false);
     const [moveOpened, { open: openMove, close: closeMove }] =
         useDisclosure(false);
+    const [
+        addToDashboardOpened,
+        { open: openAddToDashboard, close: closeAddToDashboard },
+    ] = useDisclosure(false);
     const [deleteOpened, { open: openDelete, close: closeDelete }] =
         useDisclosure(false);
     const navigate = useNavigate();
@@ -313,6 +320,19 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                     >
                                         Rename
                                     </Menu.Item>
+                                    {/* With the flag off the tile would only say "not available" */}
+                                    {composerChartsEnabled && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconLayoutGridAdd}
+                                                />
+                                            }
+                                            onClick={openAddToDashboard}
+                                        >
+                                            Add to dashboard
+                                        </Menu.Item>
+                                    )}
                                     <Menu.Item
                                         leftSection={
                                             <MantineIcon
@@ -470,6 +490,15 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                     description={chart.description}
                     onClose={closeRename}
                     onConfirm={closeRename}
+                />
+            )}
+            {addToDashboardOpened && (
+                <AddTilesToDashboardModal
+                    isOpen
+                    projectUuid={projectUuid}
+                    uuid={composerChartUuid}
+                    dashboardTileType={DashboardTileTypes.COMPOSER_CHART}
+                    onClose={closeAddToDashboard}
                 />
             )}
             {moveOpened && (

@@ -4,6 +4,7 @@ import {
     IconDots,
     IconEdit,
     IconFolderSymlink,
+    IconLayoutGridAdd,
     IconTrash,
 } from '@tabler/icons-react';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
@@ -66,6 +67,19 @@ const ComposerChartResourceActionMenu = ({
                             }
                         >
                             Rename
+                        </Menu.Item>
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconLayoutGridAdd} />
+                            }
+                            onClick={() =>
+                                onAction({
+                                    type: ResourceViewItemAction.ADD_TO_DASHBOARD,
+                                    item,
+                                })
+                            }
+                        >
+                            Add to Dashboard
                         </Menu.Item>
                         <Menu.Item
                             leftSection={

@@ -109,6 +109,9 @@ export const useAddTileOptions = ({
     const { health } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled === true;
+    const composerChartsFlag = useServerFeatureFlag(
+        FeatureFlags.ComposerCharts,
+    );
 
     const isTileTypeAllowed = (tileType: DashboardTileTypes) =>
         !allowedTileTypes || allowedTileTypes.includes(tileType);
@@ -234,6 +237,10 @@ export const useAddTileOptions = ({
                         onClose={() => setIsAddChartTilesModalOpen(false)}
                         onAddTiles={onAddTiles}
                         spaceUuids={chartSpaceUuids}
+                        includeComposerCharts={
+                            composerChartsFlag.data?.enabled === true &&
+                            isTileTypeAllowed(DashboardTileTypes.COMPOSER_CHART)
+                        }
                     />
                 )}
                 {formTileType !== null && (

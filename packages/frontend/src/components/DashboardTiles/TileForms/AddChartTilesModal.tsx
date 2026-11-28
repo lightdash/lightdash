@@ -2,10 +2,13 @@ import {
     assertUnreachable,
     ChartKind,
     ChartSourceType,
+    ContentType,
     DashboardTileTypes,
     defaultTileSize,
     type ChartContent,
+    type ComposerChartContent,
     type Dashboard,
+    type SummaryContent,
 } from '@lightdash/common';
 import {
     Box,
@@ -34,7 +37,7 @@ import {
     selectDashboardTiles,
     useDashboardSelector,
 } from '../../../features/dashboard/store';
-import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
+import { useInfiniteContent } from '../../../hooks/useContent';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import MantineModal from '../../common/MantineModal';
@@ -50,6 +53,63 @@ type Props = {
     ) => void;
     onClose: () => void;
     spaceUuids?: string[];
+    /** Also offer space-owned composer charts; never dashboard-owned ones */
+    includeComposerCharts: boolean;
+};
+
+type PickableChart = ChartContent | ComposerChartContent;
+
+const isPickableChart = (item: SummaryContent): item is PickableChart =>
+    item.contentType === ContentType.CHART ||
+    item.contentType === ContentType.COMPOSER_CHART;
+
+const toTile = (chart: PickableChart): Dashboard['tiles'][number] => {
+    // BigNumber charts default to hidden title for cleaner appearance
+    const hideTitle =
+        chart.chartKind === ChartKind.BIG_NUMBER ? true : undefined;
+    if (chart.contentType === ContentType.COMPOSER_CHART) {
+        return {
+            uuid: uuid4(),
+            type: DashboardTileTypes.COMPOSER_CHART,
+            properties: {
+                composerChartUuid: chart.uuid,
+                chartName: chart.name,
+                hideTitle,
+            },
+            tabUuid: undefined,
+            ...defaultTileSize,
+        };
+    }
+    switch (chart.source) {
+        case ChartSourceType.SQL:
+            return {
+                uuid: uuid4(),
+                type: DashboardTileTypes.SQL_CHART,
+                properties: {
+                    savedSqlUuid: chart.uuid,
+                    chartName: chart.name,
+                },
+                tabUuid: undefined,
+                ...defaultTileSize,
+            };
+        case ChartSourceType.DBT_EXPLORE:
+            return {
+                uuid: uuid4(),
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: {
+                    savedChartUuid: chart.uuid,
+                    chartName: chart.name,
+                    hideTitle,
+                },
+                tabUuid: undefined,
+                ...defaultTileSize,
+            };
+        default:
+            return assertUnreachable(
+                chart.source,
+                `Unknown chart source type: ${chart.source}`,
+            );
+    }
 };
 
 type ItemProps = {
@@ -81,7 +141,12 @@ const SelectItem: FC<ItemProps> = ({
     </Stack>
 );
 
-const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
+const AddChartTilesModal: FC<Props> = ({
+    onAddTiles,
+    onClose,
+    spaceUuids,
+    includeComposerCharts,
+}) => {
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
@@ -91,22 +156,27 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
         isFetching,
         hasNextPage,
         fetchNextPage,
-    } = useChartSummariesV2(
+    } = useInfiniteContent(
         {
-            projectUuid,
+            projectUuids: projectUuid ? [projectUuid] : [],
             spaceUuids,
+            contentTypes: includeComposerCharts
+                ? [ContentType.CHART, ContentType.COMPOSER_CHART]
+                : [ContentType.CHART],
             page: 1,
             pageSize: 25,
             search: debouncedSearchQuery,
         },
-        { keepPreviousData: true },
+        { keepPreviousData: true, enabled: !!projectUuid },
     );
     // Aggregates all fetched charts across pages and search queries into a unified list.
     // This ensures that previously fetched chart are preserved even when the search query changes.
     // Uses 'uuid' to remove duplicates and maintain a consistent set of unique charts.
-    const [savedQueries, setSavedQueries] = useState<ChartContent[]>([]);
+    const [savedQueries, setSavedQueries] = useState<PickableChart[]>([]);
     useEffect(() => {
-        const allPages = chartPages?.pages.map((p) => p.data).flat() ?? [];
+        const allPages =
+            chartPages?.pages.flatMap((p) => p.data.filter(isPickableChart)) ??
+            [];
 
         setSavedQueries((previousState) =>
             uniqBy([...previousState, ...allPages], 'uuid'),
@@ -160,7 +230,9 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
                     (tile.type === DashboardTileTypes.SAVED_CHART &&
                         tile.properties.savedChartUuid === uuid) ||
                     (tile.type === DashboardTileTypes.SQL_CHART &&
-                        tile.properties.savedSqlUuid === uuid)
+                        tile.properties.savedSqlUuid === uuid) ||
+                    (tile.type === DashboardTileTypes.COMPOSER_CHART &&
+                        tile.properties.composerChartUuid === uuid)
                 );
             });
 
@@ -188,47 +260,9 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
 
     const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
         onAddTiles(
-            savedChartsUuids.map((uuid) => {
-                const chart = savedQueries?.find((c) => c.uuid === uuid);
-                const sourceType = chart?.source;
-
-                switch (sourceType) {
-                    case ChartSourceType.SQL:
-                        return {
-                            uuid: uuid4(),
-                            type: DashboardTileTypes.SQL_CHART,
-                            properties: {
-                                savedSqlUuid: uuid,
-                                chartName: chart?.name ?? '',
-                            },
-                            tabUuid: undefined,
-                            ...defaultTileSize,
-                        };
-
-                    case undefined:
-                    case ChartSourceType.DBT_EXPLORE:
-                        return {
-                            uuid: uuid4(),
-                            type: DashboardTileTypes.SAVED_CHART,
-                            properties: {
-                                savedChartUuid: uuid,
-                                chartName: chart?.name ?? '',
-                                // BigNumber charts default to hidden title for cleaner appearance
-                                hideTitle:
-                                    chart?.chartKind === ChartKind.BIG_NUMBER
-                                        ? true
-                                        : undefined,
-                            },
-                            tabUuid: undefined,
-                            ...defaultTileSize,
-                        };
-
-                    default:
-                        return assertUnreachable(
-                            sourceType,
-                            `Unknown chart source type: ${sourceType}`,
-                        );
-                }
+            savedChartsUuids.flatMap((uuid) => {
+                const chart = savedQueries.find((c) => c.uuid === uuid);
+                return chart ? [toTile(chart)] : [];
             }),
         );
         onClose();
