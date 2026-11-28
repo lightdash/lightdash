@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { getHandledAgentToolCallIds } from '../streaming/handledAgentToolCalls';
-import { useAiAgentProjectStreamParts } from '../streaming/useAiAgentThreadStreamQuery';
+import { useAiAgentContentEdits } from '../streaming/useAiAgentThreadStreamQuery';
 
 export const useRefreshSavedChartOnAgentEdit = ({
     projectUuid,
@@ -13,31 +13,27 @@ export const useRefreshSavedChartOnAgentEdit = ({
     chartSlug: string | undefined;
 }) => {
     const queryClient = useQueryClient();
-    const parts = useAiAgentProjectStreamParts(projectUuid);
+    const edits = useAiAgentContentEdits({
+        projectUuid,
+        contentType: 'chart',
+        contentUuid: chartUuid,
+    });
 
     useEffect(() => {
         if (!projectUuid || !chartUuid) return;
         const handledToolCallIds = getHandledAgentToolCallIds('savedChart');
 
-        for (const part of parts) {
-            if (
-                part.type !== 'toolCall' ||
-                part.toolName !== 'editContent' ||
-                part.toolArgs.type !== 'chart' ||
-                part.isPreliminary !== false ||
-                part.toolResult?.metadata.status !== 'success' ||
-                part.toolResult.metadata.uuid !== chartUuid ||
-                handledToolCallIds.has(part.toolCallId)
-            ) {
-                continue;
-            }
-            handledToolCallIds.add(part.toolCallId);
+        for (const edit of edits) {
+            if (handledToolCallIds.has(edit.toolCallId)) continue;
+            handledToolCallIds.add(edit.toolCallId);
 
             const identifiers = new Set([
                 chartUuid,
                 chartSlug,
-                part.toolArgs.slug,
-                part.toolResult.metadata.slug,
+                edit.toolArgs.slug,
+                edit.toolResult?.metadata.status === 'success'
+                    ? edit.toolResult.metadata.slug
+                    : undefined,
             ]);
             for (const identifier of identifiers) {
                 if (!identifier) continue;
@@ -46,5 +42,5 @@ export const useRefreshSavedChartOnAgentEdit = ({
                 });
             }
         }
-    }, [parts, projectUuid, chartUuid, chartSlug, queryClient]);
+    }, [edits, projectUuid, chartUuid, chartSlug, queryClient]);
 };

@@ -64,6 +64,44 @@ export const useAiAgentProjectStreamParts = (
         shallowEqual,
     );
 
+type AgentEditToolCall = Extract<
+    StreamPart,
+    { type: 'toolCall'; toolName: 'editContent' }
+>;
+
+const isSameToolCalls = (a: AgentEditToolCall[], b: AgentEditToolCall[]) =>
+    a.length === b.length &&
+    a.every((part, index) => part.toolCallId === b[index].toolCallId);
+
+/** Finished, successful agent edits of one piece of content; unchanged while other parts stream. */
+export const useAiAgentContentEdits = ({
+    projectUuid,
+    contentType,
+    contentUuid,
+}: {
+    projectUuid: string | undefined;
+    contentType: AgentEditToolCall['toolArgs']['type'];
+    contentUuid: string | undefined;
+}): AgentEditToolCall[] =>
+    useAiAgentStoreSelector(
+        (state) =>
+            Object.values(state.aiAgentThreadStream).flatMap((threadStream) =>
+                threadStream.projectUuid === projectUuid && contentUuid
+                    ? threadStream.parts.filter(
+                          (part): part is AgentEditToolCall =>
+                              part.type === 'toolCall' &&
+                              part.toolName === 'editContent' &&
+                              part.toolArgs.type === contentType &&
+                              part.isPreliminary === false &&
+                              part.toolResult?.metadata.status === 'success' &&
+                              part.toolResult.metadata.uuid === contentUuid,
+                      )
+                    : [],
+            ),
+        // A finished edit's result is final, so its id identifies it
+        isSameToolCalls,
+    );
+
 /** Tool calls made in threads that must not move the page. */
 export const useAiAgentQuietToolCallIds = (
     projectUuid: string | undefined,
