@@ -19,6 +19,7 @@ import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMarkdown/AiMarkdownErrorBoundary';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
+import { STUDIO_THEMES } from '../../../../../features/writeback/pierreThemes';
 import { recountHunks } from '../../../../../features/writeback/splitPatch';
 import classes from './DiffMarkdownCodeBlock.module.css';
 import { InStudioChatContext } from './ToolCalls/studioChatContext';
@@ -50,7 +51,9 @@ const DrawnDiff: FC<DiffProps> = ({ patch, overflow }) => {
                     diffIndicators: 'bars',
                     lineDiffType: 'word',
                     theme:
-                        colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light',
+                        colorScheme === 'dark'
+                            ? STUDIO_THEMES.dark
+                            : STUDIO_THEMES.light,
                 }}
             />
         </Virtualizer>

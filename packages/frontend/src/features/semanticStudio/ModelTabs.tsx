@@ -314,10 +314,6 @@ export const ModelCodeView: FC<{
                             </Text>
                         </Group>
                     ) : null
-                ) : !isDirty ? (
-                    <Text fz="xs" c="dimmed" truncate maw={240}>
-                        {where ? `Saves to ${where}` : 'Saving starts a draft'}
-                    </Text>
                 ) : null}
                 {editing ? (
                     <>

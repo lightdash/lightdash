@@ -1,0 +1,1028 @@
+.row {
+    all: unset;
+    box-sizing: border-box;
+    width: 100%;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px 0 calc(8px + var(--depth, 0) * 16px);
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.row[data-depth='1'] {
+    --depth: 1;
+}
+
+.row[data-depth='2'] {
+    --depth: 2;
+}
+
+.row[data-depth='3'] {
+    --depth: 3;
+}
+
+.row[data-quiet] {
+    color: var(--mantine-color-dimmed);
+}
+
+/* Hover is for pointers; a tap on a touch screen should not leave a row lit. */
+@media (hover: hover) and (pointer: fine) {
+    .row:hover {
+        background: var(--mantine-color-default-hover);
+        color: var(--mantine-color-text);
+    }
+}
+
+/* The press is felt at once, with no fade in: the row darkens while it is held. */
+.row:active:not([data-static]) {
+    background: color-mix(in srgb, var(--mantine-color-text) 10%, transparent);
+}
+
+/* `all: unset` took the focus ring with it; keyboard users get it back, inside the row. */
+.row:focus-visible,
+.line:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: -2px;
+}
+
+/* One chevron that turns, so the eye follows the group opening. */
+.chevron {
+    flex: none;
+    transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.row[aria-expanded='true'] .chevron,
+.chevron[data-open] {
+    transform: rotate(90deg);
+}
+
+.row[data-selected='true'] {
+    background: color-mix(in srgb, var(--mantine-color-text) 8%, transparent);
+    color: var(--mantine-color-text);
+}
+
+.object {
+    position: relative;
+    grid-area: main;
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+}
+
+.pane {
+    container: pane / inline-size;
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+}
+
+.pane + .pane {
+    border-left: 1px solid var(--mantine-color-default-border);
+}
+
+.header {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 16px 24px 16px;
+}
+
+/* One line per column: what the model calls it, what it means, where it comes from. */
+.line {
+    all: unset;
+    box-sizing: border-box;
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(160px, 260px) minmax(0, 1fr) minmax(
+            140px,
+            280px
+        );
+    align-items: center;
+    gap: 16px;
+    min-height: 36px;
+    padding: 0 24px;
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-1), var(--mantine-color-dark-5));
+    font-size: 13px;
+    cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .line:hover:not([data-unused]) {
+        background: var(--mantine-color-default-hover);
+    }
+}
+
+.line:active:not([data-unused]) {
+    background: color-mix(in srgb, var(--mantine-color-text) 7%, transparent);
+}
+
+.line[aria-expanded='true'] {
+    background: var(--mantine-color-default-hover);
+}
+
+.line[data-unused] {
+    cursor: default;
+    color: var(--mantine-color-dimmed);
+}
+
+.name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-weight: 500;
+}
+
+.origin {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+.code {
+    margin: 0;
+    padding: 10px 24px 14px 48px;
+    overflow-x: auto;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 12px;
+    line-height: 1.6;
+    background: color-mix(in srgb, var(--mantine-color-text) 3%, transparent);
+}
+
+/* Supports the title: quieter and smaller than it, and held to a readable measure. */
+.description {
+    --ai-markdown-padding-left: 0;
+    --ai-markdown-font-size: 13px;
+    max-width: 72ch;
+    margin-top: 4px;
+}
+
+.description > div {
+    color: var(--mantine-color-dimmed);
+}
+
+/* Collapsed, it is two lines of prose: headings and tables wait for Show more. */
+.description[data-clamped] {
+    max-height: 41px;
+    overflow: hidden;
+    /* Fades out where it is cut, so it reads as more below and not as the end. */
+    mask-image: linear-gradient(to bottom, #000 55%, transparent);
+}
+
+.description[data-clamped] :is(h1, h2, h3, h4, table, ul, ol, pre, hr) {
+    display: none;
+}
+
+.title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The list's own heading: names its columns and filters it, and stays put while the rows scroll. */
+.listHead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    flex: none;
+    display: grid;
+    grid-template-columns: minmax(160px, 260px) minmax(0, 1fr) minmax(
+            140px,
+            280px
+        );
+    align-items: center;
+    gap: 16px;
+    height: 32px;
+    padding: 0 24px;
+    background: var(--mantine-color-body);
+    border-top: 1px solid var(--mantine-color-default-border);
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+.listFilter :global(.mantine-Input-input) {
+    height: 30px;
+    min-height: 30px;
+    font-size: 12px;
+}
+
+.reference {
+    width: fit-content;
+}
+
+.referenceCopy {
+    display: flex;
+    opacity: 0;
+    transition: opacity 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.reference:hover .referenceCopy,
+.reference:focus-within .referenceCopy {
+    opacity: 1;
+}
+
+/* The open field: one grid, so every label shares an edge and every value shares the next. */
+.detail {
+    /* Opens with a short fade and no movement: it is opened many times a day */
+    opacity: 1;
+    transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+    display: grid;
+    /* Values start where the row's description starts: 260px name column less the 24px indent, then the 16px gap. */
+    grid-template-columns: 236px minmax(0, 720px);
+    column-gap: 16px;
+    row-gap: 2px;
+    align-items: start;
+    /* The labels start under the field's own label: 24px gutter, 16px icon, 8px gap. */
+    padding: 8px 24px 14px 48px;
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-1), var(--mantine-color-dark-5));
+    font-size: 13px;
+    line-height: 20px;
+}
+
+.term {
+    padding: 4px 0;
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+/* Typed-into values look like text: same size, same left edge, no box; the highlight grows outward so nothing shifts. */
+.value :global(.mantine-Input-input) {
+    display: block;
+    height: auto;
+    min-height: 28px;
+    padding: 4px 0;
+    border: 0;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 20px;
+    transition:
+        background-color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.value :global(.mantine-Input-input):hover,
+.value :global(.mantine-Input-input):focus {
+    background: var(--mantine-color-default-hover);
+    box-shadow:
+        -6px 0 0 var(--mantine-color-default-hover),
+        6px 0 0 var(--mantine-color-default-hover);
+}
+
+.definition {
+    min-width: 0;
+    margin-left: -12px;
+    --diffs-gap-block: 4px;
+}
+
+.facts {
+    padding: 4px 0;
+    color: var(--mantine-color-dimmed);
+}
+
+.detailActions {
+    display: flex;
+    gap: 16px;
+    padding: 6px 0 0;
+}
+
+/* The field's own lines of YAML on a quiet surface, its file and what can be done with it at the foot. */
+.fieldCode {
+    min-width: 0;
+    margin: 8px 0 0 -12px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--mantine-color-text) 3%, transparent);
+    box-shadow: inset 0 0 0 1px transparent;
+    transition: box-shadow 140ms cubic-bezier(0.23, 1, 0.32, 1);
+    color-scheme: light;
+    --diffs-font-size: 12px;
+    --diffs-line-height: 18px;
+    --diffs-bg: transparent;
+
+    @mixin dark {
+        color-scheme: dark;
+    }
+}
+
+.fieldCode:focus-within {
+    box-shadow: inset 0 0 0 1px var(--mantine-color-default-border);
+}
+
+.fieldCodeFoot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    height: 32px;
+    padding: 0 12px;
+    border-top: 1px solid
+        color-mix(in srgb, var(--mantine-color-text) 6%, transparent);
+}
+
+.fieldCodeActions {
+    display: flex;
+    flex: none;
+    gap: 14px;
+}
+
+.fieldCodeActions button,
+.detailActions button {
+    font-size: 12px;
+}
+
+/* The compiled definition and its own actions show only where there is no YAML to edit. */
+.detail:has(.fieldCode) > [data-fallback] {
+    display: none;
+}
+
+/* The bar's status and actions, at the head of the sidebar now that the bar is gone. */
+.railTop {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 40px;
+    padding: 0 8px 0 4px;
+}
+
+/* The top line is only where you are: the draft's name takes the whole width, so a long one keeps most of itself. */
+.railStatus {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.railStatus > *,
+.railStatus :global(.mantine-Button-root) {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.railStatus :global(.mantine-Button-label) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13px;
+}
+
+/* The name takes every pixel the actions leave, so a long one loses as little as it can. */
+.railStatus > :global(.mantine-Group-root) {
+    flex: 1 1 0;
+}
+
+.railStatus :global(.mantine-Button-root) {
+    flex: 0 1 auto;
+    padding-inline: 8px 6px;
+}
+
+.railStatus :global(.mantine-Button-inner) {
+    justify-content: flex-start;
+    min-width: 0;
+}
+
+.railStatus :global(.mantine-Button-section) {
+    flex: none;
+    margin-inline: 0 6px;
+}
+
+.railStatus :global(.mantine-Button-section[data-position='right']) {
+    margin-inline: 4px 0;
+}
+
+/* With a draft open, its name and its bar are one tinted block at the top, in the draft's own colour. */
+.draftBlock {
+    flex: none;
+}
+
+/* A project with nothing to switch or publish has no line here at all. */
+.draftBlock:not(:has(button, a)) {
+    display: none;
+}
+
+.draftBlock:not(:has(button, a)) + .railSearch {
+    padding-top: 8px;
+}
+
+/* On a draft the name's line takes the draft's colour, so the whole sidebar says which state it shows. */
+.draftBlock:has([class*='pickerDot'][data-kind='draft']) {
+    margin: 6px 8px 4px;
+    border-radius: 8px;
+    background: color-mix(
+        in srgb,
+        var(--mantine-color-yellow-5) 9%,
+        var(--mantine-color-body)
+    );
+}
+
+.draftBlock:has([class*='pickerDot'][data-kind='draft']) .railTop {
+    height: 34px;
+    padding: 0 4px 0 0;
+}
+
+.railActions {
+    display: flex;
+    flex: none;
+    align-items: center;
+}
+
+.railActions :global(.mantine-Group-root) {
+    flex-wrap: nowrap;
+    gap: 4px;
+    /* Outranks the inline margin the wide toolbar gives its groups */
+    margin-left: 0 !important;
+}
+
+.railActions :global(.mantine-Button-root) {
+    height: 26px;
+    padding-inline: 10px;
+    font-size: 12px;
+}
+
+.railActions :global(.mantine-ActionIcon-root) {
+    width: 26px;
+    min-width: 26px;
+    height: 26px;
+    min-height: 26px;
+}
+
+/* The menu comes before the main action, so Publish always ends the line. */
+.railActions :global(.mantine-ActionIcon-root) {
+    order: -1;
+}
+
+/* Inspecting: the name, its SQL given the room, then the type. */
+.line[data-inspect] {
+    grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) 80px;
+}
+
+/* Group rows stay in view while their contents scroll under them; solid, so rows don't show through. */
+.row[data-pinned] {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--mantine-color-body);
+}
+
+.row[data-pinned='1'] {
+    top: 28px;
+    z-index: 2;
+}
+
+.row[data-pinned='2'] {
+    top: 56px;
+    z-index: 1;
+}
+
+.row[data-pinned]:hover {
+    background:
+        linear-gradient(
+            var(--mantine-color-default-hover),
+            var(--mantine-color-default-hover)
+        ),
+        var(--mantine-color-body);
+}
+
+.row[data-pinned][data-selected='true'] {
+    background:
+        linear-gradient(
+            color-mix(in srgb, var(--mantine-color-text) 8%, transparent),
+            color-mix(in srgb, var(--mantine-color-text) 8%, transparent)
+        ),
+        var(--mantine-color-body);
+}
+
+.row[data-static],
+.row[data-static]:hover {
+    cursor: default;
+    background: var(--mantine-color-body);
+}
+
+.railFoot {
+    flex: none;
+    padding: 6px 8px;
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+/* Files keeps the sidebar's status row above the repo's own tree. */
+.filesRail {
+    grid-area: rail;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-right: 1px solid var(--mantine-color-default-border);
+}
+
+.filesRailBody {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.filesRailBody > * {
+    flex: 1;
+    border-right: 0;
+}
+
+.wrap {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+/* A quiet mark on a table a model already reads. */
+.modelledMark {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mantine-color-ldGray-4);
+}
+
+/* Group headings: stacked at the top once passed, stacked at the bottom until reached. */
+/* Quieter and smaller than the rows they head, with a hairline above so the groups read apart. */
+.row[data-section] {
+    position: sticky;
+    top: calc(var(--stick-top, 0) * 28px);
+    bottom: calc(var(--stick-bottom, 0) * 28px);
+    z-index: 4;
+    background: var(--mantine-color-body);
+    border-radius: 0;
+    box-shadow: 0 -1px 0 var(--mantine-color-default-border);
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+.row[data-section]:hover {
+    background:
+        linear-gradient(
+            var(--mantine-color-default-hover),
+            var(--mantine-color-default-hover)
+        ),
+        var(--mantine-color-body);
+}
+
+.sectionAnchor {
+    display: block;
+    height: 0;
+    scroll-margin-top: calc(var(--stick-top, 0) * 28px);
+}
+
+/* The code beside a model keeps to its own half and scrolls on its own. */
+.pane[data-code] {
+    overflow: hidden;
+}
+
+.pane[data-code] > * {
+    flex: 1;
+    min-height: 0;
+}
+
+/* Open code leads; the fields beside it become the reference. */
+.pane[data-code] {
+    flex: 1.3 1 0;
+    opacity: 1;
+    transition: opacity 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* The fields never get so narrow that their names stop being readable. */
+.pane:not([data-code]) {
+    min-width: 300px;
+}
+
+.name > :first-child {
+    flex: none;
+}
+
+/* A narrow pane keeps the name and where it comes from, and lets the description go. */
+/* Below this the description has no room left between the name and the source. */
+@container pane (max-width: 860px) {
+    .line,
+    .listHead {
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    }
+
+    .line > :nth-child(2),
+    .listHead > :nth-child(2) {
+        display: none;
+    }
+
+    .detail {
+        grid-template-columns: 88px minmax(0, 1fr);
+    }
+}
+
+/* Counts line up down the sidebar whatever their digits. */
+.row :global(.mantine-Text-root):last-child {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Less motion means no turning or sliding; the fades stay, since they explain what appeared. */
+@media (prefers-reduced-motion: reduce) {
+    .chevron {
+        transition: none;
+    }
+}
+
+@starting-style {
+    .detail,
+    .pane[data-code] {
+        opacity: 0;
+    }
+}
+
+/* What your draft touches, first in the list: the work in hand before the catalogue. */
+.changes {
+    padding-bottom: 6px;
+}
+
+.changesHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--mantine-color-dimmed);
+}
+
+.changeTag {
+    flex: none;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--mantine-color-yellow-8);
+}
+
+.changeTag[data-change='new'] {
+    color: var(--mantine-color-green-8);
+}
+
+.changeTag[data-change='removed'] {
+    color: var(--mantine-color-red-8);
+}
+
+/* A column label never runs into its neighbour. */
+.listHead > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* A long name truncates; it never squeezes the icon beside it. */
+.row > svg,
+.row > img,
+.row > :global(.mantine-Box-root):first-child {
+    flex: none;
+}
+
+/* The sidebar's search: a quiet filled field with no border, its icon on the same edge as the rows' icons. */
+.railSearch {
+    flex: none;
+    display: flex;
+    align-items: center;
+    padding: 2px 8px 8px;
+}
+
+.railSearch :global(.mantine-Input-section[data-position='right']) {
+    width: 28px;
+}
+
+.rowChange {
+    flex: none;
+    padding-left: 6px;
+    font-size: 11px;
+}
+
+.railSearch :global(.mantine-Input-input) {
+    height: 28px;
+    min-height: 28px;
+    border: 0;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--mantine-color-text) 5%, transparent);
+    font-size: 13px;
+}
+
+.railSearch :global(.mantine-Input-input):focus {
+    background: color-mix(in srgb, var(--mantine-color-text) 8%, transparent);
+}
+
+.railSearch :global(.mantine-Input-section[data-position='left']) {
+    width: 28px;
+}
+
+/* Code as a sheet over the model: the fields keep their full width underneath, and the sheet leaves their names in view. */
+.codeSheet {
+    position: absolute;
+    inset: 0 0 0 auto;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    width: min(820px, 68%);
+    background: var(--mantine-color-body);
+    border-left: 1px solid var(--mantine-color-default-border);
+    box-shadow: -16px 0 32px -12px rgb(0 0 0 / 14%);
+    opacity: 1;
+    transform: translateX(0);
+    transition:
+        transform 220ms cubic-bezier(0.32, 0.72, 0, 1),
+        opacity 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@starting-style {
+    .codeSheet {
+        opacity: 0;
+        transform: translateX(24px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .codeSheet {
+        transition: opacity 160ms ease;
+        transform: none;
+    }
+}
+
+.codeSheetBar {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 40px;
+    padding: 0 10px 0 14px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.codeSheetTab {
+    all: unset;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+    cursor: pointer;
+}
+
+.codeSheetTab:hover {
+    color: var(--mantine-color-text);
+}
+
+.codeSheetTab[aria-pressed='true'] {
+    background: color-mix(in srgb, var(--mantine-color-text) 7%, transparent);
+    color: var(--mantine-color-text);
+}
+
+.codeSheetTab:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: -2px;
+}
+
+.codeSheetBody {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.codeSheetBody > * {
+    flex: 1;
+    min-height: 0;
+}
+
+/* The code as its own view: the whole workspace, with no list or sidebar beside it. */
+.codeSheet[data-wide] {
+    width: 100%;
+    border-left: 0;
+    box-shadow: none;
+    transform: none;
+    transition: opacity 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Two views, one click apart: floats over the page so the switch stays in the same place in both. */
+.dock {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    z-index: 200;
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+    translate: -50% 0;
+    border-radius: 12px;
+    background: var(--mantine-color-body);
+    box-shadow:
+        0 0 0 1px var(--mantine-color-default-border),
+        0 8px 24px -6px rgb(0 0 0 / 18%);
+}
+
+.dockButton {
+    all: unset;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+    cursor: pointer;
+    transition:
+        background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+        color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+        transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dockButton:hover:not(:disabled):not([aria-pressed='true']) {
+    color: var(--mantine-color-text);
+}
+
+.dockButton:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+/* The view you are on is a quiet fill, so the one solid button in the dock is the one that publishes. */
+.dockButton[aria-pressed='true'] {
+    background: color-mix(in srgb, var(--mantine-color-text) 9%, transparent);
+    color: var(--mantine-color-text);
+}
+
+/* The draft's actions, after a hairline: present only while there is a draft to act on. */
+.dockActions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 4px;
+    padding-left: 6px;
+    border-left: 1px solid var(--mantine-color-default-border);
+}
+
+.dockActions:not(:has(button, a)) {
+    display: none;
+}
+
+.dockActions :global(.mantine-Group-root) {
+    flex-wrap: nowrap;
+    gap: 2px;
+    margin-left: 0 !important;
+}
+
+.dockActions :global(.mantine-Button-root) {
+    height: 30px;
+    padding-inline: 14px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.dockActions :global(.mantine-ActionIcon-root) {
+    order: -1;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+}
+
+.dockButton:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.dockButton:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}
+
+/* No padding under the list: a heading docked to the bottom sits on the edge, with nothing showing beneath it. */
+/* Doubled so it outranks the shared rail's own padding whichever stylesheet loads last. */
+.railScroll.railScroll {
+    padding-bottom: 0;
+}
+
+/* The last rows still clear the bottom edge when the list is scrolled to its end. */
+.railScroll::after {
+    content: '';
+    display: block;
+    height: 12px;
+}
+
+/* A model's YAML and SQL side by side; each side is the whole editor for its file. */
+/* The code view's own box: it measures itself, and keeps its last lines clear of the dock. */
+.codeArea {
+    container: code / inline-size;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.codeArea > * {
+    flex: 1;
+    min-height: 0;
+}
+
+.codeArea [class*='_sourceCode_'] {
+    padding-bottom: 64px;
+}
+
+.codePair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    min-height: 0;
+}
+
+/* Too narrow for two columns of code: the pair stacks, YAML over SQL, each at full width. */
+@container code (max-width: 900px) {
+    .codePair {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .codePairSide + .codePairSide {
+        border-left: 0;
+        border-top: 1px solid var(--mantine-color-default-border);
+    }
+}
+
+/* A long field, such as a column with its metrics, scrolls inside its panel and leaves the page its shape. */
+.fieldCodeBody {
+    max-height: 320px;
+    overflow: auto;
+}
+
+/* The page's last rows scroll clear of the dock. */
+.pane::after {
+    content: '';
+    flex: none;
+    height: 72px;
+}
+
+.codePairSide {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+.codePairSide + .codePairSide {
+    border-left: 1px solid var(--mantine-color-default-border);
+}
+
+/* With no views to flip, the dock is only the draft's actions, or not there at all. */
+.dockActions:first-child {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+}
+
+.dock:not(:has(button, a)) {
+    display: none;
+}
+
+/* The field's code comes after everything read about it, and the actions after the code. */
+.detail > [data-after] {
+    order: 1;
+}
+
+.detail > [data-last] {
+    order: 2;
+    font-size: 12px;
+}
+
+/* In the code view the models share the sidebar with the file tree, each scrolling on its own. */
+.railScroll[data-shares] {
+    flex: 1 1 40%;
+}
+
+.railScroll[data-closed] {
+    flex: none;
+}
+
+.filesHead {
+    flex: none;
+    display: flex;
+    align-items: center;
+    height: 28px;
+    margin: 0 8px;
+    padding: 0 8px;
+    border-top: 1px solid var(--mantine-color-default-border);
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+.filesHead + .filesRailBody {
+    flex: 1 1 60%;
+}

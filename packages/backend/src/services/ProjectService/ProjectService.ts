@@ -14855,11 +14855,20 @@ export class ProjectService
                 organizationUuid,
                 projectUuid,
             ));
-        const visibleExploreSummaries = shouldIncludePreAggregateExplores
-            ? allExploreSummaries
-            : allExploreSummaries.filter(
-                  (explore) => explore.type !== ExploreType.PRE_AGGREGATE,
-              );
+        // An embed that cannot see compiled SQL gets no table identifier either, as on a single explore
+        const hidesRelations = this.cannotViewEmbedCompiledSql(
+            account,
+            projectUuid,
+        );
+        const visibleExploreSummaries = (
+            shouldIncludePreAggregateExplores
+                ? allExploreSummaries
+                : allExploreSummaries.filter(
+                      (explore) => explore.type !== ExploreType.PRE_AGGREGATE,
+                  )
+        ).map((explore) =>
+            hidesRelations ? { ...explore, sqlTable: undefined } : explore,
+        );
 
         if (filtered) {
             const { tableSelection } = await this.getTablesConfiguration(

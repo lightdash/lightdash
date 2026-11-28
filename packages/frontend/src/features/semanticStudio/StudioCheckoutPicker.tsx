@@ -46,7 +46,7 @@ const PickerRow: FC<{
         </Text>
         {updatedAt ? (
             <Text fz="xs" c="dimmed" flex="none">
-                {dayjs(updatedAt).fromNow(true)}
+                {dayjs(updatedAt).fromNow()}
             </Text>
         ) : null}
     </Group>
@@ -101,6 +101,7 @@ export const DraftPickerMenu: FC<{
                     maw={420}
                     className={classes.pickerTitle}
                     aria-busy={isBusy}
+                    title={currentName ?? undefined}
                     aria-label={
                         currentName === null
                             ? 'Published'

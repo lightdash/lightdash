@@ -1,4 +1,4 @@
-/* Field table: one raised surface, its toolbar inside the top edge.
+/* Field table: one flat surface, its toolbar along the top edge.
    Lines only where they separate: under the toolbar, header and rows. */
 
 .table {
@@ -9,16 +9,14 @@
     flex: 0 1 auto;
     min-height: 0;
     background: var(--mantine-color-body);
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
-    border-radius: 12px;
-    overflow: hidden;
+    /* Flat and edge to edge: rows run the pane's full width, lines only between them. */
+    margin-inline: -24px;
 }
 
 .tableToolbar {
     flex: none;
     height: 44px;
-    padding: 0 8px 0 4px;
+    padding: 0 20px 0 16px;
     border-bottom: 1px solid
         light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
 }
@@ -48,7 +46,7 @@
     grid-template-columns: minmax(200px, 360px) minmax(0, 1fr);
     align-items: center;
     gap: 12px;
-    padding: 0 12px 0 28px;
+    padding: 0 24px 0 40px;
 }
 
 @container field-table (max-width: 720px) {
@@ -78,7 +76,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 0 12px;
+    padding: 0 24px;
     font-size: 13px;
     font-weight: 600;
     color: var(--mantine-color-text);
@@ -119,7 +117,7 @@
 /* Shown on hover: the row can be dragged into the chat. */
 .dragGrip {
     position: absolute;
-    left: 8px;
+    left: 20px;
     top: 50%;
     display: flex;
     translate: 0 -50%;

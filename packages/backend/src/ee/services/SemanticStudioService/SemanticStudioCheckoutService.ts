@@ -1035,9 +1035,10 @@ export class SemanticStudioCheckoutService extends BaseService {
                     checkQueries: false,
                 },
             );
-        const save = (dryRun: boolean) =>
+        // One pass: the save compiles the change before it commits, and a failed check commits nothing
+        const save = () =>
             this.aiWritebackService.saveWithScript(args, script, {
-                dryRun,
+                dryRun: false,
                 assertPublishAllowed: null,
                 checkDbt: compile,
                 expectedSource:
@@ -1052,7 +1053,6 @@ export class SemanticStudioCheckoutService extends BaseService {
             }
             throw error;
         };
-        const dryRun = await save(true).catch(forPerson);
         const trackFailed = () =>
             this.track(user, projectUuid, {
                 event: 'semantic_studio.change_failed',
@@ -1062,11 +1062,7 @@ export class SemanticStudioCheckoutService extends BaseService {
                     modelCount: null,
                 },
             });
-        if (dryRun?.status === 'script_failed') {
-            trackFailed();
-            return { status: 'failed', error: dryRun.error };
-        }
-        const saved = await save(false).catch(forPerson);
+        const saved = await save().catch(forPerson);
         if (saved === null) {
             throw new ParameterError(
                 'This draft cannot take hand edits. Ask for the change in the chat, or go back to Published and edit there to start a new draft.',

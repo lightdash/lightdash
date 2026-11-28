@@ -1,0 +1,12 @@
+/* Pins the viewer to the app's colour scheme and lets the surface behind it show through. */
+.snippet {
+    min-width: 0;
+    color-scheme: light;
+    --diffs-font-size: 12px;
+    --diffs-line-height: 18px;
+    --diffs-bg: transparent;
+
+    @mixin dark {
+        color-scheme: dark;
+    }
+}

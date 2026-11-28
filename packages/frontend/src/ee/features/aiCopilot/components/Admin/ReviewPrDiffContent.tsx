@@ -17,6 +17,7 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../../../../features/writeback/pierreDiffConfig';
+import { STUDIO_THEMES } from '../../../../../features/writeback/pierreThemes';
 import classes from './ReviewPrDiffContent.module.css';
 
 type Props = {
@@ -91,8 +92,8 @@ export const ReviewPrDiffContent: FC<Props> = ({
                                     diffStyle: 'split',
                                     theme:
                                         colorScheme === 'dark'
-                                            ? 'pierre-dark'
-                                            : 'pierre-light',
+                                            ? STUDIO_THEMES.dark
+                                            : STUDIO_THEMES.light,
                                 }}
                             />
                         </Virtualizer>

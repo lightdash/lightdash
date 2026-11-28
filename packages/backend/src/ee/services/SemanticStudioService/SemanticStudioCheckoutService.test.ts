@@ -731,11 +731,10 @@ describe('SemanticStudioCheckoutService', () => {
             threadUuid: null,
         });
 
-        it('passes the loaded revision to both save attempts and permits continuation', async () => {
+        it('passes the loaded revision to the save, which runs once, and permits continuation', async () => {
             const context = setup();
             const save = vi
                 .spyOn(context.aiWritebackService, 'saveWithScript')
-                .mockResolvedValueOnce({ status: 'checked', diffs: [] })
                 .mockResolvedValueOnce({
                     status: 'script_failed',
                     error: 'changed',
@@ -747,7 +746,7 @@ describe('SemanticStudioCheckoutService', () => {
                     revision: 'original',
                 }),
             ).resolves.toEqual({ status: 'failed', error: 'changed' });
-            expect(save).toHaveBeenCalledTimes(2);
+            expect(save).toHaveBeenCalledTimes(1);
             for (const [args, , options] of save.mock.calls) {
                 expect(args.startNewPullRequest).toBe(false);
                 expect(options.expectedSource).toEqual({
@@ -772,27 +771,28 @@ describe('SemanticStudioCheckoutService', () => {
 
         it('keeps a save with no conversation as a draft of its own', async () => {
             const context = setup();
-            vi.spyOn(context.aiWritebackService, 'saveWithScript')
-                .mockResolvedValueOnce({ status: 'checked', diffs: [] })
-                .mockResolvedValueOnce({
-                    status: 'saved',
-                    changedModels: [],
-                    explores: null,
-                    checked: true,
-                    result: {
-                        output: '',
-                        exitCode: 0,
-                        prUrl: 'https://github.com/acme/shop/pull/7',
-                        prAction: 'opened',
-                        commitSha: 'abc',
-                        additions: 1,
-                        deletions: 0,
-                        projectName: 'Shop',
-                        repository: 'acme/shop',
-                        steps: [],
-                        dbtSourceUuid: null,
-                    },
-                });
+            vi.spyOn(
+                context.aiWritebackService,
+                'saveWithScript',
+            ).mockResolvedValueOnce({
+                status: 'saved',
+                changedModels: [],
+                explores: null,
+                checked: true,
+                result: {
+                    output: '',
+                    exitCode: 0,
+                    prUrl: 'https://github.com/acme/shop/pull/7',
+                    prAction: 'opened',
+                    commitSha: 'abc',
+                    additions: 1,
+                    deletions: 0,
+                    projectName: 'Shop',
+                    repository: 'acme/shop',
+                    steps: [],
+                    dbtSourceUuid: null,
+                },
+            });
             const create = vi
                 .spyOn(context.workspaceModel, 'create')
                 .mockResolvedValue('workspace-new');
@@ -818,27 +818,28 @@ describe('SemanticStudioCheckoutService', () => {
 
         it('saves into the empty draft New draft made instead of leaving it behind', async () => {
             const context = setup();
-            vi.spyOn(context.aiWritebackService, 'saveWithScript')
-                .mockResolvedValueOnce({ status: 'checked', diffs: [] })
-                .mockResolvedValueOnce({
-                    status: 'saved',
-                    changedModels: [],
-                    explores: null,
-                    checked: true,
-                    result: {
-                        output: '',
-                        exitCode: 0,
-                        prUrl: 'https://github.com/acme/shop/pull/8',
-                        prAction: 'opened',
-                        commitSha: 'abc',
-                        additions: 1,
-                        deletions: 0,
-                        projectName: 'Shop',
-                        repository: 'acme/shop',
-                        steps: [],
-                        dbtSourceUuid: null,
-                    },
-                });
+            vi.spyOn(
+                context.aiWritebackService,
+                'saveWithScript',
+            ).mockResolvedValueOnce({
+                status: 'saved',
+                changedModels: [],
+                explores: null,
+                checked: true,
+                result: {
+                    output: '',
+                    exitCode: 0,
+                    prUrl: 'https://github.com/acme/shop/pull/8',
+                    prAction: 'opened',
+                    commitSha: 'abc',
+                    additions: 1,
+                    deletions: 0,
+                    projectName: 'Shop',
+                    repository: 'acme/shop',
+                    steps: [],
+                    dbtSourceUuid: null,
+                },
+            });
             vi.spyOn(context.workspaceModel, 'findActive').mockResolvedValue({
                 workspaceUuid: 'workspace-untitled',
                 projectUuid: PROJECT_UUID,

@@ -81,6 +81,22 @@ export const findFieldLine = (
     return index === -1 ? null : index + 1;
 };
 
+/** How many lines in model YAML could define a field of this name; more than one means the name alone does not say which. */
+export const countFieldLines = (content: string, fieldName: string): number => {
+    const definitions = new Set(
+        [fieldName, `"${fieldName}"`, `'${fieldName}'`].flatMap((name) => [
+            `- name: ${name}`,
+            `name: ${name}`,
+            `${name}:`,
+        ]),
+    );
+    return content
+        .split('\n')
+        .filter(
+            (line) => line !== line.trimStart() && definitions.has(line.trim()),
+        ).length;
+};
+
 const indentOf = (line: string) => line.length - line.trimStart().length;
 
 /** The 1-based lines of a field's whole definition in model YAML: its line and all nested under it. */

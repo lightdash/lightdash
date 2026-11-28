@@ -71,6 +71,7 @@ import { ModelMark } from './ModelMark';
 import { LiveSourceFlow, ModelTabs } from './ModelTabs';
 import { OthersDraftNotice } from './OthersDraftNotice';
 import { PageScrollContext, usePageVirtualizer } from './pageScroll';
+import { IS_STUDIO_PROTO } from './protoFlag';
 import { SemanticLayerNudge } from './SemanticLayerNudge';
 import { NodeIcon } from './shared';
 import sharedClasses from './shared.module.css';
@@ -86,6 +87,7 @@ import {
 } from './useSemanticLayerModel';
 import { type ViewModel } from './useSemanticStudio';
 import { findCheckedOutModel, useStudioCheckout } from './useStudioCheckout';
+import { WarehouseCatalog } from './WarehouseCatalog';
 import { WarehouseStatusLine } from './WarehouseStatusLine';
 import classes from './WorkbenchMainPane.module.css';
 
@@ -503,7 +505,12 @@ export const MainPane: FC<{
     ) : null;
 
     return (
-        <Box className={classes.main} data-page-scroll ref={setPageScroll}>
+        <Box
+            className={classes.main}
+            data-page-scroll
+            data-flat-tables
+            ref={setPageScroll}
+        >
             <PageScrollContext.Provider value={pageScroll}>
                 <Box className={classes.mainHeader}>
                     {showCrumbs ? (
@@ -701,6 +708,9 @@ export const MainPane: FC<{
                     ) : (
                         liveSettings
                     )}
+                    {isWarehousePage && !IS_STUDIO_PROTO ? (
+                        <WarehouseCatalog projectUuid={view.project.id} />
+                    ) : null}
                 </Box>
             </PageScrollContext.Provider>
         </Box>
