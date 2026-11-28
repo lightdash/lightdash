@@ -4476,7 +4476,7 @@ export class AiAgentToolsService extends BaseService {
         }
         if (spaces.length > 1) {
             throw new ParameterError(
-                `More than one space has the path "${spaceSlug}", so the chart cannot be moved there. Move it from its page instead.`,
+                `More than one space has the path "${spaceSlug}", so this edit cannot move the chart there. Move the chart from its page instead.`,
             );
         }
         if (
@@ -4968,7 +4968,9 @@ export class AiAgentToolsService extends BaseService {
                               dashboards.length === 1 ? '' : 's'
                           }: ${dashboards
                               .map(({ name }) => `"${name}"`)
-                              .join(', ')}. They show the change too.`,
+                              .join(
+                                  ', ',
+                              )}. Those dashboards show the change too.`,
                       ],
         });
     }

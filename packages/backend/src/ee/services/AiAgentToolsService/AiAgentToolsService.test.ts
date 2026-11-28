@@ -4825,7 +4825,7 @@ describe('AiAgentToolsService', () => {
                 metadata: {
                     status: 'success',
                     warnings: [
-                        'This chart shows on 2 dashboards: "Ops", "Exec". They show the change too.',
+                        'This chart shows on 2 dashboards: "Ops", "Exec". Those dashboards show the change too.',
                     ],
                 },
             });
