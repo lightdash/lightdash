@@ -2142,15 +2142,16 @@ describe('Composer charts', () => {
                         dashboardSlug: null,
                         spaceSlug,
                     });
-                    const uuid = mcpText(created).match(
-                        /\/composer-charts\/([0-9a-f-]{36})/,
+                    const slug = mcpText(created).match(
+                        /\/composer-charts\/([^"/#?\s]+)/,
                     )?.[1];
-                    expect(uuid).toBeDefined();
+                    expect(slug).toBeDefined();
                     const stored = (
                         await admin.get<Body<ComposerChart>>(
-                            `${chartsUrl}/${uuid}`,
+                            `${chartsUrl}/${slug}`,
                         )
                     ).body.results;
+                    expect(stored.slug).toBe(slug);
                     expect(stored).toMatchObject({
                         name,
                         owner: { type: 'space', spaceUuid: privateSpace.uuid },

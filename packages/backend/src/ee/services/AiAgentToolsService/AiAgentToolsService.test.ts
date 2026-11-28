@@ -6256,7 +6256,7 @@ describe('AiAgentToolsService createContent composer_chart in a space', () => {
         return { runtime, create, preflightCreate, dashboardService };
     };
 
-    it('saves a query node into the named space with no dashboard tile, linking the chart page', async () => {
+    it('saves a query node into the named space with no dashboard tile, linking the chart page by slug', async () => {
         const { runtime, create, dashboardService } = makeSpaceCreateService();
 
         const created = await runtime.createContent({
@@ -6274,7 +6274,7 @@ describe('AiAgentToolsService createContent composer_chart in a space', () => {
         expect(dashboardService.getByIdOrSlug).not.toHaveBeenCalled();
         expect(dashboardService.update).not.toHaveBeenCalled();
         expect(created.href).toBe(
-            `/projects/${projectUuid}/composer-charts/composer-chart-uuid`,
+            `/projects/${projectUuid}/composer-charts/orders`,
         );
     });
 
