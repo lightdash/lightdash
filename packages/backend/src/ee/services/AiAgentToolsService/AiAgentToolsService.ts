@@ -3404,14 +3404,14 @@ export class AiAgentToolsService extends BaseService {
 
     private async readComposerChartAsCode(
         context: AiAgentToolsRuntimeContext,
-        slug: string,
+        composerChartUuidOrSlug: UuidOrSlug,
         action: 'read' | 'update' = 'read',
     ): Promise<
         Extract<Awaited<ReturnType<ReadContentFn>>, { type: 'composer_chart' }>
     > {
         const { current } = await this.readComposerChartForAgent(
             context,
-            slug,
+            composerChartUuidOrSlug,
             action,
         );
         return current;
@@ -4910,7 +4910,11 @@ export class AiAgentToolsService extends BaseService {
     ): Promise<
         Extract<Awaited<ReturnType<EditContentFn>>, { type: 'composer_chart' }>
     > {
-        const saved = await this.readComposerChartAsCode(context, slug);
+        // By uuid: a slug can look like a uuid
+        const saved = await this.readComposerChartAsCode(
+            context,
+            composerChartUuid,
+        );
         const versionAfter =
             await this.coderService.getCurrentContentVersionBySlug(
                 context.user,
@@ -4950,7 +4954,7 @@ export class AiAgentToolsService extends BaseService {
         const { composerChartUuid, targetSpaceUuid, read } = spaceEdit;
         const { content: now } = await this.readComposerChartAsCode(
             context,
-            slug,
+            composerChartUuid,
             'update',
         );
         if (

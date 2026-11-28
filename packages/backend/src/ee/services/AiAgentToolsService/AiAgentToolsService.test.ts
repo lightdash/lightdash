@@ -4537,15 +4537,17 @@ describe('AiAgentToolsService', () => {
             preflightSpaceChartEdit = vi.fn().mockResolvedValue(undefined),
             preflightWrite = vi.fn().mockResolvedValue(undefined),
             dashboardsShowing = [],
+            slug = spaceChart.slug,
         }: {
             spaces?: Array<{ uuid: string; path: string }>;
             spaceAccess?: string[] | null;
             preflightSpaceChartEdit?: import('vitest').Mock;
             preflightWrite?: import('vitest').Mock;
             dashboardsShowing?: Array<{ uuid: string; name: string }>;
+            slug?: string;
         } = {}) => {
             let version = 1;
-            let current = spaceChart;
+            let current = { ...spaceChart, slug };
             const upsertComposerChart = vi.fn(async (...args: unknown[]) => {
                 version += 1;
                 current = args[4] as typeof spaceChart;
@@ -4561,16 +4563,22 @@ describe('AiAgentToolsService', () => {
                 .mockResolvedValue(dashboardsShowing);
             const service = makeService({
                 coderService: {
-                    getComposerChartForRead: vi.fn(async () => ({
-                        composerChart: current,
-                        composerChartUuid: 'composer-chart-uuid',
-                        spaceUuid: 'jaffle-uuid',
-                    })),
+                    // Like the real read, a uuid-shaped value is looked up as a uuid only
+                    getComposerChartForRead: vi.fn(
+                        async (_a, _p, uuidOrSlug: string) =>
+                            /^[0-9a-f-]{36}$/.test(uuidOrSlug)
+                                ? null
+                                : {
+                                      composerChart: current,
+                                      composerChartUuid: 'composer-chart-uuid',
+                                      spaceUuid: 'jaffle-uuid',
+                                  },
+                    ),
                     getCurrentContentVersionBySlug: vi.fn(
-                        async (_u, _p, _t, slug: string) => {
-                            if (slug !== current.slug) {
+                        async (_u, _p, _t, versionSlug: string) => {
+                            if (versionSlug !== current.slug) {
                                 throw new NotFoundError(
-                                    `Composer chart with slug "${slug}" not found`,
+                                    `Composer chart with slug "${versionSlug}" not found`,
                                 );
                             }
                             return {
@@ -4715,6 +4723,25 @@ describe('AiAgentToolsService', () => {
             expect(edited).toMatchObject({
                 href: `/projects/${projectUuid}/composer-charts/composer-chart-uuid`,
                 versionUuids: { before: 'version-1', after: 'version-2' },
+            });
+        });
+
+        it('renames by uuid a chart whose slug looks like a uuid', async () => {
+            const { runtime, update } = makeSpaceEditService({
+                slug: '0e3e2a57-3928-4362-aefd-86da011ebaab',
+            });
+
+            const edited = await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'composer-chart-uuid',
+                patch: rename,
+                approveSql: vi.fn(),
+            });
+
+            expect(update).toHaveBeenCalledOnce();
+            expect(edited).toMatchObject({
+                uuid: 'composer-chart-uuid',
+                versionUuids: { before: 'version-1', after: 'version-1' },
             });
         });
 

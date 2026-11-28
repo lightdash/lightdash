@@ -2720,7 +2720,7 @@ Usage tips:
             "type": "string",
           },
           "slug": {
-            "description": "Slug of the content to read.",
+            "description": "Slug of the content to read; a composer chart also takes its uuid.",
             "minLength": 1,
             "type": "string",
           },
@@ -3428,7 +3428,7 @@ A custom chart type is chosen the same way: by its own description first, then a
             "type": "string",
           },
           "slug": {
-            "description": "Exact slug of the content to edit",
+            "description": "Exact slug of the content to edit; a composer chart also takes its uuid",
             "minLength": 1,
             "type": "string",
           },

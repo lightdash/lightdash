@@ -796,7 +796,7 @@
                         "type": "array"
                     },
                     "slug": {
-                        "description": "Exact slug of the content to edit",
+                        "description": "Exact slug of the content to edit; a composer chart also takes its uuid",
                         "minLength": 1,
                         "type": "string"
                     },
@@ -4383,7 +4383,7 @@
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
                     "slug": {
-                        "description": "Slug of the content to read.",
+                        "description": "Slug of the content to read; a composer chart also takes its uuid.",
                         "minLength": 1,
                         "type": "string"
                     },

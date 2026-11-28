@@ -39,7 +39,11 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
             z.object({
                 type: z.literal('chart'),
                 chartType: chartTypeSchema(),
-                chartSlug: z.string().describe('Slug of the saved chart.'),
+                chartSlug: z
+                    .string()
+                    .describe(
+                        'Slug of the saved chart; a composer chart also takes its uuid.',
+                    ),
             }),
             z.object({
                 type: z.literal('dashboardChart'),

@@ -2643,7 +2643,7 @@ A custom chart type is chosen the same way: by its own description first, then a
           "type": "array",
         },
         "slug": {
-          "description": "Exact slug of the content to edit",
+          "description": "Exact slug of the content to edit; a composer chart also takes its uuid",
           "minLength": 1,
           "type": "string",
         },
@@ -15182,7 +15182,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
       "additionalProperties": false,
       "properties": {
         "slug": {
-          "description": "Slug of the content to read.",
+          "description": "Slug of the content to read; a composer chart also takes its uuid.",
           "minLength": 1,
           "type": "string",
         },
@@ -15665,7 +15665,7 @@ A composer chart returns its final node's rows.
               "additionalProperties": false,
               "properties": {
                 "chartSlug": {
-                  "description": "Slug of the saved chart.",
+                  "description": "Slug of the saved chart; a composer chart also takes its uuid.",
                   "type": "string",
                 },
                 "chartType": {

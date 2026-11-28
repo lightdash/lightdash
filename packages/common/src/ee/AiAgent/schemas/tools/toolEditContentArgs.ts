@@ -9,7 +9,12 @@ export const TOOL_EDIT_CONTENT_DESCRIPTION = ({
     `Edit a dashboard, chart, SQL chart or composer chart with an RFC6902 patch against its JSON as ${toolNameFor('readContent', runtime)} last returned it; the edited content is validated before it is saved. The content's space must show canEdit true in ${toolNameFor('findContent', runtime)} or ${toolNameFor('listContent', runtime)} results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. A composer chart on a dashboard saves in place as a new version. For a composer chart in a space, where dashboardSlug is null, a change to only the name or description renames the chart without a new version. A pipeline or chart change saves a new version. A spaceSlug change moves the chart. The result's warnings name the dashboards that show the chart. New warehouse SQL in a composer chart's nodes waits for approval the same way.`;
 
 export const toolEditContentArgsSchema = z.object({
-    slug: z.string().min(1).describe('Exact slug of the content to edit'),
+    slug: z
+        .string()
+        .min(1)
+        .describe(
+            'Exact slug of the content to edit; a composer chart also takes its uuid',
+        ),
     type: z
         .enum(['dashboard', 'chart', 'sql_chart', 'composer_chart'])
         .describe('Type of Lightdash content to edit'),

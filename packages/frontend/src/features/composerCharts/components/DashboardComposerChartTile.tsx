@@ -2,8 +2,8 @@ import { subject } from '@casl/ability';
 import {
     ChartType,
     FeatureFlags,
-    getChartKind,
     getComposerChartExportLabels,
+    toComposerChartKind,
     type DashboardComposerChartTile as ComposerChartTile,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
@@ -316,12 +316,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             isLoading={isLoading}
             hasError={errorMessage !== null}
             chartKind={
-                readyDraw
-                    ? getChartKind(
-                          readyDraw.chartConfig.type,
-                          readyDraw.chartConfig.config,
-                      )
-                    : null
+                readyDraw ? toComposerChartKind(readyDraw.chartConfig) : null
             }
             fullWidth={readyDraw?.chartConfig.type === ChartType.TABLE}
             extraMenuItems={

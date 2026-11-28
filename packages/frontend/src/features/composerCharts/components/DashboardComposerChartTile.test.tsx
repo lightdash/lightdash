@@ -12,6 +12,7 @@ import DashboardComposerChartTile from './DashboardComposerChartTile';
 
 const drawMocks = vi.hoisted(() => ({
     chartType: 'cartesian' as string,
+    config: {} as object,
     hasFetchedAllRows: true,
 }));
 
@@ -19,7 +20,7 @@ vi.mock('../../../api');
 vi.mock('@lightdash/common', async (importOriginal) => ({
     ...(await importOriginal<object>()),
     getComposerChartDraw: () => ({
-        chartConfig: { type: drawMocks.chartType, config: {} },
+        chartConfig: { type: drawMocks.chartType, config: drawMocks.config },
         metricQuery: {},
         fields: {},
         columnOrder: [],
@@ -229,5 +230,22 @@ describe('DashboardComposerChartTile with a deleted chart', () => {
         expect(
             await screen.findByText('This chart has been deleted.'),
         ).toBeInTheDocument();
+    });
+});
+
+describe('DashboardComposerChartTile with a stored series type this build does not know', () => {
+    afterEach(() => {
+        cleanup();
+        drawMocks.config = {};
+    });
+
+    it('keeps the tile and its menu', async () => {
+        drawMocks.chartType = ChartType.CARTESIAN;
+        drawMocks.config = {
+            layout: {},
+            eChartsConfig: { series: [{ type: 'waterfall' }] },
+        };
+        await openMenu();
+        expect(exportImageItem()).toBeInTheDocument();
     });
 });
