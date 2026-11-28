@@ -341,6 +341,31 @@ describe('findSameTurnSqlApproval', () => {
             ).toEqual({ decidedByUserUuid: 'user-uuid' });
         });
 
+        it('does not cover a node with an earlier composer chart edit', () => {
+            const editApproved: SqlApprovalDecisionOnCall = {
+                ...runSqlApproved,
+                toolCallId: 'edit-0',
+                toolName: 'editContent',
+                toolArgs: {
+                    type: 'composer_chart',
+                    slug: 'payments',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/pipeline/nodes/0/sql',
+                            value: 'select 1',
+                        },
+                    ],
+                },
+            };
+            expect(
+                findSameTurnSqlApproval(
+                    [editApproved],
+                    edit([['other', 'select 1']]),
+                ),
+            ).toBeNull();
+        });
+
         it('compares node by node only for a composer chart edit', () => {
             expect(
                 findSameTurnSqlApproval([runSqlApproved], {

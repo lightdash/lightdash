@@ -1,6 +1,8 @@
 import {
     assertUnreachable,
     getSqlApprovalSql,
+    isComposerChartContentArgs,
+    isComposerQueryToolName,
     isSameApprovalSql,
     isSqlApprovalToolCall,
     type SqlApprovalToolName,
@@ -143,12 +145,22 @@ export const findSameTurnSqlApproval = (
                   {
                       sql: approvedSql,
                       decidedByUserUuid: decision.decidedByUserUuid,
+                      // Composer SQL is read back from the whole call, not only what was approved, so it never covers a node.
+                      coversNode:
+                          !isComposerQueryToolName(decision.toolName) &&
+                          !isComposerChartContentArgs(decision.toolArgs),
                   },
               ];
     });
     const findApproval = (candidate: string) =>
         approved.find((approval) => isSameApprovalSql(approval.sql, candidate));
-    const nodeApprovals = (nodeSql ?? []).map(findApproval);
+    const nodeApprovals = (nodeSql ?? []).map((statement) =>
+        approved.find(
+            (approval) =>
+                approval.coversNode &&
+                isSameApprovalSql(approval.sql, statement),
+        ),
+    );
     const coversEveryNode =
         nodeApprovals.length > 0 &&
         nodeApprovals.every((approval) => approval !== undefined);
