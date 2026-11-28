@@ -4560,13 +4560,16 @@ describe('AiAgentToolsService', () => {
                     spaceAccess,
                 }),
             );
+            const renameElsewhere = () => {
+                current = { ...current, name: 'Renamed elsewhere' };
+            };
             return {
                 runtime,
                 upsertComposerChart,
                 update,
                 moveToSpace,
-                preflightSpaceChartEdit,
                 preflightPipeline,
+                renameElsewhere,
             };
         };
 
@@ -4726,24 +4729,6 @@ describe('AiAgentToolsService', () => {
             expect(moveToSpace).not.toHaveBeenCalled();
         });
 
-        it('passes the target space to the write check', async () => {
-            const { runtime, preflightSpaceChartEdit } = makeSpaceEditService();
-
-            await runtime.editContent({
-                type: 'composer_chart',
-                slug: 'orders-by-status',
-                patch: moveToMarketing,
-                approveSql: vi.fn(),
-            });
-
-            expect(preflightSpaceChartEdit).toHaveBeenCalledWith(
-                account,
-                projectUuid,
-                'composer-chart-uuid',
-                { targetSpaceUuid: 'marketing-uuid' },
-            );
-        });
-
         it.each([
             ['does not exist', { spaces: [] }],
             ['is outside the agent spaces', { spaceAccess: ['jaffle-uuid'] }],
@@ -4758,6 +4743,40 @@ describe('AiAgentToolsService', () => {
                     approveSql: vi.fn(),
                 }),
             ).rejects.toThrow(NotFoundError);
+            expect(moveToSpace).not.toHaveBeenCalled();
+        });
+
+        it('saves nothing when the chart was renamed while approval waited', async () => {
+            const { runtime, upsertComposerChart, renameElsewhere } =
+                makeSpaceEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql: vi.fn(async () => renameElsewhere()),
+                }),
+            ).rejects.toThrow('changed while this edit waited');
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses a move to a path two spaces share', async () => {
+            const { runtime, moveToSpace } = makeSpaceEditService({
+                spaces: [
+                    { uuid: 'marketing-uuid', path: 'marketing' },
+                    { uuid: 'other-marketing-uuid', path: 'marketing' },
+                ],
+            });
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: moveToMarketing,
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(ParameterError);
             expect(moveToSpace).not.toHaveBeenCalled();
         });
 

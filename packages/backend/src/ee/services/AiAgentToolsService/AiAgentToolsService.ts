@@ -304,10 +304,11 @@ const COMPOSER_NODE_ERROR_MAX_CHARS = 4096;
 
 /** What an agent edit of a space-owned composer chart writes. */
 type SpaceComposerChartEdit = {
-    composerChartUuid: string;
-    writesVersion: boolean;
-    renames: boolean;
-    targetSpaceUuid: string | null;
+    composerChartUuid: UUID;
+    write: 'version' | 'rename' | 'none';
+    targetSpaceUuid: UUID | null;
+    /** As read, so a rename or move while approval waits is not overwritten. */
+    read: Pick<ComposerChartAsCode, 'name' | 'description' | 'spaceSlug'>;
 };
 const WAREHOUSE_COLUMNS_TTL_SECONDS = 10 * 60;
 const MAX_KEPT_TABLE_COLUMNS = 20_000;
@@ -3421,7 +3422,7 @@ export class AiAgentToolsService extends BaseService {
             Awaited<ReturnType<ReadContentFn>>,
             { type: 'composer_chart' }
         >;
-        composerChartUuid: string;
+        composerChartUuid: UUID;
     }> {
         const { composerChart, composerChartUuid } =
             await this.findComposerChartForAgent(context, slug, action);
@@ -4387,7 +4388,7 @@ export class AiAgentToolsService extends BaseService {
                 'editContent.composer_chart_sql',
             );
         }
-        if (newSqlNodes.length > 0 || spaceEdit?.writesVersion) {
+        if (newSqlNodes.length > 0 || spaceEdit?.write === 'version') {
             await this.composerChartService.preflightPipeline(
                 account,
                 {
@@ -4418,7 +4419,7 @@ export class AiAgentToolsService extends BaseService {
             current,
             edited,
         }: {
-            composerChartUuid: string;
+            composerChartUuid: UUID;
             current: ComposerChartAsCode;
             edited: ComposerChartAsCode;
         },
@@ -4435,15 +4436,27 @@ export class AiAgentToolsService extends BaseService {
             composerChartUuid,
             { targetSpaceUuid },
         );
+        const getWrite = (): SpaceComposerChartEdit['write'] => {
+            if (
+                !isEqual(current.pipeline, edited.pipeline) ||
+                !isEqual(current.chart, edited.chart)
+            ) {
+                return 'version';
+            }
+            return edited.name !== current.name ||
+                (edited.description ?? null) !== (current.description ?? null)
+                ? 'rename'
+                : 'none';
+        };
         return {
             composerChartUuid,
-            writesVersion:
-                !isEqual(current.pipeline, edited.pipeline) ||
-                !isEqual(current.chart, edited.chart),
-            renames:
-                edited.name !== current.name ||
-                (edited.description ?? null) !== (current.description ?? null),
+            write: getWrite(),
             targetSpaceUuid,
+            read: {
+                name: current.name,
+                description: current.description ?? null,
+                spaceSlug: current.spaceSlug,
+            },
         };
     }
 
@@ -4451,14 +4464,20 @@ export class AiAgentToolsService extends BaseService {
     private async findMoveTargetSpace(
         context: AiAgentToolsRuntimeContext,
         spaceSlug: string,
-    ): Promise<string> {
+    ): Promise<UUID> {
         const notFound = `Space "${spaceSlug}" was not found`;
-        const [space] = await this.spaceModel.find({
+        const spaces = await this.spaceModel.find({
             projectUuid: context.projectUuid,
             path: getLtreePathFromContentAsCodePath(spaceSlug),
         });
+        const [space] = spaces;
         if (!space) {
             throw new NotFoundError(notFound);
+        }
+        if (spaces.length > 1) {
+            throw new ParameterError(
+                `More than one space has the path "${spaceSlug}", so the chart cannot be moved there. Move it from its page instead.`,
+            );
         }
         if (
             !AiAgentToolsService.hasAgentSpaceAccess(
@@ -4828,6 +4847,30 @@ export class AiAgentToolsService extends BaseService {
                 edited,
                 { authorization: 'space_access' },
             );
+        return this.readEditedComposerChart(context, {
+            slug,
+            composerChartUuid,
+            versionUuid,
+            warnings: [],
+        });
+    }
+
+    private async readEditedComposerChart(
+        context: AiAgentToolsRuntimeContext,
+        {
+            slug,
+            composerChartUuid,
+            versionUuid,
+            warnings,
+        }: {
+            slug: string;
+            composerChartUuid: UUID;
+            versionUuid: string | null;
+            warnings: string[];
+        },
+    ): Promise<
+        Extract<Awaited<ReturnType<EditContentFn>>, { type: 'composer_chart' }>
+    > {
         const saved = await this.readComposerChartAsCode(context, slug);
         const versionAfter =
             await this.coderService.getCurrentContentVersionBySlug(
@@ -4843,7 +4886,7 @@ export class AiAgentToolsService extends BaseService {
                 before: versionUuid,
                 after: versionAfter.versionUuid,
             },
-            warnings: [],
+            warnings,
         };
     }
 
@@ -4866,8 +4909,22 @@ export class AiAgentToolsService extends BaseService {
     > {
         const { account } = context;
         assertRegisteredAccount(account);
-        const { composerChartUuid, targetSpaceUuid } = spaceEdit;
-        if (spaceEdit.writesVersion) {
+        const { composerChartUuid, targetSpaceUuid, read } = spaceEdit;
+        const { content: now } = await this.readComposerChartAsCode(
+            context,
+            slug,
+            'update',
+        );
+        if (
+            now.name !== read.name ||
+            (now.description ?? null) !== read.description ||
+            now.spaceSlug !== read.spaceSlug
+        ) {
+            throw new ParameterError(
+                `Composer chart "${slug}" changed while this edit waited, so it was not saved. Read it again and reapply the change.`,
+            );
+        }
+        if (spaceEdit.write === 'version') {
             await this.coderService.upsertComposerChart(
                 context.user,
                 account,
@@ -4876,7 +4933,7 @@ export class AiAgentToolsService extends BaseService {
                 edited,
                 { authorization: 'space_access', spaceOwner: 'keep' },
             );
-        } else if (spaceEdit.renames) {
+        } else if (spaceEdit.write === 'rename') {
             await this.composerChartService.update(
                 account,
                 context.projectUuid,
@@ -4894,26 +4951,15 @@ export class AiAgentToolsService extends BaseService {
                 targetSpaceUuid,
             });
         }
-        const saved = await this.readComposerChartAsCode(context, slug);
-        const versionAfter =
-            await this.coderService.getCurrentContentVersionBySlug(
-                context.user,
-                context.projectUuid,
-                'composer_chart',
-                slug,
-            );
         const dashboards = await this.composerChartService.getDashboardsShowing(
             account,
             context.projectUuid,
             composerChartUuid,
         );
-        return {
-            ...saved,
-            uuid: composerChartUuid,
-            versionUuids: {
-                before: versionUuid,
-                after: versionAfter.versionUuid,
-            },
+        return this.readEditedComposerChart(context, {
+            slug,
+            composerChartUuid,
+            versionUuid,
             warnings:
                 dashboards.length === 0
                     ? []
@@ -4924,7 +4970,7 @@ export class AiAgentToolsService extends BaseService {
                               .map(({ name }) => `"${name}"`)
                               .join(', ')}. They show the change too.`,
                       ],
-        };
+        });
     }
 
     /** Warehouse SQL nodes whose SQL text the chart did not already run. */

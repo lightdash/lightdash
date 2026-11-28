@@ -561,7 +561,7 @@ export class ComposerChartService extends BaseService {
             slug: string;
             /** Owner of a new or revived chart; an existing chart keeps its own. */
             dashboardUuid: string | null;
-            /** Only the agent's edit writes a version of a chart a space owns. */
+            /** `keep` lets a live chart a space owns take the version; an upload refuses it. */
             spaceOwner: 'refuse' | 'keep';
         },
     ): Promise<string> {
@@ -636,7 +636,7 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.remapPreviewDataAppVizs(...args);
     }
 
-    /** A live chart's owner for a code write; uploading over a chart a space owns is not served yet. */
+    /** A live chart's owner for a code write; a space owner only with `keep`. */
     private static getLiveWriteOwner(
         owner: ComposerChartOwner,
         spaceOwner: 'refuse' | 'keep',
@@ -889,7 +889,6 @@ export class ComposerChartService extends BaseService {
         });
     }
 
-    /** Write on the chart's space and on the target; returns the chart's space. */
     private async assertCanMoveToSpace(
         account: RegisteredAccount,
         projectUuid: UUID,
