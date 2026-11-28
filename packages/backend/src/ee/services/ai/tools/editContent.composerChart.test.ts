@@ -79,8 +79,7 @@ const makeTool = (
         if (addsSql) {
             if (!args.approveSql) throw new Error('needs SQL mode');
             await args.approveSql({
-                sql: 'select 2',
-                nodeSql: null,
+                nodes: [{ nodeId: 'orders', sql: 'select 2' }],
                 chartName: 'Orders',
                 sqlChanged: true,
             });
@@ -172,10 +171,8 @@ describe('editContent composer charts', () => {
             const is = (expected: unknown[]) =>
                 JSON.stringify(patch) === JSON.stringify(expected);
             if (is(sqlPatch))
-                return {
-                    approval: { sql: 'select 2', nodeSql: ['select 2'] },
-                };
-            if (is(chartTypePatch)) return { approval: null };
+                return { sqlNodes: [{ nodeId: 'orders', sql: 'select 2' }] };
+            if (is(chartTypePatch)) return { sqlNodes: [] };
             throw new Error('You cannot write SQL nodes');
         });
         const { needsApproval } = makeTool(
@@ -200,7 +197,7 @@ describe('editContent composer charts', () => {
             .fn()
             .mockRejectedValueOnce(new Error('database unavailable'))
             .mockResolvedValue({
-                approval: { sql: 'select 2', nodeSql: ['select 2'] },
+                sqlNodes: [{ nodeId: 'orders', sql: 'select 2' }],
             });
         const { needsApproval, execute, save } = makeTool(
             {

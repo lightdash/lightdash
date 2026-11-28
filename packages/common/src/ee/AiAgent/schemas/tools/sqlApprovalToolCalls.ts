@@ -223,18 +223,46 @@ export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
     return getPatchedSql(toolArgs.patch);
 };
 
-// Surrounding whitespace and trailing semicolons never change the statement.
-const normalizeApprovalSql = (sql: string): string => {
-    let normalized = sql.trim();
-    while (normalized.endsWith(';')) {
-        normalized = normalized.slice(0, -1).trimEnd();
-    }
-    return normalized;
-};
+/** One SQL statement an approval covers, exactly as the call carries it; nodeId is null when the call names none. */
+export type SqlApprovalNode = { nodeId: string | null; sql: string };
 
-/** Whether approving one SQL string also approves the other. */
-export const isSameApprovalSql = (a: string, b: string): boolean =>
-    normalizeApprovalSql(a) === normalizeApprovalSql(b);
+const getComposerApprovalNodes = (nodes: unknown[]): SqlApprovalNode[] =>
+    nodes.flatMap((node) =>
+        isRecord(node) &&
+        node.sourceType === QuerySourceType.SQL &&
+        typeof node.sql === 'string'
+            ? [
+                  {
+                      nodeId:
+                          typeof node.nodeId === 'string' ? node.nodeId : null,
+                      sql: node.sql,
+                  },
+              ]
+            : [],
+    );
+
+/** The SQL statements a call asks the user to approve, one per warehouse SQL node; empty when it carries none. */
+export const getSqlApprovalNodes = (toolArgs: unknown): SqlApprovalNode[] => {
+    if (!isRecord(toolArgs)) return [];
+    if (isComposerChartContentArgs(toolArgs)) {
+        if (!isRecord(toolArgs.content)) {
+            return getComposerChartPatchSql(toolArgs.patch).map((sql) => ({
+                nodeId: null,
+                sql,
+            }));
+        }
+        return toolArgs.content.from === 'json' &&
+            isRecord(toolArgs.content.pipeline) &&
+            Array.isArray(toolArgs.content.pipeline.nodes)
+            ? getComposerApprovalNodes(toolArgs.content.pipeline.nodes)
+            : [];
+    }
+    if (Array.isArray(toolArgs.queries)) {
+        return getComposerApprovalNodes(toolArgs.queries);
+    }
+    const sql = getSqlApprovalSql(toolArgs);
+    return sql === null ? [] : [{ nodeId: null, sql }];
+};
 
 /** Step-progress id the server emits when it skips a call's prompt for SQL approved earlier in the turn. */
 export const getSameTurnSqlApprovalProgressId = (toolCallId: string): string =>

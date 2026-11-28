@@ -274,7 +274,7 @@ export const getRunContentQuery = ({
         // Every return goes through persistIfResumed so a resumed call stores its result.
         const { approveSql, persistIfResumed } = await approvalGate.forToolCall(
             toolCallId,
-            { request: { sql, nodeSql: null } },
+            { nodes: [{ nodeId: null, sql }] },
         );
 
         try {
@@ -297,7 +297,7 @@ export const getRunContentQuery = ({
             try {
                 await approveSql({
                     sql,
-                    nodeSql: null,
+                    nodes: [{ nodeId: null, sql }],
                     heading: RUN_CONTENT_SQL_APPROVAL_HEADING,
                     steps: null,
                 });
@@ -505,7 +505,7 @@ export const getRunContentQuery = ({
             source.type === 'sql' && approvalGate !== null
                 ? approvalGate.needsNativeApproval({
                       toolCallId,
-                      request: { sql: source.sql, nodeSql: null },
+                      nodes: [{ nodeId: null, sql: source.sql }],
                   })
                 : false,
         execute: async ({ source }, { toolCallId }) => {

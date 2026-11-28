@@ -42,7 +42,7 @@ import {
     getErrorMessage,
     getItemMap,
     getLtreePathFromContentAsCodePath,
-    getSqlApprovalSql,
+    getSqlApprovalNodes,
     getTileControl,
     getValidAiQueryLimit,
     isDashboardChartTileType,
@@ -53,7 +53,6 @@ import {
     isExploreIncludedInTableSelection,
     isFilterAutocompleteManualOnly,
     isGitProjectType,
-    isSameApprovalSql,
     JobStatusType,
     mcpDocumentEditSchema,
     normalizeDateZoomConfig,
@@ -110,6 +109,7 @@ import {
     type SavedChartDAO,
     type SchedulerAiAugmentation,
     type SourceQuery,
+    type SqlApprovalNode,
     type SqlChart,
     type SqlChartAsCode,
     type ToolComposerChartAsCodeContent,
@@ -194,10 +194,7 @@ import { type AiAgentModel } from '../../models/AiAgentModel';
 import { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import type { BuiltInSkills } from '../ai/skills/builtInSkills';
-import type {
-    ApproveSqlFn,
-    SqlApprovalRequest,
-} from '../ai/tools/sqlApprovals';
+import type { ApproveSqlFn } from '../ai/tools/sqlApprovals';
 import {
     AnalyzeFieldImpactFn,
     ComposerChartSummary,
@@ -1215,7 +1212,7 @@ export class AiAgentToolsService extends BaseService {
             getSqlChart: (slug) => this.getSqlChartForRuntime(context, slug),
             prepareComposerChartEdit: (args) =>
                 this.prepareComposerChartEdit(context, args).then(
-                    ({ approval }) => ({ approval }),
+                    ({ sqlNodes }) => ({ sqlNodes }),
                 ),
             getComposerChart: (args) =>
                 this.getComposerChartForRuntime(context, args).then(
@@ -4319,7 +4316,7 @@ export class AiAgentToolsService extends BaseService {
         slug: string;
         edited: ComposerChartAsCode;
         versionUuid: string | null;
-        approval: SqlApprovalRequest | null;
+        sqlNodes: SqlApprovalNode[];
         spaceEdit: SpaceComposerChartEdit | null;
     }> {
         if (!Array.isArray(patch)) {
@@ -4400,10 +4397,7 @@ export class AiAgentToolsService extends BaseService {
             // Approval previews the patch, so new SQL must be written there as text.
             const patchSql = getComposerChartPatchSql(patch);
             const unseen = newSqlNodes.filter(
-                ({ sql }) =>
-                    !patchSql.some((written) =>
-                        isSameApprovalSql(written, sql),
-                    ),
+                ({ sql }) => !patchSql.includes(sql),
             );
             if (unseen.length > 0) {
                 throw new ParameterError(
@@ -4443,15 +4437,7 @@ export class AiAgentToolsService extends BaseService {
             edited,
             versionUuid,
             spaceEdit,
-            approval:
-                newSqlNodes.length === 0
-                    ? null
-                    : {
-                          sql: newSqlNodes
-                              .map(({ nodeId, sql }) => `-- ${nodeId}\n${sql}`)
-                              .join('\n\n'),
-                          nodeSql: newSqlNodes.map(({ sql }) => sql),
-                      },
+            sqlNodes: newSqlNodes,
         };
     }
 
@@ -4707,12 +4693,12 @@ export class AiAgentToolsService extends BaseService {
             context.projectUuid,
             content.chart as ComposerStoredChartAsCode,
         );
-        // The same SQL text the approval check read from the call.
-        const approvalSql = getSqlApprovalSql({
+        // The same SQL the approval check read from the call.
+        const sqlNodes = getSqlApprovalNodes({
             type: 'composer_chart',
             content,
         });
-        if (approvalSql === null) return { pipeline, chart };
+        if (sqlNodes.length === 0) return { pipeline, chart };
         if (!approveSql) {
             throw new ForbiddenError(COMPOSER_CHART_SQL_DISABLED_MESSAGE);
         }
@@ -4726,8 +4712,7 @@ export class AiAgentToolsService extends BaseService {
             { dashboardUuid, pipeline, chart },
         );
         await approveSql({
-            sql: approvalSql,
-            nodeSql: null,
+            nodes: sqlNodes,
             chartName: content.name,
             sqlChanged: true,
         });
@@ -4847,17 +4832,17 @@ export class AiAgentToolsService extends BaseService {
     ): Promise<
         Extract<Awaited<ReturnType<EditContentFn>>, { type: 'composer_chart' }>
     > {
-        const { slug, edited, versionUuid, approval, spaceEdit } =
+        const { slug, edited, versionUuid, sqlNodes, spaceEdit } =
             await this.prepareComposerChartEdit(context, {
                 slug: composerChartUuidOrSlug,
                 patch,
             });
-        if (approval !== null) {
+        if (sqlNodes.length > 0) {
             if (!approveSql) {
                 throw new ForbiddenError(COMPOSER_CHART_SQL_DISABLED_MESSAGE);
             }
             await approveSql({
-                ...approval,
+                nodes: sqlNodes,
                 chartName: edited.name,
                 sqlChanged: true,
             });
@@ -5022,7 +5007,7 @@ export class AiAgentToolsService extends BaseService {
     private static getNewWarehouseSqlNodes(
         before: ComposerChartPipeline,
         after: ComposerChartPipeline,
-    ): Array<{ nodeId: string; sql: string }> {
+    ): SqlApprovalNode[] {
         const warehouseSql = (pipeline: ComposerChartPipeline) =>
             pipeline.nodes.flatMap((node) =>
                 node.sourceType === QuerySourceType.SQL
@@ -5031,8 +5016,7 @@ export class AiAgentToolsService extends BaseService {
             );
         const existing = warehouseSql(before);
         return warehouseSql(after).filter(
-            ({ sql }) =>
-                !existing.some((node) => isSameApprovalSql(node.sql, sql)),
+            ({ sql }) => !existing.some((node) => node.sql === sql),
         );
     }
 
@@ -5065,8 +5049,7 @@ export class AiAgentToolsService extends BaseService {
         const sqlChanged = patched.sql !== current.sql;
         if (sqlChanged || doesPatchTouchSqlChartSql(patch)) {
             await approveSql({
-                sql: patched.sql,
-                nodeSql: null,
+                nodes: [{ nodeId: null, sql: patched.sql }],
                 chartName: patched.name,
                 sqlChanged,
             });
@@ -5103,8 +5086,7 @@ export class AiAgentToolsService extends BaseService {
         await this.assertToolEffectAllowed(context, 'createContent.sql_chart');
         this.assertCanSaveSqlCharts(context);
         await approveSql({
-            sql: content.sql,
-            nodeSql: null,
+            nodes: [{ nodeId: null, sql: content.sql }],
             chartName: content.name,
             sqlChanged: true,
         });

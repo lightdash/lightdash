@@ -130,23 +130,14 @@ const makeTurns = ({
             ({ value }) => value,
         );
         return {
-            approval:
-                nodes.length === 0
-                    ? null
-                    : {
-                          sql: nodes
-                              .map(({ nodeId, sql }) => `-- ${nodeId}\n${sql}`)
-                              .join('\n\n'),
-                          nodeSql: nodes.map(({ sql }) => sql),
-                      },
+            sqlNodes: nodes.map(({ nodeId, sql }) => ({ nodeId, sql })),
         };
     };
     const createContent = vi.fn(
         async (args: Parameters<CreateContentFn>[0]) => {
             if (args.type !== 'sql_chart') throw new Error('Unexpected type');
             await args.approveSql({
-                sql: args.content.sql,
-                nodeSql: null,
+                nodes: [{ nodeId: null, sql: args.content.sql }],
                 chartName: args.content.name,
                 sqlChanged: true,
             });
@@ -161,15 +152,15 @@ const makeTurns = ({
     );
     const editContent = vi.fn(async (args: Parameters<EditContentFn>[0]) => {
         if (args.type === 'composer_chart') {
-            const { approval: newSql } = await prepareComposerChartEdit(args);
-            if (newSql) {
+            const { sqlNodes } = await prepareComposerChartEdit(args);
+            if (sqlNodes.length > 0) {
                 if (!args.approveSql) throw new Error('Needs SQL mode');
                 await args.approveSql({
-                    ...newSql,
+                    nodes: sqlNodes,
                     chartName: 'Payments',
                     sqlChanged: true,
                 });
-                saved.push(...(newSql.nodeSql ?? []));
+                saved.push(...sqlNodes.map(({ sql }) => sql));
             }
             return {
                 type: 'composer_chart' as const,
@@ -183,8 +174,7 @@ const makeTurns = ({
         if (args.type !== 'sql_chart') throw new Error('Unexpected type');
         const [operation] = args.patch as [{ value: string }];
         await args.approveSql({
-            sql: operation.value,
-            nodeSql: null,
+            nodes: [{ nodeId: null, sql: operation.value }],
             chartName: 'Orders by status',
             sqlChanged: true,
         });
@@ -464,12 +454,12 @@ describe('SQL approved earlier in the same turn', () => {
         const output = await turns.call(
             'createContent',
             'create-1',
-            `${approvedSql};\n`,
+            approvedSql,
         );
 
         expect(output.metadata?.status).toBe('success');
         expect(turns.asked).toEqual(['run-1']);
-        expect(turns.saved).toEqual([`${approvedSql};\n`]);
+        expect(turns.saved).toEqual([approvedSql]);
         expect(turns.recorded).toEqual([
             {
                 toolCallId: 'create-1',
@@ -507,11 +497,14 @@ describe('SQL approved earlier in the same turn', () => {
         expect(turns.saved).toEqual([approvedSql]);
     });
 
-    it('asks again for different SQL', async () => {
+    it.each([
+        ['different SQL', otherSql],
+        ['a trailing semicolon', `${approvedSql};`],
+    ])('asks again for %s', async (_label, sql) => {
         const turns = makeTurns();
 
         await turns.call('runSql', 'run-1', approvedSql);
-        await turns.call('createContent', 'create-1', otherSql);
+        await turns.call('createContent', 'create-1', sql);
 
         expect(turns.asked).toEqual(['run-1', 'create-1']);
     });
@@ -619,6 +612,30 @@ describe('composer chart edit after SQL approved earlier in the same turn', () =
         await turns.call('editComposerChart', 'edit-1', approvedSql);
 
         expect(turns.asked).toEqual(['query-1', 'edit-1']);
+    });
+
+    it.each([`${approvedSql};`, `${approvedSql} `, approvedSql.toUpperCase()])(
+        'asks again for node SQL %j that differs in one place',
+        async (sql) => {
+            const turns = makeTurns();
+
+            await turns.call('runContentQuery', 'query-1', approvedSql);
+            await turns.call('editComposerChart', 'edit-1', sql);
+
+            expect(turns.asked).toEqual(['query-1', 'edit-1']);
+        },
+    );
+
+    it('asks for a two-node edit unless both nodes were approved', async () => {
+        const turns = makeTurns();
+        const twoNodes = `${approvedSql}\n\n${otherSql}`;
+
+        await turns.call('runContentQuery', 'query-1', approvedSql);
+        await turns.call('editComposerChart', 'edit-1', twoNodes);
+        await turns.call('runContentQuery', 'query-2', otherSql);
+        await turns.call('editComposerChart', 'edit-2', twoNodes);
+
+        expect(turns.asked).toEqual(['query-1', 'edit-1', 'query-2']);
     });
 
     it('asks again when the user rejected the same SQL', async () => {

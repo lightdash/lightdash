@@ -197,7 +197,7 @@ export const getRunSql = ({
         needsApproval: ({ sql }, { toolCallId }) =>
             approvalGate.needsNativeApproval({
                 toolCallId,
-                request: { sql, nodeSql: null },
+                nodes: [{ nodeId: null, sql }],
             }),
         execute: async ({ sql, limit }, { toolCallId }) => {
             const prompt = await getPrompt();
@@ -206,7 +206,7 @@ export const getRunSql = ({
             // always stores a result; otherwise the resumed request 400s.
             const { approveSql, renderState, persistIfResumed } =
                 await approvalGate.forToolCall(toolCallId, {
-                    request: { sql, nodeSql: null },
+                    nodes: [{ nodeId: null, sql }],
                 });
 
             // Pre-section errors (bad SQL shape) — no Slack message exists
@@ -233,7 +233,7 @@ export const getRunSql = ({
                 try {
                     await approveSql({
                         sql,
-                        nodeSql: null,
+                        nodes: [{ nodeId: null, sql }],
                         heading: RUN_SQL_APPROVAL_HEADING,
                         steps: null,
                     });

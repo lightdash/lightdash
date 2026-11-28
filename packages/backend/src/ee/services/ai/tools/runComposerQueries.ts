@@ -1,6 +1,7 @@
 import {
     createToolComposerQueriesArgsSchema,
     getSourceQueryResultReferences,
+    getSqlApprovalNodes,
     getSqlApprovalSql,
     getToolComposerQueriesDescription,
     QuerySourceType,
@@ -60,7 +61,6 @@ import {
     COMPOSER_SQL_REJECTED_RESULT,
     getSqlApprovalHeading,
     SqlNotApprovedError,
-    toSqlApprovalRequest,
     type TrackSqlApprovalTimeoutFn,
 } from './sqlApprovals';
 
@@ -229,7 +229,7 @@ export const getRunComposerQueries = ({
         needsApproval: (args, { toolCallId }) =>
             approvalGate.needsNativeApproval({
                 toolCallId,
-                request: toSqlApprovalRequest(getSqlApprovalSql(args)),
+                nodes: getSqlApprovalNodes(args),
             }),
         execute: async (
             args,
@@ -246,7 +246,7 @@ export const getRunComposerQueries = ({
             // always stores a result.
             const { approveSql, renderState, persistIfResumed } =
                 await approvalGate.forToolCall(toolCallId, {
-                    request: toSqlApprovalRequest(approvalSql),
+                    nodes: getSqlApprovalNodes(args),
                 });
             try {
                 const prompt = await getPrompt();
@@ -282,7 +282,7 @@ export const getRunComposerQueries = ({
                     try {
                         await approveSql({
                             sql: approvalSql,
-                            nodeSql: null,
+                            nodes: getSqlApprovalNodes(args),
                             heading: getSqlApprovalHeading('query'),
                             steps: getSqlApprovalSteps('query', args),
                         });

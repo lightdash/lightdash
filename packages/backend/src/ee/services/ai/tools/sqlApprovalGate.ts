@@ -1,6 +1,7 @@
 import {
     getSameTurnSqlApprovalProgressId,
     isSlackPrompt,
+    type SqlApprovalNode,
 } from '@lightdash/common';
 import type {
     GetPromptFn,
@@ -24,7 +25,6 @@ import {
     SqlNotApprovedError,
     type NativeSqlApprovalToolName,
     type SameTurnSqlApproval,
-    type SqlApprovalRequest,
     type TrackSqlApprovalTimeoutFn,
 } from './sqlApprovals';
 
@@ -82,42 +82,42 @@ export const createSqlApprovalGate = (
         );
     };
 
-    /** An approval of the same SQL by another call in this turn. */
+    /** Approvals by other calls in this turn that cover every node. */
     const fetchSameTurnApproval = async (
         toolCallId: string,
-        request: SqlApprovalRequest,
+        nodes: SqlApprovalNode[],
     ): Promise<SameTurnSqlApproval | null> => {
         const prompt = await dependencies.getPrompt();
         return findSameTurnSqlApproval(
             await dependencies.listSqlApprovalDecisions(prompt.promptUuid),
-            { toolCallId, ...request },
+            { toolCallId, nodes },
         );
     };
 
     /**
      * For the AI SDK: whether a call suspends until the user approves it on
-     * Slack. `sql` is null when the tool does not gate the call.
+     * Slack. `nodes` is empty when the tool does not gate the call.
      */
     const needsNativeApproval = async ({
         toolCallId,
-        request,
+        nodes,
     }: {
         toolCallId: string;
-        request: SqlApprovalRequest | null;
+        nodes: SqlApprovalNode[];
     }): Promise<boolean> =>
-        request !== null &&
+        nodes.length > 0 &&
         (await usesNativeApproval()) &&
-        (await fetchSameTurnApproval(toolCallId, request)) === null;
+        (await fetchSameTurnApproval(toolCallId, nodes)) === null;
 
-    // `request` mirrors `needsNativeApproval`: a natively gated call resumes
+    // `nodes` mirrors `needsNativeApproval`: a natively gated call resumes
     // an earlier run, so its result must be persisted here.
     const forToolCall = async (
         toolCallId: string,
-        { request: gatedRequest }: { request: SqlApprovalRequest | null },
+        { nodes: gatedNodes }: { nodes: SqlApprovalNode[] },
     ) => {
         let resume = await needsNativeApproval({
             toolCallId,
-            request: gatedRequest,
+            nodes: gatedNodes,
         });
 
         const renderState = async (state: SectionState) => {
@@ -166,10 +166,13 @@ export const createSqlApprovalGate = (
         /** Resolves once approved; throws SqlNotApprovedError otherwise. */
         const approveSql = async ({
             sql,
-            nodeSql,
+            nodes,
             heading,
             steps,
-        }: SqlApprovalRequest & {
+        }: {
+            // Shown on the card; `nodes` decide whether earlier approvals cover it.
+            sql: string;
+            nodes: SqlApprovalNode[];
             heading: string;
             // Pipeline steps to show one by one; null shows `sql` as one block.
             steps: SqlApprovalStep[] | null;
@@ -185,10 +188,10 @@ export const createSqlApprovalGate = (
 
             if (await recordAutoApproval(prompt.threadUuid)) return;
 
-            const sameTurnApproval = await fetchSameTurnApproval(toolCallId, {
-                sql,
-                nodeSql,
-            });
+            const sameTurnApproval = await fetchSameTurnApproval(
+                toolCallId,
+                nodes,
+            );
             if (sameTurnApproval) {
                 await dependencies.recordSqlApproval({
                     toolCallId,

@@ -2,9 +2,9 @@ import {
     getComposerChartPatchSql,
     getPatchedSql,
     getSameTurnSqlApprovalProgressId,
+    getSqlApprovalNodes,
     getSqlApprovalSql,
     getSqlChartPatchSqlErrors,
-    isSameApprovalSql,
     isSqlApprovalToolCall,
 } from './sqlApprovalToolCalls';
 
@@ -319,20 +319,46 @@ describe('getSqlChartPatchSqlErrors', () => {
     });
 });
 
-describe('isSameApprovalSql', () => {
-    it('matches the same SQL up to surrounding whitespace and trailing semicolons', () => {
-        expect(isSameApprovalSql('select 1', 'select 1')).toBe(true);
-        expect(isSameApprovalSql('  select 1\n', 'select 1')).toBe(true);
-        expect(isSameApprovalSql('select 1;', 'select 1')).toBe(true);
-        expect(isSameApprovalSql('select 1 ;\n', 'select 1')).toBe(true);
-        expect(isSameApprovalSql('select 1; ;; \n', 'select 1')).toBe(true);
+describe('getSqlApprovalNodes', () => {
+    it('lists each warehouse SQL node of a pipeline with its id, untouched', () => {
+        expect(
+            getSqlApprovalNodes({
+                queries: [
+                    composerSqlNode('a', ' select 1; '),
+                    { nodeId: 'b', sourceType: 'semanticLayer' },
+                    composerSqlNode('c', 'select 2'),
+                ],
+            }),
+        ).toEqual([
+            { nodeId: 'a', sql: ' select 1; ' },
+            { nodeId: 'c', sql: 'select 2' },
+        ]);
     });
 
-    it('does not match SQL that differs anywhere else', () => {
-        expect(isSameApprovalSql('select 1', 'SELECT 1')).toBe(false);
-        expect(isSameApprovalSql('select  1', 'select 1')).toBe(false);
-        expect(isSameApprovalSql('select 1; select 2', 'select 1')).toBe(false);
-        expect(isSameApprovalSql("select ';'", "select '")).toBe(false);
+    it('lists a single statement without a node id', () => {
+        expect(getSqlApprovalNodes({ sql: 'select 1;' })).toEqual([
+            { nodeId: null, sql: 'select 1;' },
+        ]);
+        expect(
+            getSqlApprovalNodes({ source: { type: 'sql', sql: 'select 2' } }),
+        ).toEqual([{ nodeId: null, sql: 'select 2' }]);
+    });
+
+    it('lists the SQL nodes a composer chart create writes as JSON', () => {
+        expect(
+            getSqlApprovalNodes({
+                type: 'composer_chart',
+                content: {
+                    from: 'json',
+                    pipeline: { nodes: [composerSqlNode('raw', 'select 1')] },
+                },
+            }),
+        ).toEqual([{ nodeId: 'raw', sql: 'select 1' }]);
+    });
+
+    it('lists nothing for a call without SQL', () => {
+        expect(getSqlApprovalNodes({ queries: [] })).toEqual([]);
+        expect(getSqlApprovalNodes(null)).toEqual([]);
     });
 });
 

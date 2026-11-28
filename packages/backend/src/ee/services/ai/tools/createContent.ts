@@ -3,7 +3,7 @@ import {
     documentAsCodeSchema,
     documentCreateContentArgsSchema,
     documentCreateContentToolDefinition,
-    getSqlApprovalSql,
+    getSqlApprovalNodes,
     mcpCreateContentArgsSchema,
     mcpCreateContentToolDefinition,
     toolComposerChartAsCodeContentSchema,
@@ -31,7 +31,6 @@ import {
     approveClientSql,
     SqlNotApprovedError,
     sqlNotApprovedOutput,
-    toSqlApprovalRequest,
     type ApproveSqlFn,
     type SqlNotApprovedOutput,
 } from './sqlApprovals';
@@ -137,7 +136,7 @@ export const getCreateContent = ({
     const sqlChartGate = createSqlChartGate(
         sqlChartSaving,
         'createContent',
-        async (args) => toSqlApprovalRequest(getSqlApprovalSql(args)),
+        async (args) => getSqlApprovalNodes(args),
     );
     const variant = getToolVariant(documentsEnabled, chartsEnabled);
 

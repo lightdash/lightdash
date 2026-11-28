@@ -245,11 +245,11 @@ export const getEditContent = ({
                   const { slug, patch } = toolEditContentArgsSchema
                       .pick({ slug: true, patch: true })
                       .parse(args);
-                  const { approval } = await prepareComposerChartEdit({
+                  const { sqlNodes } = await prepareComposerChartEdit({
                       slug,
                       patch,
                   });
-                  return approval;
+                  return sqlNodes;
               }
             : null,
     );

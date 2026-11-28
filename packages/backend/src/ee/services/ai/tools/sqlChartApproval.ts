@@ -1,10 +1,12 @@
 import {
-    getSqlApprovalSql,
+    getSqlApprovalNodes,
     isComposerChartContentArgs,
     isSqlApprovalToolCall,
     isSqlChartContentArgs,
     ParameterError,
+    type SqlApprovalNode,
 } from '@lightdash/common';
+import { isEqual } from 'es-toolkit/compat';
 import {
     toolFailure,
     type ExecuteToolErrorResult,
@@ -18,9 +20,7 @@ import {
 import {
     SQL_CHART_REJECTED_RESULT,
     SqlNotApprovedError,
-    toSqlApprovalRequest,
     type ApproveSqlFn,
-    type SqlApprovalRequest,
 } from './sqlApprovals';
 
 // Never (no SQL mode), after the thread approves the SQL, or straight away
@@ -63,13 +63,21 @@ const getSqlChartApprovalHeading = (chartName: string) =>
 /** The approval step a content tool hands the content service. */
 const getSqlChartApproveSql =
     (call: SqlApprovalCall): ApproveSqlFn =>
-    ({ sql, nodeSql, chartName, sqlChanged }) =>
+    ({ nodes, chartName, sqlChanged }) =>
         sqlChanged
             ? call.approveSql({
-                  sql,
-                  nodeSql,
+                  sql: nodes.map(({ sql }) => sql).join('\n\n'),
+                  nodes,
                   heading: getSqlChartApprovalHeading(chartName),
-                  steps: null,
+                  // One block per pipeline node, titled by its id.
+                  steps:
+                      nodes.length > 1
+                          ? nodes.map(({ nodeId, sql }, index) => ({
+                                title: nodeId ?? `SQL step ${index + 1}`,
+                                description: null,
+                                sql,
+                            }))
+                          : null,
               })
             : call.settleUnchangedSql();
 
@@ -77,7 +85,7 @@ type SqlChartToolName = 'createContent' | 'editContent';
 
 export type GetComposerChartSqlFn = (
     args: unknown,
-) => Promise<SqlApprovalRequest | null>;
+) => Promise<SqlApprovalNode[]>;
 
 type ToolOutput = { result: string; metadata?: Record<string, unknown> };
 
@@ -98,21 +106,16 @@ export const createSqlChartGate = (
             : null;
 
     // What needsApproval found for each composer edit, so execution cannot save SQL it never asked about.
-    const askedComposerSql = new Map<
-        string,
-        SqlApprovalRequest | null | 'failed'
-    >();
+    const askedComposerSql = new Map<string, SqlApprovalNode[] | 'failed'>();
 
-    /** The SQL a call asks to save; null when the call does not gate on it. */
-    const getGatedSql = async (
-        args: unknown,
-    ): Promise<SqlApprovalRequest | null> => {
+    /** The SQL a call asks to save; empty when the call does not gate on it. */
+    const getGatedSql = async (args: unknown): Promise<SqlApprovalNode[]> => {
         if (isComposerChartContentArgs(args)) {
-            return getComposerChartSql ? getComposerChartSql(args) : null;
+            return getComposerChartSql ? getComposerChartSql(args) : [];
         }
         return isSqlApprovalToolCall(toolName, args)
-            ? toSqlApprovalRequest(getSqlApprovalSql(args))
-            : null;
+            ? getSqlApprovalNodes(args)
+            : [];
     };
 
     /** For the AI SDK: a gated call on Slack suspends until the user decides. */
@@ -124,15 +127,15 @@ export const createSqlChartGate = (
         if (!isComposerChartContentArgs(args)) {
             return approvalGate.needsNativeApproval({
                 toolCallId,
-                request: await getGatedSql(args),
+                nodes: await getGatedSql(args),
             });
         }
         // A refused edit asks nothing; running it reports the refusal.
-        const request = await getGatedSql(args).catch(() => 'failed' as const);
-        askedComposerSql.set(toolCallId, request);
+        const nodes = await getGatedSql(args).catch(() => 'failed' as const);
+        askedComposerSql.set(toolCallId, nodes);
         return (
-            request !== 'failed' &&
-            approvalGate.needsNativeApproval({ toolCallId, request })
+            nodes !== 'failed' &&
+            approvalGate.needsNativeApproval({ toolCallId, nodes })
         );
     };
 
@@ -170,7 +173,7 @@ export const createSqlChartGate = (
                 (isSqlChart || isComposerChart) && approvalGate
                     ? await approvalGate.forToolCall(toolCallId, {
                           // A refused edit saves nothing; running it reports the refusal.
-                          request: await getGatedSql(args).catch(() => null),
+                          nodes: await getGatedSql(args).catch(() => []),
                       })
                     : null;
             const approveSql = call ? getSqlChartApproveSql(call) : null;
@@ -181,9 +184,8 @@ export const createSqlChartGate = (
                           if (
                               isComposerChart &&
                               askedSql !== undefined &&
-                              (askedSql === null ||
-                                  askedSql === 'failed' ||
-                                  askedSql.sql !== request.sql)
+                              (askedSql === 'failed' ||
+                                  !isEqual(askedSql, request.nodes))
                           ) {
                               throw new ParameterError(
                                   COMPOSER_CHART_SQL_UNASKED_RESULT,

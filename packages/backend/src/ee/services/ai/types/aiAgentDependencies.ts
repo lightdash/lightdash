@@ -66,6 +66,7 @@ import {
     WarehouseTablesCatalog,
     WarehouseTypes,
     type ProjectContextWritebackEntry,
+    type SqlApprovalNode,
     type SqlApprovalToolName,
     type UuidOrSlug,
 } from '@lightdash/common';
@@ -91,7 +92,6 @@ import { AiAgentSkill } from '../skills/types';
 import type {
     ApproveSqlFn,
     SqlApprovalDecisionOnCall,
-    SqlApprovalRequest,
     SqlAutoApprovalSource,
 } from '../tools/sqlApprovals';
 
@@ -454,12 +454,12 @@ export type EditContentFn = (
       }
 >;
 
-/** Runs a composer chart edit's checks without saving; `approvalSql` is the new warehouse SQL, or null. */
+/** Runs a composer chart edit's checks without saving; `sqlNodes` is the new warehouse SQL, empty when it adds none. */
 export type PrepareComposerChartEditFn = (args: {
     /** The chart's slug or uuid; the tool field keeps its name. */
     slug: UuidOrSlug;
     patch: unknown;
-}) => Promise<{ approval: SqlApprovalRequest | null }>;
+}) => Promise<{ sqlNodes: SqlApprovalNode[] }>;
 
 type CreateContentArgs =
     | {
