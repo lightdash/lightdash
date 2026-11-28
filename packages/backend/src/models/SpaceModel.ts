@@ -131,13 +131,36 @@ export type CascadedDocument = {
     projectUuid: string;
 };
 
-type DocumentUuidRow = { document_uuid: string; project_uuid: string };
+export type CascadedComposerChart = {
+    composerChartUuid: string;
+    projectUuid: string;
+};
 
-const toCascadedDocuments = (rows: DocumentUuidRow[]): CascadedDocument[] =>
-    rows.map((row) => ({
+/** Content that follows its Space in SQL, inside the Space's transaction. */
+export type CascadedSpaceContent = {
+    documents: CascadedDocument[];
+    composerCharts: CascadedComposerChart[];
+};
+
+type DocumentUuidRow = { document_uuid: string; project_uuid: string };
+type ComposerChartUuidRow = {
+    composer_chart_uuid: string;
+    project_uuid: string;
+};
+
+const toCascadedContent = (
+    documents: DocumentUuidRow[],
+    composerCharts: ComposerChartUuidRow[],
+): CascadedSpaceContent => ({
+    documents: documents.map((row) => ({
         documentUuid: row.document_uuid,
         projectUuid: row.project_uuid,
-    }));
+    })),
+    composerCharts: composerCharts.map((row) => ({
+        composerChartUuid: row.composer_chart_uuid,
+        projectUuid: row.project_uuid,
+    })),
+});
 
 export class SpaceModel {
     readonly database: Knex;
@@ -2242,11 +2265,11 @@ export class SpaceModel {
             .delete();
     }
 
-    /** Returns the Documents deleted along with the Space. */
+    /** Returns the Documents and composer charts deleted along with the Space, stamped with its time and user. */
     async softDelete(
         spaceUuid: string,
         userUuid: string,
-    ): Promise<CascadedDocument[]> {
+    ): Promise<CascadedSpaceContent> {
         return this.database.transaction(async (trx) => {
             const deletedAt = new Date();
             const [space] = await trx(SpaceTableName)
@@ -2258,7 +2281,7 @@ export class SpaceModel {
                 })
                 .returning('space_id');
             if (!space) {
-                return [];
+                return toCascadedContent([], []);
             }
             const documents: DocumentUuidRow[] = await trx('documents')
                 .where('space_id', space.space_id)
@@ -2269,12 +2292,22 @@ export class SpaceModel {
                     deleted_with_space: true,
                 })
                 .returning(['document_uuid', 'project_uuid']);
-            return toCascadedDocuments(documents);
+            const composerCharts: ComposerChartUuidRow[] = await trx(
+                ComposerChartsTableName,
+            )
+                .where('space_uuid', spaceUuid)
+                .whereNull('deleted_at')
+                .update({
+                    deleted_at: deletedAt,
+                    deleted_by_user_uuid: userUuid,
+                })
+                .returning(['composer_chart_uuid', 'project_uuid']);
+            return toCascadedContent(documents, composerCharts);
         });
     }
 
-    /** Returns the Documents restored along with the Space. */
-    async restore(spaceUuid: string): Promise<CascadedDocument[]> {
+    /** Returns the Documents and composer charts restored along with the Space. */
+    async restore(spaceUuid: string): Promise<CascadedSpaceContent> {
         return this.database.transaction(async (trx) => {
             const deletedSpace = await trx(SpaceTableName)
                 .select(
@@ -2325,7 +2358,24 @@ export class SpaceModel {
                     deleted_with_space: false,
                 })
                 .returning(['document_uuid', 'project_uuid']);
-            return toCascadedDocuments(documents);
+            // Same time and user as the Space: a chart deleted before it stays deleted
+            const composerCharts: ComposerChartUuidRow[] = await trx(
+                ComposerChartsTableName,
+            )
+                .where('space_uuid', spaceUuid)
+                .where('deleted_at', deletedSpace.deleted_at)
+                // A removed deleter leaves the chart's FK null while the space keeps the uuid
+                .where((deleter) => {
+                    void deleter
+                        .where(
+                            'deleted_by_user_uuid',
+                            deletedSpace.deleted_by_user_uuid,
+                        )
+                        .orWhereNull('deleted_by_user_uuid');
+                })
+                .update({ deleted_at: null, deleted_by_user_uuid: null })
+                .returning(['composer_chart_uuid', 'project_uuid']);
+            return toCascadedContent(documents, composerCharts);
         });
     }
 

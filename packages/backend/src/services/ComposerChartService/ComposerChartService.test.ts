@@ -2167,3 +2167,105 @@ describe('ComposerChartService lifecycle writes', () => {
         });
     });
 });
+
+describe('ComposerChartService restore and permanent delete', () => {
+    const spaceUuid = 'space-uuid';
+    const otherUserUuid = 'other-user-uuid';
+    const deletedAt = new Date('2026-11-28T10:00:00.000Z');
+
+    const setupDeleted = ({
+        owner = { type: 'space', spaceUuid } as ComposerChartOwner,
+        deletedByUserUuid = defaultSessionUser.userUuid,
+        canManageDeletedContent = false,
+    }: {
+        owner?: ComposerChartOwner;
+        deletedByUserUuid?: string | null;
+        canManageDeletedContent?: boolean;
+    } = {}) => {
+        const deps = setup({ flagEnabled: false, softDeleteEnabled: true });
+        const restoreToSpace = vi.fn(async () => undefined);
+        const permanentlyDeleteFromSpace = vi.fn(async () => undefined);
+        Object.assign(deps.composerChartModel, {
+            getDeleted: vi.fn(async () => ({
+                projectUuid,
+                organizationUuid,
+                owner,
+                deletion: { deletedAt, deletedByUserUuid },
+            })),
+            restoreToSpace,
+            permanentlyDeleteFromSpace,
+        });
+        const account = sessionAccount(
+            new Ability<PossibleAbilities>(
+                canManageDeletedContent
+                    ? [
+                          {
+                              subject: 'DeletedContent',
+                              action: 'manage' as const,
+                          },
+                      ]
+                    : [],
+            ),
+        );
+        return {
+            ...deps,
+            account,
+            calls: {
+                restore: restoreToSpace,
+                permanentDelete: permanentlyDeleteFromSpace,
+            },
+        };
+    };
+
+    describe.each(['restore', 'permanentDelete'] as const)('%s', (method) => {
+        test.each([
+            ['the user who deleted it', defaultSessionUser.userUuid, false],
+            ['a user who can manage deleted content', otherUserUuid, true],
+        ])(
+            'is allowed for %s, with the flag off',
+            async (_, deletedByUserUuid, canManageDeletedContent) => {
+                const { service, account, calls } = setupDeleted({
+                    deletedByUserUuid,
+                    canManageDeletedContent,
+                });
+                await service[method](account, projectUuid, 'chart-uuid');
+                expect(calls[method]).toHaveBeenCalledWith(
+                    'chart-uuid',
+                    spaceUuid,
+                    { deletedAt, deletedByUserUuid },
+                );
+            },
+        );
+
+        test('refuses anyone else', async () => {
+            const { service, account, calls } = setupDeleted({
+                deletedByUserUuid: otherUserUuid,
+            });
+            await expect(
+                service[method](account, projectUuid, 'chart-uuid'),
+            ).rejects.toThrow(ForbiddenError);
+            expect(calls[method]).not.toHaveBeenCalled();
+        });
+
+        test('refuses a chart a dashboard owns', async () => {
+            const { service, account, calls } = setupDeleted({
+                owner: { type: 'dashboard', dashboardUuid },
+                canManageDeletedContent: true,
+            });
+            await expect(
+                service[method](account, projectUuid, 'chart-uuid'),
+            ).rejects.toThrow(ParameterError);
+            expect(calls[method]).not.toHaveBeenCalled();
+        });
+
+        test('misses a chart in another project', async () => {
+            const { service, account, calls } = setupDeleted({
+                canManageDeletedContent: true,
+            });
+            await expect(
+                service[method](account, 'another-project', 'chart-uuid'),
+            ).rejects.toThrow(NotFoundError);
+            expect(calls[method]).not.toHaveBeenCalled();
+        });
+    });
+});

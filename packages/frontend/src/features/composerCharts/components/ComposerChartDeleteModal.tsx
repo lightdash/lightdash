@@ -31,6 +31,7 @@ export const ComposerChartDeleteModal: FC<Props> = ({
 }) => {
     const { health } = useApp();
     const softDeleteEnabled = health.data?.softDelete.enabled ?? false;
+    const retentionDays = health.data?.softDelete.retentionDays;
     const dashboards = useComposerChartDashboards(
         projectUuid,
         composerChartUuid,
@@ -42,8 +43,12 @@ export const ComposerChartDeleteModal: FC<Props> = ({
 
     const count = dashboards.data?.length ?? 0;
     const plural = count > 1 ? 's' : '';
-    // Recently deleted does not list composer charts yet, so no restore is promised
-    const dashboardWarningTitle = `Tiles on ${count} dashboard${plural} will show the chart as deleted:`;
+    const description = softDeleteEnabled
+        ? `This chart will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
+        : undefined;
+    const dashboardWarningTitle = softDeleteEnabled
+        ? `Tiles on ${count} dashboard${plural} will show the chart as deleted. The chart can be restored from Recently deleted.`
+        : `Tiles on ${count} dashboard${plural} will show the chart as deleted:`;
 
     return (
         <MantineModal
@@ -53,6 +58,7 @@ export const ComposerChartDeleteModal: FC<Props> = ({
             variant="delete"
             resourceType="chart"
             resourceLabel={name}
+            description={description}
             onConfirm={() =>
                 deleteChart({
                     action: { type: 'delete' },

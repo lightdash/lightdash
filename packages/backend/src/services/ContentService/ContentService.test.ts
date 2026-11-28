@@ -5,7 +5,6 @@ import {
     DirectAccessResourceType,
     ForbiddenError,
     KnexPaginatedData,
-    NotSupportedError,
     OrganizationMemberRole,
     ProjectMemberRole,
     SpaceMemberRole,
@@ -1064,32 +1063,6 @@ describe('ContentService composer chart actions', () => {
         uuid: 'composer-chart-uuid',
         contentType: ContentType.COMPOSER_CHART,
     } as const;
-
-    it.each([
-        [
-            'restore',
-            (deps: ReturnType<typeof createService>) =>
-                deps.service.restoreContent(createUser(), projectUuid, item),
-        ],
-        [
-            'permanent delete',
-            (deps: ReturnType<typeof createService>) =>
-                deps.service.permanentlyDeleteContent(
-                    createUser(),
-                    projectUuid,
-                    item,
-                ),
-        ],
-    ])('refuses %s as not supported yet', async (_, act) => {
-        const deps = createService({
-            contentModel: {
-                getDatabase: () => ({
-                    transaction: async (fn: (tx: unknown) => unknown) => fn({}),
-                }),
-            } as unknown as ContentModel,
-        });
-        await expect(act(deps)).rejects.toThrow(NotSupportedError);
-    });
 
     it('bulk delete deletes the rest and skips a composer chart the user may not delete', async () => {
         const deps = createService();

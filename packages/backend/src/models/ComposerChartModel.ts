@@ -26,6 +26,7 @@ import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
+import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectTableName } from '../database/entities/projects';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
@@ -78,6 +79,12 @@ const toOwner = (uuid: string, row: OwnerColumns): ComposerChartOwner => {
     throw new UnexpectedServerError(
         `Composer chart ${uuid} does not have exactly one owner`,
     );
+};
+
+/** One soft deletion of a chart: restore and permanent delete act on it only. */
+export type ComposerChartDeletion = {
+    deletedAt: Date;
+    deletedByUserUuid: string | null;
 };
 
 export class ComposerChartModel {
@@ -202,6 +209,98 @@ export class ComposerChartModel {
         if (count !== 1) {
             throw new ConflictError(
                 'This composer chart moved or was deleted. Reload and try again.',
+            );
+        }
+    }
+
+    /** A soft-deleted chart with its owner and deleter, for restore and permanent delete. */
+    async getDeleted(uuid: string): Promise<{
+        projectUuid: string;
+        organizationUuid: string;
+        owner: ComposerChartOwner;
+        deletion: ComposerChartDeletion;
+    }> {
+        const row = await this.database(ComposerChartsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${ComposerChartsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .select(
+                `${ComposerChartsTableName}.project_uuid`,
+                `${ComposerChartsTableName}.dashboard_uuid`,
+                `${ComposerChartsTableName}.space_uuid`,
+                `${ComposerChartsTableName}.deleted_at`,
+                `${ComposerChartsTableName}.deleted_by_user_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
+            )
+            .where(`${ComposerChartsTableName}.composer_chart_uuid`, uuid)
+            .whereNotNull(`${ComposerChartsTableName}.deleted_at`)
+            .first();
+        if (!row) throw new NotFoundError('Deleted composer chart not found');
+        return {
+            projectUuid: row.project_uuid,
+            organizationUuid: row.organization_uuid,
+            owner: toOwner(uuid, row),
+            deletion: {
+                deletedAt: row.deleted_at,
+                deletedByUserUuid: row.deleted_by_user_uuid,
+            },
+        };
+    }
+
+    /** Restores the deletion checked of a chart still in the space checked, once that space is live. */
+    async restoreToSpace(
+        uuid: string,
+        spaceUuid: string,
+        { deletedAt, deletedByUserUuid }: ComposerChartDeletion,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            const space = await trx(SpaceTableName)
+                .select('space_uuid')
+                .where('space_uuid', spaceUuid)
+                .whereNull('deleted_at')
+                .forShare()
+                .first();
+            if (!space) {
+                throw new ConflictError(
+                    "This composer chart's space is deleted. Restore the space first.",
+                );
+            }
+            const count = await trx(ComposerChartsTableName)
+                .where('composer_chart_uuid', uuid)
+                .where('space_uuid', spaceUuid)
+                .where('deleted_at', deletedAt)
+                .where('deleted_by_user_uuid', deletedByUserUuid)
+                .update({ deleted_at: null, deleted_by_user_uuid: null });
+            if (count !== 1) {
+                throw new ConflictError(
+                    'This composer chart moved or was restored. Reload and try again.',
+                );
+            }
+        });
+    }
+
+    /** Permanently deletes the deletion checked of a chart still in the space checked; its versions cascade. */
+    async permanentlyDeleteFromSpace(
+        uuid: string,
+        spaceUuid: string,
+        { deletedAt, deletedByUserUuid }: ComposerChartDeletion,
+    ): Promise<void> {
+        const count = await this.database(ComposerChartsTableName)
+            .where('composer_chart_uuid', uuid)
+            .where('space_uuid', spaceUuid)
+            .where('deleted_at', deletedAt)
+            .where('deleted_by_user_uuid', deletedByUserUuid)
+            .delete();
+        if (count !== 1) {
+            throw new ConflictError(
+                'This composer chart moved or was restored. Reload and try again.',
             );
         }
     }

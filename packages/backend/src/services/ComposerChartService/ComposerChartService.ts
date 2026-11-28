@@ -61,7 +61,10 @@ import type { Knex } from 'knex';
 import { validate as isUuid } from 'uuid';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import type { LightdashConfig } from '../../config/parseConfig';
-import { ComposerChartModel } from '../../models/ComposerChartModel';
+import {
+    ComposerChartModel,
+    type ComposerChartDeletion,
+} from '../../models/ComposerChartModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectParametersModel } from '../../models/ProjectParametersModel';
@@ -749,6 +752,90 @@ export class ComposerChartService extends BaseService {
             this.lightdashConfig.softDelete.enabled
                 ? account.user.userUuid
                 : null,
+        );
+    }
+
+    /** Recently deleted rule, as for classic charts: the user who deleted it or `manage:DeletedContent`. */
+    private async assertCanManageDeleted(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        action: 'restore' | 'permanently delete',
+    ): Promise<{ spaceUuid: UUID; deletion: ComposerChartDeletion }> {
+        const deleted =
+            await this.composerChartModel.getDeleted(composerChartUuid);
+        if (deleted.projectUuid !== projectUuid) {
+            throw new NotFoundError('Deleted composer chart not found');
+        }
+        const isAdmin = this.createAuditedAbility(account).can(
+            'manage',
+            subject('DeletedContent', {
+                organizationUuid: deleted.organizationUuid,
+                projectUuid,
+                metadata: { composerChartUuid },
+            }),
+        );
+        if (
+            !isAdmin &&
+            deleted.deletion.deletedByUserUuid !== account.user.userUuid
+        ) {
+            throw new ForbiddenError(
+                `You can only ${action} content you deleted`,
+            );
+        }
+        switch (deleted.owner.type) {
+            case 'space':
+                return {
+                    spaceUuid: deleted.owner.spaceUuid,
+                    deletion: deleted.deletion,
+                };
+            case 'dashboard':
+                throw new ParameterError(
+                    'This composer chart belongs to a dashboard. You can only restore or delete it with that dashboard.',
+                );
+            default:
+                return assertUnreachable(
+                    deleted.owner,
+                    'Unknown composer chart owner',
+                );
+        }
+    }
+
+    /** 409 while its space is deleted. Works with the flag off. */
+    async restore(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<void> {
+        const { spaceUuid, deletion } = await this.assertCanManageDeleted(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'restore',
+        );
+        await this.composerChartModel.restoreToSpace(
+            composerChartUuid,
+            spaceUuid,
+            deletion,
+        );
+    }
+
+    /** Works with the flag off. */
+    async permanentDelete(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<void> {
+        const { spaceUuid, deletion } = await this.assertCanManageDeleted(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'permanently delete',
+        );
+        await this.composerChartModel.permanentlyDeleteFromSpace(
+            composerChartUuid,
+            spaceUuid,
+            deletion,
         );
     }
 
