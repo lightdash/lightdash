@@ -68,6 +68,16 @@ export const getComposerChartChanges = async (
             upstream.projectUuid,
             source.slug,
         );
+        // A space's chart never revives a trashed chart of a dashboard
+        if (
+            identity?.deleted &&
+            promoted.spacePath !== null &&
+            identity.owner.type === 'dashboard'
+        ) {
+            throw new AlreadyExistsError(
+                `Composer chart "${source.slug}" already belongs to a dashboard in the upstream project`,
+            );
+        }
         if (!identity || identity.deleted) {
             changes.push({ action: PromotionAction.CREATE, data: promoted });
         } else {

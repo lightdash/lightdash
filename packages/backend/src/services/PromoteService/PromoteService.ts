@@ -3125,7 +3125,8 @@ export class PromoteService extends BaseService {
                     `Failed to promote dashboard: this dashboard uses a chart "${data.name}" which you don't have access to edit in the origin project.`,
                 );
             }
-            if (action === PromotionAction.UPDATE) {
+            // An unchanged match is checked too: the dashboard starts showing it
+            if (action !== PromotionAction.CREATE) {
                 const upstreamOwner = (
                     await this.composerChartModel.getOwner(data.uuid)
                 ).owner;
@@ -3140,7 +3141,7 @@ export class PromoteService extends BaseService {
                     upstreamOwner.spaceUuid,
                     data.uuid,
                 );
-            } else if (action === PromotionAction.CREATE) {
+            } else {
                 const { spaceChanges: pathChanges } =
                     await this.getUpstreamSpaceChanges(
                         owner.spaceUuid,
