@@ -1,3 +1,10 @@
+# [3.449.0](https://github.com/lightdash/lightdash/compare/3.448.0...3.449.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** agent and MCP create a composer chart into a space ([#33617](https://github.com/lightdash/lightdash/issues/33617)) ([7397477](https://github.com/lightdash/lightdash/commit/73974773ac0785e7fa9b513a99d648873a9421ce))
+
 # [3.448.0](https://github.com/lightdash/lightdash/compare/3.447.0...3.448.0) (2026-11-28)
 
 
