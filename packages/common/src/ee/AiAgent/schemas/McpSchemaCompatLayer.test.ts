@@ -675,4 +675,34 @@ describe('McpSchemaCompatLayer', () => {
             expect(() => mapped.parse({ count: 2 })).toThrow();
         });
     });
+
+    describe('nullable with a null default', () => {
+        const filters = z.object({ type: z.string() });
+        const mapped = mapZodSchema(
+            z.object({
+                filters: filters.nullable().default(null).describe('Filters'),
+                tags: z.array(z.string()).nullable().default([]),
+            }),
+        );
+
+        test('publishes `.nullable().default(null)` like `.nullable()`', () => {
+            const plainNullable = mapZodSchema(
+                z.object({ filters: filters.nullable().describe('Filters') }),
+            );
+            expect(
+                toJsonSchema(mapped, { io: 'input' }).properties?.filters,
+            ).toEqual(
+                toJsonSchema(plainNullable, { io: 'input' }).properties
+                    ?.filters,
+            );
+        });
+
+        test('parses omitted and null values as null, keeping other defaults', () => {
+            expect(mapped.parse({})).toEqual({ filters: null, tags: [] });
+            expect(mapped.parse({ filters: null, tags: null })).toEqual({
+                filters: null,
+                tags: null,
+            });
+        });
+    });
 });

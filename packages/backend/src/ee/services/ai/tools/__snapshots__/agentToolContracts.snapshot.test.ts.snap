@@ -6066,7 +6066,12 @@ Example B — "Revenue by month with year-over-year comparison"
                 "additionalProperties": false,
                 "properties": {
                   "customMetrics": {
-                    "$ref": "#/definitions/CustomMetrics",
+                    "allOf": [
+                      {
+                        "$ref": "#/definitions/CustomMetrics",
+                      },
+                    ],
+                    "default": null,
                   },
                   "dimensions": {
                     "$ref": "#/definitions/QueryDimensions",
@@ -6084,6 +6089,7 @@ Example B — "Revenue by month with year-over-year comparison"
                         "type": "null",
                       },
                     ],
+                    "default": null,
                     "description": "\`type\` sets how rules combine within each category; dimensions, metrics and tableCalculations always combine with each other by AND. \`or\` makes every rule in a category optional, so a non-date filter beside alternative date ranges is silently dropped. For several periods at one granularity (e.g. "Mar or May 2025"), keep \`and\` with one \`equals\` rule on the date field at that grain and a value per period (\`2025-03-01\`, \`2025-05-01\`). Use \`or\`, with one \`inBetween\` per range, only when arbitrary date ranges (e.g. "Mar 1–6 vs Apr 1–6") are the sole dimension filters.",
                   },
                   "limit": {
@@ -6130,6 +6136,7 @@ Example B — "Revenue by month with year-over-year comparison"
                     "$ref": "#/definitions/QuerySorts",
                   },
                   "tableCalculations": {
+                    "default": null,
                     "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
@@ -6227,9 +6234,6 @@ All branches of an IF must return the same type.",
                   "metrics",
                   "sorts",
                   "limit",
-                  "customMetrics",
-                  "tableCalculations",
-                  "filters",
                 ],
                 "type": "object",
               },
@@ -17760,7 +17764,12 @@ Example B — "Revenue by month with year-over-year comparison"
           "additionalProperties": false,
           "properties": {
             "customMetrics": {
-              "$ref": "#/definitions/CustomMetrics",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/CustomMetrics",
+                },
+              ],
+              "default": null,
             },
             "dimensions": {
               "$ref": "#/definitions/QueryDimensions",
@@ -17778,6 +17787,7 @@ Example B — "Revenue by month with year-over-year comparison"
                   "type": "null",
                 },
               ],
+              "default": null,
               "description": "\`type\` sets how rules combine within each category; dimensions, metrics and tableCalculations always combine with each other by AND. \`or\` makes every rule in a category optional, so a non-date filter beside alternative date ranges is silently dropped. For several periods at one granularity (e.g. "Mar or May 2025"), keep \`and\` with one \`equals\` rule on the date field at that grain and a value per period (\`2025-03-01\`, \`2025-05-01\`). Use \`or\`, with one \`inBetween\` per range, only when arbitrary date ranges (e.g. "Mar 1–6 vs Apr 1–6") are the sole dimension filters.",
             },
             "limit": {
@@ -17824,6 +17834,7 @@ Example B — "Revenue by month with year-over-year comparison"
               "$ref": "#/definitions/QuerySorts",
             },
             "tableCalculations": {
+              "default": null,
               "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
@@ -17921,9 +17932,6 @@ All branches of an IF must return the same type.",
             "metrics",
             "sorts",
             "limit",
-            "customMetrics",
-            "tableCalculations",
-            "filters",
           ],
           "type": "object",
         },
@@ -26441,7 +26449,12 @@ Example B — "Revenue by month with year-over-year comparison"
         "additionalProperties": false,
         "properties": {
           "customMetrics": {
-            "$ref": "#/definitions/CustomMetricsExpression",
+            "allOf": [
+              {
+                "$ref": "#/definitions/CustomMetricsExpression",
+              },
+            ],
+            "default": null,
           },
           "dimensions": {
             "$ref": "#/definitions/QueryDimensions",
@@ -26459,6 +26472,7 @@ Example B — "Revenue by month with year-over-year comparison"
                 "type": "null",
               },
             ],
+            "default": null,
           },
           "limit": {
             "description": "The total number of data points / rows allowed on the chart. null means this tool's maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.",
@@ -26504,6 +26518,7 @@ Example B — "Revenue by month with year-over-year comparison"
             "$ref": "#/definitions/QuerySorts",
           },
           "tableCalculations": {
+            "default": null,
             "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
@@ -26601,9 +26616,6 @@ All branches of an IF must return the same type.",
           "metrics",
           "sorts",
           "limit",
-          "customMetrics",
-          "tableCalculations",
-          "filters",
         ],
         "type": "object",
       },
