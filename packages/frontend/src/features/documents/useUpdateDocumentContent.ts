@@ -32,12 +32,18 @@ export const useUpdateDocumentContent = (
             await queryClient.invalidateQueries({
                 queryKey: ['document', projectUuid],
             });
+            await queryClient.invalidateQueries({
+                queryKey: ['document-versions', projectUuid, documentUuid],
+            });
             await invalidateContent(queryClient, projectUuid);
         },
         onError: async (error) => {
             if (error.error.statusCode === 409) {
                 await queryClient.invalidateQueries({
                     queryKey: ['document', projectUuid],
+                });
+                await queryClient.invalidateQueries({
+                    queryKey: ['document-versions', projectUuid, documentUuid],
                 });
             }
         },

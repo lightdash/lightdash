@@ -940,6 +940,36 @@ describe('DocumentService mutations', () => {
     });
 
     test.each([semantic, merge])(
+        'restoring a removed $content.source chart requires the current caller to authorize it again',
+        async (cell) => {
+            const { service, documentModel, projectService } = setup();
+            const historicalContent = toContent([markdown, cell]);
+            const before = structuredClone(historicalContent);
+            projectService.compileQuery.mockRejectedValue(
+                new ForbiddenError('Chart access was revoked'),
+            );
+            projectService.compileMergeQuery.mockRejectedValue(
+                new ForbiddenError('Chart access was revoked'),
+            );
+
+            await expect(
+                service.updateContent(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                    {
+                        baseVersionUuid,
+                        content: historicalContent,
+                    },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(documentModel.updateContent).not.toHaveBeenCalled();
+            expect(historicalContent).toEqual(before);
+        },
+    );
+
+    test.each([semantic, merge])(
         'rejects unsupported chart content properties before compilation or persistence',
         async (cell) => {
             const { service, documentModel, projectService } = setup();

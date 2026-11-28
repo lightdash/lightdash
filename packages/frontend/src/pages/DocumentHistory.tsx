@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Badge, Button, Group, Text, Tooltip } from '@mantine/core';
 import { IconArrowsDiff, IconX } from '@tabler/icons-react';
+import { useState } from 'react';
 import {
     Link,
     Navigate,
@@ -21,11 +22,13 @@ import DocumentPageLayout from '../features/documents/DocumentPageLayout';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
 import DocumentVersionComparison from '../features/documents/DocumentVersionComparison';
 import DocumentVersionList from '../features/documents/DocumentVersionList';
+import DocumentVersionRestoreModal from '../features/documents/DocumentVersionRestoreModal';
 import {
     formatVersionTime,
     getVersionAuthor,
 } from '../features/documents/documentVersions';
 import DocumentReportLayout from '../features/documents/presentation/DocumentReportLayout';
+import { useCanEditDocument } from '../features/documents/useCanEditDocument';
 import { useDocument } from '../features/documents/useDocument';
 import {
     useDocumentVersion,
@@ -88,6 +91,11 @@ const VersionByline = ({
 
 const DocumentHistoryView = ({ document }: { document: Document }) => {
     const navigate = useNavigate();
+    const canEdit = useCanEditDocument(document);
+    const [restoreTarget, setRestoreTarget] = useState<{
+        document: Document;
+        version: Document['version'];
+    } | null>(null);
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedVersionUuid =
@@ -99,6 +107,7 @@ const DocumentHistoryView = ({ document }: { document: Document }) => {
         document.documentUuid,
         isCurrent ? null : selectedVersionUuid,
     );
+    const historicalVersion = historical.data?.version ?? null;
     const versions = useDocumentVersions(
         document.projectUuid,
         document.documentUuid,
@@ -159,50 +168,79 @@ const DocumentHistoryView = ({ document }: { document: Document }) => {
         <VersionByline summary={summary} isCurrent={shownIsCurrent} />
     );
     const actions = (
-        <ActionIcon.Group role="group" aria-label="Version history controls">
-            {!isCurrent && (
-                <Tooltip
-                    label={
-                        isComparing
-                            ? 'Show this version'
-                            : 'Compare with current version'
-                    }
-                >
-                    <ActionIcon
-                        variant={isComparing ? 'filled' : 'default'}
-                        size="lg"
-                        aria-label="Compare with current version"
-                        aria-pressed={isComparing}
+        <Group gap="xs">
+            {canEdit &&
+                !isCurrent &&
+                historicalVersion &&
+                !historical.isFetching && (
+                    <Button
+                        variant="default"
                         onClick={() =>
-                            setSearchParams(
-                                {
-                                    [VERSION_PARAM]: selectedVersionUuid,
-                                    ...(isComparing
-                                        ? {}
-                                        : { [COMPARE_PARAM]: '1' }),
-                                },
-                                { replace: true },
-                            )
+                            setRestoreTarget({
+                                document,
+                                version: historicalVersion,
+                            })
                         }
                     >
-                        <MantineIcon icon={IconArrowsDiff} />
+                        Restore this version
+                    </Button>
+                )}
+            <ActionIcon.Group
+                role="group"
+                aria-label="Version history controls"
+            >
+                {!isCurrent && (
+                    <Tooltip
+                        label={
+                            isComparing
+                                ? 'Show this version'
+                                : 'Compare with current version'
+                        }
+                    >
+                        <ActionIcon
+                            variant={isComparing ? 'filled' : 'default'}
+                            size="lg"
+                            aria-label="Compare with current version"
+                            aria-pressed={isComparing}
+                            onClick={() =>
+                                setSearchParams(
+                                    {
+                                        [VERSION_PARAM]: selectedVersionUuid,
+                                        ...(isComparing
+                                            ? {}
+                                            : { [COMPARE_PARAM]: '1' }),
+                                    },
+                                    { replace: true },
+                                )
+                            }
+                        >
+                            <MantineIcon icon={IconArrowsDiff} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
+                <Tooltip label="Close version history">
+                    <ActionIcon
+                        variant="default"
+                        size="lg"
+                        aria-label="Close version history"
+                        onClick={() => void navigate(documentUrl)}
+                    >
+                        <MantineIcon icon={IconX} />
                     </ActionIcon>
                 </Tooltip>
-            )}
-            <Tooltip label="Close version history">
-                <ActionIcon
-                    variant="default"
-                    size="lg"
-                    aria-label="Close version history"
-                    onClick={() => void navigate(documentUrl)}
-                >
-                    <MantineIcon icon={IconX} />
-                </ActionIcon>
-            </Tooltip>
-        </ActionIcon.Group>
+            </ActionIcon.Group>
+        </Group>
     );
     return (
         <DocumentPageLayout name={document.name}>
+            {restoreTarget && (
+                <DocumentVersionRestoreModal
+                    document={restoreTarget.document}
+                    version={restoreTarget.version}
+                    onClose={() => setRestoreTarget(null)}
+                    onRestored={() => void navigate(documentUrl)}
+                />
+            )}
             {isComparing ? (
                 <DocumentReportLayout
                     title={document.name}
