@@ -1,13 +1,14 @@
 import {
     AlreadyExistsError,
-    assertUnreachable,
     isDashboardComposerChartTile,
-    NotSupportedError,
     PromotionAction,
+    UnexpectedServerError,
+    type ComposerChartOwner,
     type DashboardTile,
     type PromotedComposerChart,
     type PromotionChanges,
     type RegisteredAccount,
+    type UUID,
 } from '@lightdash/common';
 import { isEqual } from 'es-toolkit/compat';
 import { type ComposerChartModel } from '../../models/ComposerChartModel';
@@ -20,7 +21,11 @@ export type PromoteComposerChartModel = Pick<
 
 export type PromoteComposerChartService = Pick<
     ComposerChartService,
-    'isEnabled' | 'preflightDashboard' | 'preflightPipeline' | 'writeFromCode'
+    | 'isEnabled'
+    | 'preflightDashboard'
+    | 'preflightSpaceWrite'
+    | 'preflightPipeline'
+    | 'writeFromCode'
 >;
 
 type ComposerChartChange = NonNullable<
@@ -35,21 +40,17 @@ const getComposerChartUuids = (tiles: DashboardTile[]) => [
     ),
 ];
 
-/** Matches each chart upstream by slug, among the charts of the upstream dashboard. */
+/** Matched by slug: a dashboard-owned chart to one on the upstream dashboard, a space-owned chart to a space-owned one. */
 export const getComposerChartChanges = async (
     composerChartModel: PromoteComposerChartModel,
     tiles: DashboardTile[],
-    upstream: { projectUuid: string; dashboardUuid: string | null },
+    upstream: { projectUuid: UUID; dashboardUuid: UUID | null },
+    getSpacePath: (spaceUuid: UUID) => Promise<string>,
 ): Promise<ComposerChartChange[]> => {
     const changes: ComposerChartChange[] = [];
     for (const chartUuid of getComposerChartUuids(tiles)) {
         /* eslint-disable no-await-in-loop */
         const source = await composerChartModel.get(chartUuid);
-        if (source.owner.type === 'space') {
-            throw new NotSupportedError(
-                `This dashboard cannot be promoted yet because it shows the composer chart "${source.slug}", which is saved in a space`,
-            );
-        }
         const promoted: PromotedComposerChart = {
             uuid: source.uuid,
             oldUuid: source.uuid,
@@ -58,32 +59,35 @@ export const getComposerChartChanges = async (
             name: source.name,
             description: source.description,
             chart: source.chart,
+            spacePath:
+                source.owner.type === 'space'
+                    ? await getSpacePath(source.owner.spaceUuid)
+                    : null,
         };
         const identity = await composerChartModel.findIdentityBySlug(
             upstream.projectUuid,
             source.slug,
         );
+        // Live or trashed, the slug's chart must have the same kind of owner
+        if (
+            identity &&
+            identity.owner.type !==
+                (promoted.spacePath === null ? 'dashboard' : 'space')
+        ) {
+            throw new AlreadyExistsError(
+                `Composer chart "${source.slug}" already belongs to a ${identity.owner.type} in the upstream project`,
+            );
+        }
         if (!identity || identity.deleted) {
             changes.push({ action: PromotionAction.CREATE, data: promoted });
         } else {
-            const { owner } = await composerChartModel.getOwner(identity.uuid);
-            switch (owner.type) {
-                case 'dashboard':
-                    if (owner.dashboardUuid !== upstream.dashboardUuid) {
-                        throw new AlreadyExistsError(
-                            `Composer chart "${source.slug}" already belongs to another dashboard in the upstream project`,
-                        );
-                    }
-                    break;
-                case 'space':
-                    throw new AlreadyExistsError(
-                        `Composer chart "${source.slug}" already belongs to a space in the upstream project`,
-                    );
-                default:
-                    return assertUnreachable(
-                        owner,
-                        'Unknown composer chart owner',
-                    );
+            if (
+                identity.owner.type === 'dashboard' &&
+                identity.owner.dashboardUuid !== upstream.dashboardUuid
+            ) {
+                throw new AlreadyExistsError(
+                    `Composer chart "${source.slug}" already belongs to another dashboard in the upstream project`,
+                );
             }
             const current = await composerChartModel.get(identity.uuid);
             const unchanged =
@@ -137,9 +141,40 @@ export const upsertComposerCharts = async (
     const changes = promotionChanges.composerCharts ?? [];
     if (changes.length === 0) return promotionChanges;
     const [dashboardChange] = promotionChanges.dashboards;
+    // A new chart goes on this dashboard or in the space matching its path; a live one stays where it is
+    const getOwner = async ({
+        action,
+        data,
+    }: ComposerChartChange): Promise<ComposerChartOwner> => {
+        if (data.spacePath === null) {
+            return {
+                type: 'dashboard',
+                dashboardUuid: dashboardChange.data.uuid,
+            };
+        }
+        if (action !== PromotionAction.CREATE) {
+            const { owner } = await composerChartModel.getOwner(data.uuid);
+            if (owner.type !== 'space') {
+                throw new AlreadyExistsError(
+                    `Composer chart "${data.slug}" already belongs to a dashboard in the upstream project`,
+                );
+            }
+            return owner;
+        }
+        const space = promotionChanges.spaces.find(
+            (change) => change.data.path === data.spacePath,
+        );
+        if (!space) {
+            throw new UnexpectedServerError(
+                `Missing space with path "${data.spacePath}" to promote`,
+            );
+        }
+        return { type: 'space', spaceUuid: space.data.uuid };
+    };
     const upstreamUuids = new Map<string, string>();
     // One at a time: composer slugs take no lock
-    for (const { action, data } of changes) {
+    for (const change of changes) {
+        const { action, data } = change;
         if (action === PromotionAction.NO_CHANGES) {
             upstreamUuids.set(data.oldUuid, data.uuid);
         } else {
@@ -150,8 +185,9 @@ export const upsertComposerCharts = async (
                 data.projectUuid,
                 {
                     slug: data.slug,
-                    dashboardUuid: dashboardChange.data.uuid,
-                    spaceOwner: 'refuse',
+                    owner: await getOwner(change),
+                    liveUuid:
+                        action === PromotionAction.UPDATE ? data.uuid : null,
                     name: data.name,
                     description: data.description,
                     pipeline,

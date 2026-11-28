@@ -113,6 +113,7 @@ import {
     UpdatedByUser,
     validateEmail,
     VirtualViewAsCode,
+    type ComposerChartOwner,
     type ContentAsCodeDirectAccess,
     type ContentAsCodeProjectSettings,
     type ContentAsCodeSettingsStamp,
@@ -3870,14 +3871,19 @@ export class CoderService extends BaseService {
                 );
                 dashboardUuid = placeholderUuid;
             }
+            let writeOwner: ComposerChartOwner | null = null;
+            if (editsLiveSpaceChart && live) writeOwner = live.owner;
+            else if (dashboardUuid) {
+                writeOwner = { type: 'dashboard', dashboardUuid };
+            }
             const composerChartUuid =
                 await this.composerChartService.writeFromCode(
                     account,
                     projectUuid,
                     {
                         slug,
-                        dashboardUuid: dashboardUuid ?? null,
-                        spaceOwner,
+                        owner: writeOwner,
+                        liveUuid: live?.uuid ?? null,
                         name: file.name,
                         description: file.description ?? null,
                         pipeline: file.pipeline,

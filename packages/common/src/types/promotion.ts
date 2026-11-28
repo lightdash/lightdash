@@ -44,6 +44,8 @@ export type PromotedComposerChart = {
     name: string;
     description: string | null;
     chart: ComposerStoredChart;
+    /** Path of the space that owns the chart; null when the dashboard owns it. */
+    spacePath: string | null;
 };
 
 export type PromotedApp = {

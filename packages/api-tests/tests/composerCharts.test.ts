@@ -55,6 +55,11 @@ import {
 } from '../helpers/composerDashboard';
 import { mcpText, openMcpSession, personalAccessTokens } from '../helpers/mcp';
 import { chartMock } from '../helpers/mocks';
+import {
+    createAndRefreshProject,
+    deleteProjectsByName,
+    postgresWarehouseConfig,
+} from '../helpers/projects';
 import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
 const projectUuid = SEED_PROJECT.project_uuid;
@@ -3785,6 +3790,101 @@ describe('Composer charts', () => {
                 expect((await restore(owned.uuid)).status).toBe(400);
                 expect((await permanentlyDelete(owned.uuid)).status).toBe(400);
             });
+        });
+    });
+
+    describe('promote', () => {
+        const downstreamName = uniqueName('Composer promote downstream');
+        const upstreamName = uniqueName('Composer promote upstream');
+        let downstreamUuid: string;
+        let upstreamUuid: string;
+
+        beforeAll(async () => {
+            [downstreamUuid, upstreamUuid] = await Promise.all(
+                [downstreamName, upstreamName].map((name) =>
+                    createAndRefreshProject(
+                        admin,
+                        name,
+                        postgresWarehouseConfig(),
+                    ),
+                ),
+            );
+            expect(
+                (
+                    await admin.patch(
+                        `/api/v1/projects/${downstreamUuid}/metadata`,
+                        { upstreamProjectUuid: upstreamUuid },
+                    )
+                ).status,
+            ).toBe(200);
+        }, 600_000);
+
+        afterAll(async () => {
+            await deleteProjectsByName(admin, [downstreamName, upstreamName]);
+        });
+
+        it("promotes a dashboard showing a space's chart into the upstream space matching its path", async () => {
+            const createSpace = async (name: string) => {
+                const resp = await admin.post<Body<Space>>(
+                    `/api/v1/projects/${downstreamUuid}/spaces`,
+                    { name, inheritParentPermissions: true },
+                );
+                expect(resp.status).toBe(200);
+                return resp.body.results;
+            };
+            const chartSpace = await createSpace(uniqueName('Shared charts'));
+            const dashboardSpace = await createSpace(uniqueName('Reports'));
+            const chartResp = await admin.post<Body<ComposerChart>>(
+                `/api/v2/projects/${downstreamUuid}/composer-charts`,
+                composerSpaceChartBody(chartSpace.uuid),
+            );
+            expect(chartResp.status).toBe(201);
+            const chart = chartResp.body.results;
+            const dashboardResp = await admin.post<Body<Dashboard>>(
+                `/api/v1/projects/${downstreamUuid}/dashboards`,
+                {
+                    name: uniqueName('Promoted composer dashboard'),
+                    spaceUuid: dashboardSpace.uuid,
+                    tiles: [composerTileFor(chart.uuid)],
+                    tabs: [],
+                },
+            );
+            expect(dashboardResp.status).toBe(201);
+            const dashboard = dashboardResp.body.results;
+
+            const promote = async () => {
+                const resp = await admin.post<Body<Dashboard>>(
+                    `/api/v1/dashboards/${dashboard.uuid}/promote`,
+                );
+                expect(resp.status).toBe(200);
+                const [tile] = resp.body.results.tiles;
+                expect(resp.body.results.projectUuid).toBe(upstreamUuid);
+                expect(tile.type).toBe(DashboardTileTypes.COMPOSER_CHART);
+                return tile.type === DashboardTileTypes.COMPOSER_CHART
+                    ? tile.properties.composerChartUuid
+                    : null;
+            };
+            const upstreamChartUuid = await promote();
+            const upstreamChart = await admin.get<Body<ComposerChart>>(
+                `/api/v2/projects/${upstreamUuid}/composer-charts/${upstreamChartUuid}`,
+            );
+            expect(upstreamChart.status).toBe(200);
+            expect(upstreamChart.body.results).toMatchObject({
+                slug: chart.slug,
+                name: chart.name,
+                owner: { type: 'space' },
+            });
+            const { owner } = upstreamChart.body.results;
+            const upstreamSpace = await admin.get<Body<Space>>(
+                `/api/v1/projects/${upstreamUuid}/spaces/${
+                    owner.type === 'space' ? owner.spaceUuid : ''
+                }`,
+            );
+            expect(upstreamSpace.status).toBe(200);
+            expect(upstreamSpace.body.results.name).toBe(chartSpace.name);
+
+            // Promoting again keeps showing the same upstream chart
+            expect(await promote()).toBe(upstreamChartUuid);
         });
     });
 });

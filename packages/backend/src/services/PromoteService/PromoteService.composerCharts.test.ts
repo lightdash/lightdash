@@ -26,6 +26,8 @@ const previewProjectUuid = 'preview-project';
 const upstreamProjectUuid = 'upstream-project';
 const upstreamDashboardUuid = 'upstream-dashboard';
 const upstreamChartUuid = 'upstream-composer-chart';
+const sharedSpaceUuid = 'preview-shared-space';
+const upstreamSharedSpaceUuid = 'upstream-shared-space';
 
 const account = {
     authentication: { type: 'session' },
@@ -49,14 +51,18 @@ const account = {
     isServiceAccount: () => false,
 } as unknown as RegisteredAccount;
 
-const space = (projectUuid: string, uuid: string): SpaceSummaryBase =>
+const space = (
+    projectUuid: string,
+    uuid: string,
+    path = 'reports',
+): SpaceSummaryBase =>
     ({
         organizationUuid,
         projectUuid,
         uuid,
-        name: 'Reports',
-        slug: 'reports',
-        path: 'reports',
+        name: path === 'reports' ? 'Reports' : 'Shared',
+        slug: path,
+        path,
         parentSpaceUuid: null,
         inheritParentPermissions: true,
     }) as SpaceSummaryBase;
@@ -144,11 +150,15 @@ const setup = ({
         dashboardUuid: upstreamDashboardUuid,
     },
     sourceChart = composerChart({}),
+    upstreamSharedSpaceExists = true,
+    upstreamChartDeleted = false,
 }: {
     upstreamDashboardExists?: boolean;
     upstreamChart?: ComposerChart | null;
     upstreamChartOwner?: ComposerChartOwner;
     sourceChart?: ComposerChart;
+    upstreamSharedSpaceExists?: boolean;
+    upstreamChartDeleted?: boolean;
 } = {}) => {
     const upstreamDashboard = dashboard(
         upstreamDashboardUuid,
@@ -177,17 +187,28 @@ const setup = ({
             uuid === sourceChart.uuid ? sourceChart : upstreamChart!,
         ),
         findIdentityBySlug: vi.fn(async () =>
-            upstreamChart ? { uuid: upstreamChart.uuid, deleted: false } : null,
+            upstreamChart
+                ? {
+                      uuid: upstreamChart.uuid,
+                      deleted: upstreamChartDeleted,
+                      owner: upstreamChartOwner,
+                  }
+                : null,
         ),
-        getOwner: vi.fn(async () => ({
-            projectUuid: upstreamProjectUuid,
-            owner: upstreamChartOwner,
-        })),
+        getOwner: vi.fn(async (uuid: string) =>
+            uuid === sourceChart.uuid
+                ? { projectUuid: previewProjectUuid, owner: sourceChart.owner }
+                : {
+                      projectUuid: upstreamProjectUuid,
+                      owner: upstreamChartOwner,
+                  },
+        ),
         deleteOrphans: vi.fn(async () => undefined),
     };
     const composerChartService = {
         isEnabled: vi.fn(async () => true),
         preflightDashboard: vi.fn(async () => undefined),
+        preflightSpaceWrite: vi.fn(async () => undefined),
         preflightPipeline: vi.fn(async () => undefined),
         writeFromCode: vi.fn(async () => upstreamChartUuid),
     };
@@ -202,6 +223,32 @@ const setup = ({
                 })),
         ),
     };
+    const spaceModel = {
+        getSpaceSummary: vi.fn(async (uuid: string) =>
+            uuid === sharedSpaceUuid
+                ? space(previewProjectUuid, sharedSpaceUuid, 'shared')
+                : space(previewProjectUuid, 'preview-space'),
+        ),
+        getSpaceAncestors: vi.fn(async () => []),
+        find: vi.fn(async ({ path }: { path: string }) => {
+            if (path !== 'shared') {
+                return [space(upstreamProjectUuid, 'upstream-space')];
+            }
+            return upstreamSharedSpaceExists
+                ? [
+                      space(
+                          upstreamProjectUuid,
+                          upstreamSharedSpaceUuid,
+                          'shared',
+                      ),
+                  ]
+                : [];
+        }),
+        createSpace: vi.fn(async (_data: unknown, { path }: { path: string }) =>
+            space(upstreamProjectUuid, upstreamSharedSpaceUuid, path),
+        ),
+        update: vi.fn(async () => undefined),
+    };
     const service = new PromoteService({
         agentActionLogModel: { insert: vi.fn() },
         lightdashConfig: lightdashConfigMock,
@@ -215,15 +262,7 @@ const setup = ({
             getUpstreamDashboardUuidFromPreview: vi.fn(async () => null),
             getConnectionRoute: vi.fn(async () => 'single'),
         } as never,
-        spaceModel: {
-            getSpaceSummary: vi.fn(async () =>
-                space(previewProjectUuid, 'preview-space'),
-            ),
-            getSpaceAncestors: vi.fn(async () => []),
-            find: vi.fn(async () => [
-                space(upstreamProjectUuid, 'upstream-space'),
-            ]),
-        } as never,
+        spaceModel: spaceModel as never,
         savedChartModel: {} as never,
         savedSqlModel: {} as never,
         dashboardModel: dashboardModel as never,
@@ -245,6 +284,7 @@ const setup = ({
     return {
         service,
         dashboardModel,
+        spaceModel,
         composerChartModel,
         composerChartService,
         appGenerateService,
@@ -301,8 +341,11 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamProjectUuid,
             {
                 slug: 'revenue',
-                dashboardUuid: upstreamDashboardUuid,
-                spaceOwner: 'refuse',
+                owner: {
+                    type: 'dashboard',
+                    dashboardUuid: upstreamDashboardUuid,
+                },
+                liveUuid: null,
                 name: 'Revenue',
                 description: null,
                 pipeline,
@@ -350,7 +393,10 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamProjectUuid,
             expect.objectContaining({
                 slug: 'revenue',
-                dashboardUuid: upstreamDashboardUuid,
+                owner: {
+                    type: 'dashboard',
+                    dashboardUuid: upstreamDashboardUuid,
+                },
                 pipeline,
             }),
         );
@@ -495,20 +541,6 @@ describe('promoting a dashboard with composer charts', () => {
         expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
     });
 
-    test("refuses before any write when a tile shows a space's chart", async () => {
-        const { service, dashboardModel, composerChartService } = setup({
-            sourceChart: composerChart({
-                owner: { type: 'space', spaceUuid: 'preview-space' },
-            }),
-        });
-
-        await expect(
-            service.promoteDashboard(account, sourceDashboard.uuid, scoped),
-        ).rejects.toThrow('cannot be promoted yet');
-        expect(dashboardModel.create).not.toHaveBeenCalled();
-        expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
-    });
-
     test('carries the custom chart type the chart uses', async () => {
         const { service, appGenerateService, composerChartService } = setup({
             sourceChart: composerChart({ chart: storedChart('pills') }),
@@ -536,5 +568,291 @@ describe('promoting a dashboard with composer charts', () => {
                 }),
             }),
         );
+    });
+});
+
+describe('promoting a dashboard showing a chart a space owns', () => {
+    const referenced = composerChart({
+        owner: { type: 'space', spaceUuid: sharedSpaceUuid },
+    });
+    const upstreamSpaceChart = (pipelineOverride?: unknown) =>
+        composerChart({
+            uuid: upstreamChartUuid,
+            projectUuid: upstreamProjectUuid,
+            owner: { type: 'space', spaceUuid: upstreamSharedSpaceUuid },
+            ...(pipelineOverride !== undefined && {
+                pipeline: pipelineOverride as never,
+            }),
+        });
+
+    test('the diff lists the chart as created in the matching upstream space', async () => {
+        const { service } = setup({
+            sourceChart: referenced,
+            upstreamSharedSpaceExists: false,
+        });
+
+        const changes = await service.getPromoteDashboardDiff(
+            account,
+            sourceDashboard.uuid,
+            scoped,
+        );
+
+        expect(changes.composerCharts).toEqual([
+            {
+                action: PromotionAction.CREATE,
+                data: expect.objectContaining({
+                    oldUuid: referenced.uuid,
+                    spacePath: 'shared',
+                }),
+            },
+        ]);
+        expect(changes.spaces).toContainEqual({
+            action: PromotionAction.CREATE,
+            data: expect.objectContaining({
+                path: 'shared',
+                projectUuid: upstreamProjectUuid,
+            }),
+        });
+    });
+
+    test('creates the chart in the matching upstream space and points the tile at it', async () => {
+        const { service, dashboardModel, composerChartService } = setup({
+            sourceChart: referenced,
+        });
+
+        await service.promoteDashboard(account, sourceDashboard.uuid, scoped);
+
+        expect(composerChartService.writeFromCode).toHaveBeenCalledWith(
+            account,
+            upstreamProjectUuid,
+            expect.objectContaining({
+                slug: 'revenue',
+                owner: { type: 'space', spaceUuid: upstreamSharedSpaceUuid },
+                pipeline,
+            }),
+        );
+        expect(
+            promotedComposerTileUuid(
+                dashboardModel.addVersion.mock.calls[0][1].tiles,
+            ),
+        ).toEqual([upstreamChartUuid]);
+    });
+
+    test('creates the upstream space by path when it is missing', async () => {
+        const { service, spaceModel, composerChartService } = setup({
+            sourceChart: referenced,
+            upstreamSharedSpaceExists: false,
+        });
+
+        await service.promoteDashboard(account, sourceDashboard.uuid, scoped);
+
+        expect(spaceModel.createSpace).toHaveBeenCalledWith(
+            expect.objectContaining({ name: 'Shared' }),
+            expect.objectContaining({
+                projectUuid: upstreamProjectUuid,
+                path: 'shared',
+            }),
+        );
+        expect(composerChartService.writeFromCode).toHaveBeenCalledWith(
+            account,
+            upstreamProjectUuid,
+            expect.objectContaining({
+                owner: { type: 'space', spaceUuid: upstreamSharedSpaceUuid },
+            }),
+        );
+    });
+
+    test('updates an upstream match a space owns where it is, checked as an update there', async () => {
+        const { service, spaceModel, composerChartService } = setup({
+            sourceChart: referenced,
+            upstreamDashboardExists: true,
+            upstreamChart: upstreamSpaceChart({ schemaVersion: 1, nodes: [] }),
+            upstreamChartOwner: { type: 'space', spaceUuid: 'elsewhere' },
+        });
+
+        const changes = await service.getPromoteDashboardDiff(
+            account,
+            sourceDashboard.uuid,
+            scoped,
+        );
+        expect(changes.composerCharts?.[0].action).toBe(PromotionAction.UPDATE);
+
+        await service.promoteDashboard(account, sourceDashboard.uuid, scoped);
+
+        expect(composerChartService.preflightSpaceWrite).toHaveBeenCalledWith(
+            account,
+            upstreamProjectUuid,
+            'elsewhere',
+            upstreamChartUuid,
+        );
+        expect(composerChartService.writeFromCode).toHaveBeenCalledWith(
+            account,
+            upstreamProjectUuid,
+            expect.objectContaining({
+                slug: 'revenue',
+                owner: { type: 'space', spaceUuid: 'elsewhere' },
+                pipeline,
+            }),
+        );
+        expect(spaceModel.createSpace).not.toHaveBeenCalled();
+    });
+
+    test('refuses an unchanged upstream match when the user cannot update charts in its space', async () => {
+        const { service, dashboardModel, composerChartService } = setup({
+            sourceChart: referenced,
+            upstreamDashboardExists: true,
+            upstreamChart: upstreamSpaceChart(),
+            upstreamChartOwner: {
+                type: 'space',
+                spaceUuid: upstreamSharedSpaceUuid,
+            },
+        });
+        composerChartService.preflightSpaceWrite.mockRejectedValue(
+            new ForbiddenError(
+                "You don't have permission to save composer charts here",
+            ),
+        );
+
+        await expect(
+            service.promoteDashboard(account, sourceDashboard.uuid, scoped),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        [
+            "a dashboard's trashed chart into a space",
+            referenced,
+            {
+                type: 'dashboard',
+                dashboardUuid: upstreamDashboardUuid,
+            } as ComposerChartOwner,
+        ],
+        [
+            "a space's trashed chart onto the dashboard",
+            composerChart({}),
+            {
+                type: 'space',
+                spaceUuid: upstreamSharedSpaceUuid,
+            } as ComposerChartOwner,
+        ],
+    ])('refuses to revive %s', async (_, sourceChart, upstreamChartOwner) => {
+        const { service, dashboardModel, composerChartService } = setup({
+            sourceChart,
+            upstreamChart: upstreamSpaceChart(),
+            upstreamChartOwner,
+            upstreamChartDeleted: true,
+        });
+
+        await expect(
+            service.promoteDashboard(account, sourceDashboard.uuid, scoped),
+        ).rejects.toBeInstanceOf(AlreadyExistsError);
+        expect(dashboardModel.create).not.toHaveBeenCalled();
+        expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
+    });
+
+    test('promotes without the chart write check on the upstream dashboard when the dashboard owns no composer chart', async () => {
+        const { service, composerChartService } = setup({
+            sourceChart: referenced,
+            upstreamDashboardExists: true,
+        });
+        composerChartService.preflightDashboard.mockRejectedValue(
+            new ForbiddenError(
+                "You don't have permission to save composer charts here",
+            ),
+        );
+
+        await service.promoteDashboard(account, sourceDashboard.uuid, scoped);
+
+        expect(composerChartService.writeFromCode).toHaveBeenCalledOnce();
+    });
+
+    test("a chart in the dashboard's own space lists that space once", async () => {
+        const { service } = setup({
+            sourceChart: composerChart({
+                owner: { type: 'space', spaceUuid: 'preview-space' },
+            }),
+        });
+
+        const changes = await service.getPromoteDashboardDiff(
+            account,
+            sourceDashboard.uuid,
+            scoped,
+        );
+
+        expect(
+            changes.spaces.filter((change) => change.data.path === 'reports'),
+        ).toHaveLength(1);
+        expect(changes.composerCharts?.[0].data.spacePath).toBe('reports');
+    });
+
+    test.each([
+        ['the upstream of this dashboard', upstreamDashboardUuid],
+        ['another dashboard', 'another-dashboard'],
+    ])(
+        'refuses an upstream match owned by %s, before any write',
+        async (_, ownerDashboardUuid) => {
+            const { service, dashboardModel, composerChartService } = setup({
+                sourceChart: referenced,
+                upstreamChart: upstreamSpaceChart(),
+                upstreamChartOwner: {
+                    type: 'dashboard',
+                    dashboardUuid: ownerDashboardUuid,
+                },
+            });
+
+            await expect(
+                service.promoteDashboard(account, sourceDashboard.uuid, scoped),
+            ).rejects.toBeInstanceOf(AlreadyExistsError);
+            expect(dashboardModel.create).not.toHaveBeenCalled();
+            expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
+        },
+    );
+
+    test('refuses before any write when the user cannot save charts in the upstream space', async () => {
+        const { service, dashboardModel, composerChartService } = setup({
+            sourceChart: referenced,
+        });
+        composerChartService.preflightSpaceWrite.mockRejectedValue(
+            new ForbiddenError(
+                "You don't have permission to save composer charts here",
+            ),
+        );
+
+        await expect(
+            service.promoteDashboard(account, sourceDashboard.uuid, scoped),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(dashboardModel.create).not.toHaveBeenCalled();
+        expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
+    });
+
+    test('refuses before any write when the user cannot promote charts from its space', async () => {
+        const { service, dashboardModel, composerChartService } = setup({
+            sourceChart: referenced,
+        });
+        const cannotPromoteCharts = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'all' },
+                    {
+                        action: 'promote',
+                        subject: 'SavedChart',
+                        inverted: true,
+                    },
+                ]),
+            },
+        } as RegisteredAccount;
+
+        await expect(
+            service.promoteDashboard(
+                cannotPromoteCharts,
+                sourceDashboard.uuid,
+                scoped,
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(dashboardModel.create).not.toHaveBeenCalled();
+        expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
     });
 });

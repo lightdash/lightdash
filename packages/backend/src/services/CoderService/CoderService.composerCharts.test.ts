@@ -377,8 +377,7 @@ describe('CoderService composer chart upsert for the agent', () => {
             PROJECT_UUID,
             expect.objectContaining({
                 slug: 'visible',
-                dashboardUuid: null,
-                spaceOwner: 'keep',
+                owner: { type: 'space', spaceUuid: 'marketing-uuid' },
             }),
         );
     });

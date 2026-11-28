@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AgentCapability,
+    AlreadyExistsError,
     assertRegisteredAccount,
     assertUnreachable,
     ChartType,
@@ -403,6 +404,22 @@ export class ComposerChartService extends BaseService {
         );
     }
 
+    /** The chart write check on a space: create, or update of the chart given. */
+    async preflightSpaceWrite(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        spaceUuid: UUID,
+        composerChartUuid: UUID | null,
+    ): Promise<void> {
+        await this.assertChartPermission(
+            account,
+            composerChartUuid === null ? 'create' : 'update',
+            projectUuid,
+            { type: 'space', spaceUuid },
+            composerChartUuid,
+        );
+    }
+
     /** The checks every submitted write runs; returns the documents to store. */
     private async authorizeWrite(
         account: RegisteredAccount,
@@ -554,16 +571,16 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.get(uuid);
     }
 
-    /** Content-as-code write; an existing chart keeps its owner. */
+    /** Content-as-code upload and promote; a live chart keeps its owner, and an existing one must be of the kind given. */
     async writeFromCode(
         account: RegisteredAccount,
         projectUuid: string,
         data: Omit<CreateComposerChart, 'dashboardUuid' | 'spaceUuid'> & {
             slug: string;
-            /** Owner of a new or revived chart; an existing chart keeps its own. */
-            dashboardUuid: string | null;
-            /** `keep` lets a live chart a space owns take the version; an upload refuses it. */
-            spaceOwner: 'refuse' | 'keep';
+            /** Owner of a new or revived chart; null only for a live chart a dashboard owns. */
+            owner: ComposerChartOwner | null;
+            /** The live chart the caller read and means to update; null creates or revives. */
+            liveUuid: string | null;
         },
     ): Promise<string> {
         const existing = await this.composerChartModel.findIdentityBySlug(
@@ -571,18 +588,22 @@ export class ComposerChartService extends BaseService {
             data.slug,
         );
         const live = existing && !existing.deleted ? existing : null;
-        const owner = live
-            ? ComposerChartService.getLiveWriteOwner(
-                  (await this.composerChartModel.getOwner(live.uuid)).owner,
-                  data.spaceOwner,
-              )
-            : data.dashboardUuid !== null && {
-                  type: 'dashboard' as const,
-                  dashboardUuid: data.dashboardUuid,
-              };
-        if (!owner) {
+        if (data.liveUuid !== null && live?.uuid !== data.liveUuid) {
+            throw new NotFoundError('Composer chart not found');
+        }
+        // A revived chart also keeps its kind of owner
+        if (
+            existing &&
+            existing.owner.type !== (data.owner?.type ?? 'dashboard')
+        ) {
+            throw new AlreadyExistsError(
+                `Composer chart "${data.slug}" already belongs to a ${existing.owner.type}`,
+            );
+        }
+        const owner = live ? live.owner : data.owner;
+        if (owner === null) {
             throw new ParameterError(
-                `Composer chart "${data.slug}" needs a dashboard to belong to`,
+                `Composer chart "${data.slug}" must belong to a dashboard or a space`,
             );
         }
         const { pipeline, chart } = await this.authorizeWrite(
@@ -635,24 +656,6 @@ export class ComposerChartService extends BaseService {
         ...args: Parameters<ComposerChartModel['remapPreviewDataAppVizs']>
     ): Promise<void> {
         return this.composerChartModel.remapPreviewDataAppVizs(...args);
-    }
-
-    /** A live chart's owner for a code write; a space owner only with `keep`. */
-    private static getLiveWriteOwner(
-        owner: ComposerChartOwner,
-        spaceOwner: 'refuse' | 'keep',
-    ): ComposerChartOwner {
-        switch (owner.type) {
-            case 'dashboard':
-                return owner;
-            case 'space':
-                if (spaceOwner === 'keep') return owner;
-                throw new NotSupportedError(
-                    'Composer charts in a space are not supported yet',
-                );
-            default:
-                return assertUnreachable(owner, 'Unknown composer chart owner');
-        }
     }
 
     /** View on the chart, through its owner. */
