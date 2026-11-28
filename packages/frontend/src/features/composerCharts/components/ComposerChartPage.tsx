@@ -174,6 +174,7 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
     );
     const canExportImage =
         canExportData &&
+        isChartOpen &&
         view === View.CHART &&
         isDrawn &&
         isRunCurrent &&
@@ -401,7 +402,10 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                         <SegmentedControl
                             size="xs"
                             value={view}
-                            onChange={(value) => setView(value as View)}
+                            onChange={(value) => {
+                                setView(value as View);
+                                setIsChartOpen(true);
+                            }}
                             data={[
                                 {
                                     value: View.CHART,
