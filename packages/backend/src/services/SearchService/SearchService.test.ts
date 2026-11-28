@@ -63,6 +63,7 @@ const makeService = ({ dataAppsEnabled = true } = {}) => {
         } as never,
         spaceModel: {} as never,
         featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: true }),
             getDisabledLiveIntegrations: vi.fn().mockResolvedValue(new Set()),
         },
         userAttributesModel: {} as never,
@@ -190,6 +191,7 @@ describe('SearchService resource-aware access', () => {
             } as never,
             spaceModel: {} as never,
             featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
                 getDisabledLiveIntegrations: vi
                     .fn()
                     .mockResolvedValue(new Set()),
@@ -249,6 +251,7 @@ describe('SearchService resource-aware access', () => {
             tables: [],
             pages: [],
             dataApps: [],
+            composerCharts: [],
             documents: [],
         };
         const resolveAccessBatch = vi.fn(async (_userUuid, targets) =>
@@ -274,6 +277,7 @@ describe('SearchService resource-aware access', () => {
             } as never,
             spaceModel: {} as never,
             featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
                 getDisabledLiveIntegrations: vi
                     .fn()
                     .mockResolvedValue(new Set()),

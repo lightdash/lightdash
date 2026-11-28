@@ -4,6 +4,7 @@ import {
     DashboardSearchResult,
     DashboardTabResult,
     DataAppSearchResult,
+    FeatureFlags,
     FieldSearchResult,
     ForbiddenError,
     isDashboardSearchResult,
@@ -46,7 +47,10 @@ type SearchServiceArguments = {
     spaceModel: SpaceModel;
     userAttributesModel: UserAttributesModel;
     spacePermissionService: SpacePermissionService;
-    featureFlagModel: Pick<FeatureFlagModel, 'getDisabledLiveIntegrations'>;
+    featureFlagModel: Pick<
+        FeatureFlagModel,
+        'get' | 'getDisabledLiveIntegrations'
+    >;
     // EE-only — undefined on OSS builds where data apps don't exist.
     appGenerateService?: AppGenerateService;
 };
@@ -358,7 +362,25 @@ export class SearchService extends BaseService {
                       target: AccessTarget;
                       name: string;
                       uuid: string;
+                  }
+                | {
+                      kind: 'composerChart';
+                      index: number;
+                      target: AccessTarget;
+                      name: string;
+                      uuid: string;
                   };
+            const composerChartsEnabled =
+                results.composerCharts.length > 0 &&
+                (
+                    await this.featureFlagModel.get({
+                        user: {
+                            userUuid: user.userUuid,
+                            organizationUuid,
+                        },
+                        featureFlagId: FeatureFlags.ComposerCharts,
+                    })
+                ).enabled;
             const accessEntries: SearchAccessEntry[] = [
                 ...results.dashboards.map((dashboard, index) => ({
                     kind: 'dashboard' as const,
@@ -413,6 +435,19 @@ export class SearchService extends BaseService {
                           ]
                         : [],
                 ),
+                // A space-owned composer chart is checked as a chart in its space
+                ...(composerChartsEnabled ? results.composerCharts : []).map(
+                    (composerChart, index) => ({
+                        kind: 'composerChart' as const,
+                        index,
+                        target: {
+                            type: 'space' as const,
+                            spaceUuid: composerChart.spaceUuid,
+                        },
+                        name: composerChart.name,
+                        uuid: composerChart.uuid,
+                    }),
+                ),
             ];
             const resolveContentAccess = () =>
                 this.spacePermissionService.resolveAccessBatch(
@@ -441,10 +476,16 @@ export class SearchService extends BaseService {
                           })
                         : subject('SavedChart', {
                               ...context,
-                              metadata: {
-                                  savedChartUuid: entry.uuid,
-                                  savedChartName: entry.name,
-                              },
+                              metadata:
+                                  entry.kind === 'composerChart'
+                                      ? {
+                                            composerChartUuid: entry.uuid,
+                                            composerChartName: entry.name,
+                                        }
+                                      : {
+                                            savedChartUuid: entry.uuid,
+                                            savedChartName: entry.name,
+                                        },
                           }),
                 ),
             );
@@ -456,6 +497,7 @@ export class SearchService extends BaseService {
                 dashboardTab: new Set(),
                 savedChart: new Set(),
                 sqlChart: new Set(),
+                composerChart: new Set(),
             };
             entriesWithContext.forEach(({ entry }, index) => {
                 if (entryAccessResults[index]) {
@@ -619,6 +661,9 @@ export class SearchService extends BaseService {
                     dataApps: filteredDataApps,
                     documents: results.documents.filter(({ uuid }) =>
                         visibleDocumentUuids.has(uuid),
+                    ),
+                    composerCharts: results.composerCharts.filter((_, index) =>
+                        allowedIndexes.composerChart.has(index),
                     ),
                 };
 

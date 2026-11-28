@@ -186,6 +186,19 @@ export type DocumentSearchResult = Pick<
     createdBy: { firstName: string; lastName: string; userUuid: string } | null;
 } & RankedItem;
 
+/** A space-owned composer chart; dashboard-owned ones are never searched. */
+export type ComposerChartSearchResult = {
+    uuid: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    spaceUuid: string;
+    projectUuid: string;
+    /** From the latest version's chart config; null when it has no kind. */
+    chartType: ChartKind | null;
+    createdBy: { firstName: string; lastName: string; userUuid: string } | null;
+} & RankedItem;
+
 export type DataAppSearchResult = {
     uuid: string;
     slug: string;
@@ -227,7 +240,8 @@ export type SearchResult =
     | FieldSearchResult
     | PageResult
     | DataAppSearchResult
-    | DocumentSearchResult;
+    | DocumentSearchResult
+    | ComposerChartSearchResult;
 
 export const isExploreSearchResult = (
     value: SearchResult,
@@ -267,6 +281,7 @@ export type SearchResults = {
     dashboardTabs: DashboardTabResult[];
     dataApps: DataAppSearchResult[];
     documents: DocumentSearchResult[];
+    composerCharts: ComposerChartSearchResult[];
 };
 
 export const getSearchResultId = (meta: SearchResult | undefined) => {
@@ -293,6 +308,7 @@ export enum SearchItemType {
     PAGE = 'page',
     DATA_APP = 'data_app',
     DOCUMENT = 'document',
+    COMPOSER_CHART = 'composer_chart',
     SETTINGS = 'settings',
 }
 
@@ -320,6 +336,8 @@ export function getSearchItemTypeFromResultKey(
             return SearchItemType.DATA_APP;
         case 'documents':
             return SearchItemType.DOCUMENT;
+        case 'composerCharts':
+            return SearchItemType.COMPOSER_CHART;
         default:
             return assertUnreachable(
                 searchResultKey,

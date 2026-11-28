@@ -11,6 +11,7 @@ export const getSearchItemLabel = (itemType: SearchItemType) => {
         case SearchItemType.DASHBOARD_TAB:
             return 'Dashboard Tabs';
         case SearchItemType.CHART:
+        case SearchItemType.COMPOSER_CHART:
             return 'Charts';
         case SearchItemType.SPACE:
             return 'Spaces';
@@ -41,6 +42,7 @@ export const getSearchItemErrorLabel = (itemType: SearchItemType) => {
         case SearchItemType.DASHBOARD_TAB:
             return 'dashboard tab';
         case SearchItemType.CHART:
+        case SearchItemType.COMPOSER_CHART:
             return 'chart';
         case SearchItemType.SPACE:
         case SearchItemType.TABLE:

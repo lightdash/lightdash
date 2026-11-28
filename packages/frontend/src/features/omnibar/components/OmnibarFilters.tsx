@@ -50,6 +50,7 @@ const getOmnibarItemIcon = (itemType: SearchItemType) => {
             return IconLayoutNavbarInactive;
 
         case SearchItemType.CHART:
+        case SearchItemType.COMPOSER_CHART:
             return IconChartBar;
         case SearchItemType.SPACE:
             return IconFolder;

@@ -39,6 +39,7 @@ const emptyResults: SearchResults = {
     pages: [],
     dashboardTabs: [],
     dataApps: [],
+    composerCharts: [],
     documents: [],
 };
 
@@ -117,6 +118,7 @@ const makeService = ({
         projectModel: projectModel as never,
         spaceModel: {} as never,
         featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: true }),
             getDisabledLiveIntegrations: vi.fn().mockResolvedValue(new Set()),
         },
         userAttributesModel: userAttributesModel as never,
