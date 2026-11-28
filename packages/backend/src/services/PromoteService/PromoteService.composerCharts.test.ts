@@ -301,7 +301,10 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamProjectUuid,
             {
                 slug: 'revenue',
-                dashboardUuid: upstreamDashboardUuid,
+                owner: {
+                    type: 'dashboard',
+                    dashboardUuid: upstreamDashboardUuid,
+                },
                 spaceOwner: 'refuse',
                 name: 'Revenue',
                 description: null,

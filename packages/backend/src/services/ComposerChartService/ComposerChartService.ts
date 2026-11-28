@@ -559,9 +559,9 @@ export class ComposerChartService extends BaseService {
         projectUuid: string,
         data: Omit<CreateComposerChart, 'dashboardUuid' | 'spaceUuid'> & {
             slug: string;
-            /** Owner of a new or revived chart; an existing chart keeps its own. */
-            dashboardUuid: string | null;
-            /** `keep` lets a live chart a space owns take the version; an upload refuses it. */
+            /** Owner of a new or revived chart; a live chart keeps its own. */
+            owner: ComposerChartOwner | null;
+            /** `keep` lets a live chart a space owns take the version; promote refuses it. */
             spaceOwner: 'refuse' | 'keep';
         },
     ): Promise<string> {
@@ -575,13 +575,10 @@ export class ComposerChartService extends BaseService {
                   (await this.composerChartModel.getOwner(live.uuid)).owner,
                   data.spaceOwner,
               )
-            : data.dashboardUuid !== null && {
-                  type: 'dashboard' as const,
-                  dashboardUuid: data.dashboardUuid,
-              };
+            : data.owner;
         if (!owner) {
             throw new ParameterError(
-                `Composer chart "${data.slug}" needs a dashboard to belong to`,
+                `Composer chart "${data.slug}" needs a dashboard or a space to belong to`,
             );
         }
         const { pipeline, chart } = await this.authorizeWrite(

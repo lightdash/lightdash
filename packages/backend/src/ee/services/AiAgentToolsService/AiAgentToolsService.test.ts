@@ -4635,7 +4635,7 @@ describe('AiAgentToolsService', () => {
                 projectUuid,
                 'orders-by-status',
                 expect.objectContaining({ dashboardSlug: null }),
-                { authorization: 'space_access', spaceOwner: 'keep' },
+                { authorization: 'space_access' },
             );
             expect(update).not.toHaveBeenCalled();
             expect(edited).toMatchObject({
@@ -4746,6 +4746,32 @@ describe('AiAgentToolsService', () => {
             });
             expect(upsertComposerChart).not.toHaveBeenCalled();
             expect(update).not.toHaveBeenCalled();
+        });
+
+        it('writes a version in place and moves with its own check, so the upload never picks the space', async () => {
+            const { runtime, upsertComposerChart, moveToSpace } =
+                makeSpaceEditService();
+
+            await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: [...changeSql, ...moveToMarketing],
+                approveSql: vi.fn(),
+            });
+
+            expect(upsertComposerChart).toHaveBeenCalledExactlyOnceWith(
+                user,
+                account,
+                projectUuid,
+                'orders-by-status',
+                expect.objectContaining({ spaceSlug: spaceChart.spaceSlug }),
+                { authorization: 'space_access' },
+            );
+            expect(moveToSpace).toHaveBeenCalledExactlyOnceWith(account, {
+                projectUuid,
+                itemUuid: 'composer-chart-uuid',
+                targetSpaceUuid: 'marketing-uuid',
+            });
         });
 
         it('checks write on the chart and the target space before asking for approval', async () => {

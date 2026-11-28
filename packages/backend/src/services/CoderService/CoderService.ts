@@ -32,6 +32,7 @@ import {
     ChartType,
     ComposerChart,
     ComposerChartAsCode,
+    ComposerChartOwner,
     ComposerStoredChart,
     ComposerStoredChartAsCode,
     ContentAsCodeType,
@@ -205,9 +206,9 @@ import {
     type CurrentChartSqlItems,
 } from './chartPermissions';
 import {
+    assertComposerChartOwnerTypeKept,
     assertNotComposerChartFile,
     isComposerChartAsCodeUnchanged,
-    SpaceOwnedComposerChartUploadError,
     toComposerChartAsCode,
 } from './composerChartsAsCode';
 import {
@@ -280,6 +281,7 @@ type RuntimeChartAsCode = Omit<ChartAsCode, 'chartConfig'> & {
 
 type ContentAsCodeSpaceContentMetadata = {
     savedChartUuid?: string;
+    composerChartUuid?: string;
     dashboardUuid?: string;
     savedSqlUuid?: string | null;
 };
@@ -323,7 +325,12 @@ type CoderServiceArguments = {
     >;
     composerChartService: Pick<
         ComposerChartService,
-        'isEnabled' | 'writeFromCode' | 'preflightWrite' | 'assertCanView'
+        | 'isEnabled'
+        | 'writeFromCode'
+        | 'preflightWrite'
+        | 'assertCanView'
+        | 'preflightSpaceChartEdit'
+        | 'moveToSpace'
     >;
     // Lazy accessor (not the instance): AppGenerateService depends on
     // CoderService, so resolving it eagerly here would cycle. Only wired when
@@ -3763,7 +3770,8 @@ export class CoderService extends BaseService {
 
     /**
      * An unchanged file writes nothing and needs only create:ContentAsCode. A
-     * new or changed one runs every composer chart write check.
+     * new or changed one runs every composer chart write check. A file naming
+     * no dashboard writes a chart its space owns.
      */
     async upsertComposerChart(
         user: SessionUser,
@@ -3777,10 +3785,7 @@ export class CoderService extends BaseService {
             | 'publicSpaceCreate'
             | 'spaceNames'
             | 'authorization'
-        > & {
-            /** `keep`: the agent's edit of a live chart a space owns; uploads refuse one. */
-            spaceOwner?: 'refuse' | 'keep';
-        } = {},
+        > = {},
     ): Promise<ApiComposerChartAsCodeUpsertResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
@@ -3804,28 +3809,31 @@ export class CoderService extends BaseService {
         );
         const dashboardSlug = file.dashboardSlug ?? null;
         const live = existing && !existing.deleted ? existing : null;
-        const spaceOwner = options.spaceOwner ?? 'refuse';
-        const editsLiveSpaceChart =
-            spaceOwner === 'keep' &&
-            live?.owner.type === 'space' &&
-            dashboardSlug === null;
-        if (
-            !editsLiveSpaceChart &&
-            (dashboardSlug === null || existing?.owner.type === 'space')
-        ) {
-            throw new SpaceOwnedComposerChartUploadError(slug);
+        // View first, so a slug in a hidden space says nothing about its chart
+        if (live?.owner.type === 'space') {
+            await this.composerChartService.assertCanView(
+                account,
+                projectUuid,
+                live.uuid,
+            );
         }
-        if (live) {
-            const stored = await this.composerChartModel.get(live.uuid);
-            const [current] = await this.getComposerChartsAsCode(projectUuid, [
-                { ...stored, dashboardSlug, spaceSlug: '' },
-            ]);
-            if (isComposerChartAsCodeUnchanged(file, current)) {
-                return {
-                    action: PromotionAction.NO_CHANGES,
-                    composerChartUuid: live.uuid,
-                };
-            }
+        if (existing) {
+            assertComposerChartOwnerTypeKept(
+                slug,
+                existing.owner,
+                dashboardSlug,
+            );
+        }
+        const current = live
+            ? await this.getCurrentComposerChartAsCode(projectUuid, live, {
+                  dashboardSlug,
+              })
+            : null;
+        if (live && current && isComposerChartAsCodeUnchanged(file, current)) {
+            return {
+                action: PromotionAction.NO_CHANGES,
+                composerChartUuid: live.uuid,
+            };
         }
         if (
             !(await this.composerChartService.isEnabled({
@@ -3839,22 +3847,26 @@ export class CoderService extends BaseService {
             );
         }
         const chart = await this.toStoredComposerChart(projectUuid, file.chart);
+        if (dashboardSlug === null) {
+            return this.writeSpaceComposerChart(user, account, project, {
+                slug,
+                file,
+                chart,
+                live: live && current ? { uuid: live.uuid, current } : null,
+                options: { ...options, allowSpaceCreate },
+            });
+        }
 
-        const [dashboard] =
-            live || dashboardSlug === null
-                ? []
-                : await this.dashboardModel.find({
-                      projectUuid,
-                      slug: dashboardSlug,
-                  });
+        const [dashboard] = live
+            ? []
+            : await this.dashboardModel.find({
+                  projectUuid,
+                  slug: dashboardSlug,
+              });
         let dashboardUuid = dashboard?.uuid;
         let placeholderUuid: string | null = null;
         try {
-            if (
-                dashboardUuid === undefined &&
-                !live &&
-                dashboardSlug !== null
-            ) {
+            if (dashboardUuid === undefined && !live) {
                 await this.composerChartService.preflightWrite(
                     account,
                     project,
@@ -3874,8 +3886,11 @@ export class CoderService extends BaseService {
                     projectUuid,
                     {
                         slug,
-                        dashboardUuid: dashboardUuid ?? null,
-                        spaceOwner,
+                        owner:
+                            dashboardUuid === undefined
+                                ? null
+                                : { type: 'dashboard', dashboardUuid },
+                        spaceOwner: 'refuse',
                         name: file.name,
                         description: file.description ?? null,
                         pipeline: file.pipeline,
@@ -3892,6 +3907,197 @@ export class CoderService extends BaseService {
             }
             throw error;
         }
+    }
+
+    /** A live chart as a file would hold it: a dashboard chart takes the file's dashboard, which it ignores; a space chart its space. */
+    private async getCurrentComposerChartAsCode(
+        projectUuid: string,
+        live: { uuid: string; owner: ComposerChartOwner },
+        file: { dashboardSlug: string | null },
+    ): Promise<ComposerChartAsCode> {
+        const stored = await this.composerChartModel.get(live.uuid);
+        const { owner } = live;
+        switch (owner.type) {
+            case 'dashboard': {
+                const [current] = await this.getComposerChartsAsCode(
+                    projectUuid,
+                    [
+                        {
+                            ...stored,
+                            dashboardSlug: file.dashboardSlug,
+                            spaceSlug: '',
+                        },
+                    ],
+                );
+                return current;
+            }
+            case 'space': {
+                const space = await this.spaceModel.getSpaceSummary(
+                    owner.spaceUuid,
+                );
+                const [current] = await this.getComposerChartsAsCode(
+                    projectUuid,
+                    [
+                        {
+                            ...stored,
+                            dashboardSlug: null,
+                            spaceSlug: getContentAsCodePathFromLtreePath(
+                                space.path,
+                            ),
+                        },
+                    ],
+                );
+                return current;
+            }
+            default:
+                return assertUnreachable(owner, 'Unknown composer chart owner');
+        }
+    }
+
+    /** Creates or revives a chart in the file's space, or writes a live one and moves it there; every check runs before any write. */
+    private async writeSpaceComposerChart(
+        user: SessionUser,
+        account: RegisteredAccount,
+        project: Project,
+        {
+            slug,
+            file,
+            chart,
+            live,
+            options,
+        }: {
+            slug: string;
+            file: ComposerChartAsCode;
+            chart: ComposerStoredChart;
+            live: { uuid: string; current: ComposerChartAsCode } | null;
+            options: Pick<
+                UpsertContentAsCodeOptions,
+                'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames'
+            > & { allowSpaceCreate: boolean };
+        },
+    ): Promise<ApiComposerChartAsCodeUpsertResponse['results']> {
+        const { projectUuid } = project;
+        const auditedAbility = this.createAuditedAbility(user);
+        const getOrCreateSpace = async () => {
+            const { space } = await this.getOrCreateSpace(
+                projectUuid,
+                file.spaceSlug,
+                user,
+                options.skipSpaceCreate,
+                options.publicSpaceCreate,
+                options.spaceNames,
+                options.allowSpaceCreate,
+            );
+            return space.uuid;
+        };
+        const targetExists =
+            (await this.findAccessibleSpace(
+                projectUuid,
+                file.spaceSlug,
+                user,
+            )) !== undefined;
+
+        if (live === null) {
+            if (!targetExists) {
+                await this.assertContentAccessForMissingSpace({
+                    user,
+                    auditedAbility,
+                    projectUuid,
+                    spaceSlug: file.spaceSlug,
+                    subjectType: 'SavedChart',
+                    errorMessage: `You don't have access to create charts in space "${file.spaceSlug}"`,
+                });
+            }
+            await this.composerChartService.preflightWrite(account, project, {
+                pipeline: file.pipeline,
+                chart,
+            });
+            const composerChartUuid =
+                await this.composerChartService.writeFromCode(
+                    account,
+                    projectUuid,
+                    {
+                        slug,
+                        owner: {
+                            type: 'space',
+                            spaceUuid: await getOrCreateSpace(),
+                        },
+                        spaceOwner: 'refuse',
+                        name: file.name,
+                        description: file.description ?? null,
+                        pipeline: file.pipeline,
+                        chart,
+                    },
+                );
+            return { action: PromotionAction.CREATE, composerChartUuid };
+        }
+
+        const { current } = live;
+        const writesVersion = !isComposerChartAsCodeUnchanged(
+            { ...file, spaceSlug: current.spaceSlug },
+            current,
+        );
+        if (writesVersion) {
+            await this.composerChartService.preflightWrite(account, project, {
+                pipeline: file.pipeline,
+                chart,
+            });
+        }
+        let targetSpaceUuid: string | null = null;
+        if (file.spaceSlug !== current.spaceSlug) {
+            if (!targetExists) {
+                await this.assertContentAccessForMissingSpace({
+                    user,
+                    auditedAbility,
+                    projectUuid,
+                    spaceSlug: file.spaceSlug,
+                    subjectType: 'SavedChart',
+                    action: 'update',
+                    metadata: { composerChartUuid: live.uuid },
+                    errorMessage: `You don't have access to update chart "${slug}"`,
+                });
+                // Write on the source before a missing target is created
+                await this.composerChartService.preflightSpaceChartEdit(
+                    account,
+                    projectUuid,
+                    live.uuid,
+                    { targetSpaceUuid: null },
+                );
+            }
+            targetSpaceUuid = await getOrCreateSpace();
+            await this.composerChartService.preflightSpaceChartEdit(
+                account,
+                projectUuid,
+                live.uuid,
+                { targetSpaceUuid },
+            );
+        }
+        if (writesVersion) {
+            await this.composerChartService.writeFromCode(
+                account,
+                projectUuid,
+                {
+                    slug,
+                    owner: null,
+                    spaceOwner: 'keep',
+                    name: file.name,
+                    description: file.description ?? null,
+                    pipeline: file.pipeline,
+                    chart,
+                },
+            );
+        }
+        if (targetSpaceUuid !== null) {
+            await this.composerChartService.moveToSpace(account, {
+                projectUuid,
+                itemUuid: live.uuid,
+                targetSpaceUuid,
+            });
+        }
+        return {
+            action: PromotionAction.UPDATE,
+            composerChartUuid: live.uuid,
+        };
     }
 
     /** As for a classic chart: a chart's dashboard missing from the project is created empty. */

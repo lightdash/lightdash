@@ -1118,7 +1118,7 @@
         },
         "ComposerChartAsCode": {
             "additionalProperties": false,
-            "description": "A composer chart: a pipeline of nodes and a chart over its result columns, owned by a dashboard",
+            "description": "A composer chart: a pipeline of nodes and a chart over its result columns, owned by a dashboard or a space",
             "properties": {
                 "chart": {
                     "$ref": "#/$defs/ComposerStoredChartAsCode"
@@ -1127,7 +1127,7 @@
                     "$ref": "#/$defs/ContentAsCodeType.COMPOSER_CHART"
                 },
                 "dashboardSlug": {
-                    "description": "The owning dashboard; null or missing for a chart a space owns. An existing chart keeps its dashboard on upload.",
+                    "description": "The owning dashboard; null or missing for a chart a space owns. An existing chart keeps its dashboard on upload, and never switches between a dashboard and a space.",
                     "type": ["string", "null"]
                 },
                 "description": {
@@ -1147,7 +1147,7 @@
                     "type": "string"
                 },
                 "spaceSlug": {
-                    "description": "The owning space, or the dashboard's space; a missing dashboard is created there.",
+                    "description": "The owning space, or the dashboard's space; a missing space or dashboard is created there, and a changed one moves a chart its space owns.",
                     "type": "string"
                 },
                 "updatedAt": {

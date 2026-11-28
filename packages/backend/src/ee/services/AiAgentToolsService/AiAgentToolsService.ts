@@ -4944,13 +4944,14 @@ export class AiAgentToolsService extends BaseService {
             throw new ParameterError(composerChartChangedWhileWaiting(slug));
         }
         if (spaceEdit.write === 'version') {
+            // The move below is the agent's own, inside its writable spaces
             await this.coderService.upsertComposerChart(
                 context.user,
                 account,
                 context.projectUuid,
                 slug,
-                edited,
-                { authorization: 'space_access', spaceOwner: 'keep' },
+                { ...edited, spaceSlug: read.spaceSlug },
+                { authorization: 'space_access' },
             );
         } else if (spaceEdit.write === 'rename') {
             await this.composerChartService.update(

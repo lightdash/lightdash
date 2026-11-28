@@ -710,7 +710,7 @@ describe('ComposerChartService.writeFromCode owner', () => {
         service.writeFromCode(sessionAccount(ability), projectUuid, {
             ...createBody(PIPELINES.sql),
             slug: 'orders',
-            dashboardUuid: null,
+            owner: null,
             spaceOwner,
         });
 
@@ -731,7 +731,7 @@ describe('ComposerChartService.writeFromCode owner', () => {
         );
     });
 
-    test('refuses a chart its space owns for an upload', async () => {
+    test('refuses a chart its space owns for promote', async () => {
         const { service, writeFromCode } = setupLive({
             type: 'space',
             spaceUuid,
@@ -764,6 +764,50 @@ describe('ComposerChartService.writeFromCode owner', () => {
         );
         expect(writeFromCode).not.toHaveBeenCalled();
     });
+
+    test.each([
+        ['a new chart', null],
+        [
+            'a deleted chart',
+            {
+                uuid: 'chart-uuid',
+                deleted: true,
+                owner: { type: 'dashboard', dashboardUuid },
+            },
+        ],
+    ])(
+        'writes %s into the space the file names, checked as a create there',
+        async (_, existing) => {
+            const deps = setup();
+            const writeFromCode = vi.fn(async () => 'chart-uuid');
+            Object.assign(deps.composerChartModel, {
+                findIdentityBySlug: vi.fn(async () => existing),
+                writeFromCode,
+            });
+            await deps.service.writeFromCode(
+                sessionAccount(abilityWithout(null)),
+                projectUuid,
+                {
+                    ...createBody(PIPELINES.sql),
+                    slug: 'orders',
+                    owner: { type: 'space', spaceUuid },
+                    spaceOwner: 'refuse',
+                },
+            );
+            expect(
+                deps.spacePermissionService.resolveAccess,
+            ).toHaveBeenCalledWith(defaultSessionUser.userUuid, {
+                type: 'space',
+                spaceUuid,
+            });
+            expect(writeFromCode).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    existing,
+                    owner: { type: 'space', spaceUuid },
+                }),
+            );
+        },
+    );
 
     test('keeps a dashboard owner either way', async () => {
         const { service, writeFromCode } = setupLive({

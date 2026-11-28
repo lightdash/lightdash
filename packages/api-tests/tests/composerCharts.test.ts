@@ -2556,7 +2556,7 @@ describe('Composer charts', () => {
             }
         });
 
-        it('downloads as code under its own space with no dashboard, and refuses the file on upload', async () => {
+        it('downloads as code under its own space with no dashboard, and re-uploads unchanged as no changes', async () => {
             const { space, chart } = await createSpaceChart();
             const codeUrl = `/api/v1/projects/${projectUuid}/code/composerCharts`;
             const download = await admin.get<
@@ -2570,15 +2570,239 @@ describe('Composer charts', () => {
                 spaceSlug: getContentAsCodePathFromLtreePath(space.path),
             });
 
-            const uploaded = await admin.post<{ error: { message: string } }>(
+            const uploaded = await admin.post<Body<{ action: string }>>(
                 `${codeUrl}/${file.slug}`,
                 file,
-                { failOnStatusCode: false },
             );
-            expect(uploaded.status).toBe(400);
-            expect(uploaded.body.error.message).toContain(
-                `Composer chart "${chart.slug}" belongs to a space`,
-            );
+            expect(uploaded.body.results.action).toBe('no changes');
+        });
+
+        describe('content as code upload', () => {
+            const codeUrl = `/api/v1/projects/${projectUuid}/code/composerCharts`;
+
+            const download = async (slug: string) => {
+                const resp = await admin.get<
+                    Body<{ composerCharts: ComposerChartAsCode[] }>
+                >(`${codeUrl}?ids=${slug}`);
+                expect(resp.status).toBe(200);
+                const [file] = resp.body.results.composerCharts;
+                expect(file).toBeDefined();
+                return file;
+            };
+
+            const upload = (
+                file: ComposerChartAsCode,
+                client: ApiClient = admin,
+            ) =>
+                client.post<
+                    Body<{ action: string; composerChartUuid: string }> & {
+                        error: { message: string };
+                    }
+                >(`${codeUrl}/${file.slug}`, file, {
+                    failOnStatusCode: false,
+                });
+
+            const slugOf = (space: Pick<Space, 'path'>) =>
+                getContentAsCodePathFromLtreePath(space.path);
+
+            const read = async (uuidOrSlug: string) => {
+                const resp = await getChart(uuidOrSlug);
+                expect(resp.status).toBe(200);
+                return resp.body.results;
+            };
+
+            const newFileIn = async (spaceSlug: string) => {
+                const { chart } = await createSpaceChart();
+                return {
+                    ...(await download(chart.slug)),
+                    slug: `${chart.slug}-from-code`,
+                    spaceSlug,
+                };
+            };
+
+            it('creates a chart in the space a file names, with no dashboard, which the same file then leaves alone', async () => {
+                const space = await createSpace();
+                const file = await newFileIn(slugOf(space));
+
+                const created = await upload(file);
+                expect(created.status).toBe(200);
+                expect(created.body.results.action).toBe('create');
+                const chart = await read(
+                    created.body.results.composerChartUuid,
+                );
+                expect(chart).toMatchObject({
+                    slug: file.slug,
+                    owner: { type: 'space', spaceUuid: space.uuid },
+                });
+
+                const again = await upload(file);
+                expect(again.body.results).toEqual({
+                    action: 'no changes',
+                    composerChartUuid: chart.uuid,
+                });
+                expect((await read(chart.uuid)).versionUuid).toBe(
+                    chart.versionUuid,
+                );
+            });
+
+            it('creates the space a file names when it is missing', async () => {
+                const parent = await createSpace();
+                const spaceSlug = `${slugOf(parent)}/${uniqueName('child')
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '-')}`;
+                const file = await newFileIn(spaceSlug);
+
+                const created = await upload(file);
+                expect(created.status).toBe(200);
+                const { owner } = await read(
+                    created.body.results.composerChartUuid,
+                );
+                if (owner.type !== 'space') throw new Error('not in a space');
+                tracker.trackSpace(owner.spaceUuid);
+                const space = await admin.get<Body<Space>>(
+                    `/api/v1/projects/${projectUuid}/spaces/${owner.spaceUuid}`,
+                );
+                expect(slugOf(space.body.results)).toBe(spaceSlug);
+            });
+
+            it('moves a chart between spaces by spaceSlug with no new version, and the moved file is a change only once', async () => {
+                const { space, chart } = await createSpaceChart();
+                const target = await createSpace();
+                const file = await download(chart.slug);
+                const moved = { ...file, spaceSlug: slugOf(target) };
+
+                const first = await upload(moved);
+                expect(first.status).toBe(200);
+                expect(first.body.results.action).toBe('update');
+                const after = await read(chart.uuid);
+                expect(after.owner).toEqual({
+                    type: 'space',
+                    spaceUuid: target.uuid,
+                });
+                expect(after.versionUuid).toBe(chart.versionUuid);
+
+                expect((await upload(moved)).body.results.action).toBe(
+                    'no changes',
+                );
+                expect((await upload(file)).body.results.action).toBe('update');
+                expect((await read(chart.uuid)).owner).toEqual({
+                    type: 'space',
+                    spaceUuid: space.uuid,
+                });
+            });
+
+            it('writes a changed chart as a new version in its space', async () => {
+                const { space, chart } = await createSpaceChart();
+                const file = await download(chart.slug);
+
+                const changed = await upload({ ...file, name: 'From code' });
+                expect(changed.body.results.action).toBe('update');
+                const after = await read(chart.uuid);
+                expect(after).toMatchObject({
+                    name: 'From code',
+                    owner: { type: 'space', spaceUuid: space.uuid },
+                });
+                expect(after.versionUuid).not.toBe(chart.versionUuid);
+            });
+
+            it('refuses a file switching a chart between a dashboard and a space', async () => {
+                const { dashboard, chart: dashboardChart } =
+                    await createDashboardWithSqlChart();
+                const dashboardFile = await download(dashboardChart.slug);
+                const intoSpace = await upload({
+                    ...dashboardFile,
+                    dashboardSlug: null,
+                });
+                expect(intoSpace.status).toBe(400);
+                expect(intoSpace.body.error.message).toContain(
+                    `Composer chart "${dashboardChart.slug}" belongs to a dashboard`,
+                );
+                expect(intoSpace.body.error.message).toContain('tile menu');
+
+                const { chart: spaceChart } = await createSpaceChart();
+                const spaceFile = await download(spaceChart.slug);
+                const ontoDashboard = await upload({
+                    ...spaceFile,
+                    dashboardSlug: dashboard.slug,
+                });
+                expect(ontoDashboard.status).toBe(400);
+                expect(ontoDashboard.body.error.message).toContain(
+                    `Composer chart "${spaceChart.slug}" belongs to a space`,
+                );
+                expect((await read(spaceChart.uuid)).versionUuid).toBe(
+                    spaceChart.versionUuid,
+                );
+            });
+
+            it('refuses a viewer creating, and an editor creating in or moving into a space they cannot see', async () => {
+                const hidden = await createSpace(false);
+                const viewer = await loginAsViewer();
+                const editor = await loginAsEditor();
+                const file = await newFileIn(slugOf(hidden));
+
+                expect((await upload(file, viewer)).status).toBe(403);
+                expect((await upload(file, editor)).status).toBe(403);
+                expect((await getChart(file.slug)).status).toBe(404);
+
+                const { space, chart } = await createSpaceChart();
+                const moved = await upload(
+                    {
+                        ...(await download(chart.slug)),
+                        spaceSlug: slugOf(hidden),
+                    },
+                    editor,
+                );
+                expect(moved.status).toBe(403);
+                expect((await read(chart.uuid)).owner).toEqual({
+                    type: 'space',
+                    spaceUuid: space.uuid,
+                });
+            });
+
+            it("revives a deleted chart's slug where the file puts it, and never onto a dashboard", async (ctx) => {
+                const health =
+                    await admin.get<Body<{ softDelete: { enabled: boolean } }>>(
+                        '/api/v1/health',
+                    );
+                if (!health.body.results.softDelete.enabled) {
+                    // oxlint-disable-next-line vitest-js/no-disabled-tests -- runtime skip when soft delete is disabled on the server
+                    ctx.skip();
+                }
+                const { chart } = await createSpaceChart();
+                const empty = await createDashboard();
+                const target = await createSpace();
+                const file = await download(chart.slug);
+                expect(
+                    (
+                        await admin.delete(`${chartsUrl}/${chart.uuid}`, {
+                            failOnStatusCode: false,
+                        })
+                    ).status,
+                ).toBe(200);
+
+                const ontoDashboard = await upload({
+                    ...file,
+                    dashboardSlug: empty.slug,
+                });
+                expect(ontoDashboard.status).toBe(400);
+                expect(ontoDashboard.body.error.message).toContain(
+                    'belongs to a space',
+                );
+
+                const revived = await upload({
+                    ...file,
+                    spaceSlug: slugOf(target),
+                });
+                expect(revived.status).toBe(200);
+                expect(revived.body.results).toEqual({
+                    action: 'create',
+                    composerChartUuid: chart.uuid,
+                });
+                expect((await read(chart.uuid)).owner).toEqual({
+                    type: 'space',
+                    spaceUuid: target.uuid,
+                });
+            });
         });
 
         describe('rename and move', () => {

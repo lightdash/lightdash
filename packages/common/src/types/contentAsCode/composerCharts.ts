@@ -21,9 +21,9 @@ export type ComposerChartAsCode = {
     slug: string;
     name: string;
     description: string | null;
-    /** The owning dashboard; null or missing for a chart a space owns. An existing chart keeps its dashboard on upload. */
+    /** The owning dashboard; null or missing for a chart a space owns. An existing chart keeps its dashboard on upload, and never switches between a dashboard and a space. */
     dashboardSlug?: string | null;
-    /** The owning space, or the dashboard's space; a missing dashboard is created there. */
+    /** The owning space, or the dashboard's space; a missing space or dashboard is created there, and a changed one moves a chart its space owns. */
     spaceSlug: string;
     pipeline: ComposerChartPipeline;
     chart: ComposerStoredChartAsCode;
