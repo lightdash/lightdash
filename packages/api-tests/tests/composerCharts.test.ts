@@ -3405,7 +3405,8 @@ describe('Composer charts', () => {
                         )
                     ).status,
                 ).toBe(200);
-                expect(await statuses()).toEqual([404, 404, 404, 404]);
+                // A SQL chart stays live but is refused in its deleted space
+                expect(await statuses()).toEqual([404, 404, 403, 404]);
                 // Listed through its space, not on its own
                 expect(
                     (await recentlyDeleted(editor)).map((item) => item.uuid),
