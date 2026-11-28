@@ -2751,6 +2751,63 @@ describe('Composer charts', () => {
                 expect(await versionUuid(chart.uuid)).toBe(chart.versionUuid);
             });
 
+            // Skipped when SOFT_DELETE_ENABLED is off (delete is permanent)
+            it("keeps the tile through a save and a rollback while the chart's space is in Recently deleted, and runs it once restored", async (ctx) => {
+                const health =
+                    await admin.get<Body<{ softDelete: { enabled: boolean } }>>(
+                        '/api/v1/health',
+                    );
+                if (!health.body.results.softDelete.enabled) {
+                    // oxlint-disable-next-line vitest-js/no-disabled-tests -- runtime skip when soft delete is disabled on the server
+                    ctx.skip();
+                }
+                const { space, chart } = await createSpaceChart();
+                const dashboard = await showOn(chart.uuid);
+                expect(
+                    (
+                        await admin.delete(
+                            `/api/v1/projects/${projectUuid}/spaces/${space.uuid}`,
+                        )
+                    ).status,
+                ).toBe(200);
+
+                const trashed = await getDashboard(dashboard.uuid);
+                expect((await saveTiles(trashed, trashed.tiles)).status).toBe(
+                    200,
+                );
+                expect(
+                    (
+                        await admin.post(
+                            `/api/v1/dashboards/${dashboard.uuid}/rollback/${dashboard.versionUuid}`,
+                            {},
+                        )
+                    ).status,
+                ).toBe(200);
+                expect(
+                    composerChartUuidsOn(await getDashboard(dashboard.uuid)),
+                ).toEqual([chart.uuid]);
+
+                expect(
+                    (
+                        await admin.post(
+                            `/api/v2/content/${projectUuid}/restore`,
+                            {
+                                item: {
+                                    uuid: space.uuid,
+                                    contentType: ContentType.SPACE,
+                                },
+                            },
+                        )
+                    ).status,
+                ).toBe(200);
+                const [tile] = (await getDashboard(dashboard.uuid)).tiles;
+                const ran = await admin.post<Body<ComposerChartRunResults>>(
+                    tileRunUrl,
+                    runRequest(chart.uuid, dashboard.uuid, tile.uuid),
+                );
+                expect(ran.status).toBe(200);
+            });
+
             it('a permanently deleted space chart leaves a tile that saves, rolls back and round-trips as code', async () => {
                 const { space, chart } = await createSpaceChart();
                 const dashboard = await showOn(chart.uuid);

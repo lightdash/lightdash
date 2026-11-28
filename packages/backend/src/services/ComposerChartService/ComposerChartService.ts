@@ -1068,12 +1068,12 @@ export class ComposerChartService extends BaseService {
         );
         if (!shown) throw notOnTile;
         // The run reads this dashboard's filters and parameters, so it needs view on it too
-        const dashboardAccess = await this.spacePermissionService.resolveAccess(
-            account.user.userUuid,
+        const dashboardAccess = await this.getOwnerAccess(
+            account,
+            projectUuid,
             {
                 type: 'dashboard',
                 dashboardUuid,
-                spaceUuid: dashboard.spaceUuid,
             },
         );
         if (

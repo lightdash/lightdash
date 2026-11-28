@@ -365,7 +365,6 @@ const setup = ({ flagEnabled = true } = {}) => {
         getByIdOrSlug: vi.fn(async (uuidOrSlug: string) => ({
             uuid: uuidOrSlug,
             name: 'Sales',
-            spaceUuid: 'dashboard-space-uuid',
             filters: savedDashboardFilters,
             tiles: [
                 {
@@ -1173,7 +1172,6 @@ describe('ComposerChartService.run', () => {
         dashboardModel.getByIdOrSlug.mockImplementation(async () => ({
             uuid: dashboardUuid,
             name: 'Sales',
-            spaceUuid: 'dashboard-space-uuid',
             filters: savedDashboardFilters,
             tiles: [
                 {
@@ -1254,7 +1252,7 @@ describe('ComposerChartService.run', () => {
             {
                 type: 'dashboard',
                 dashboardUuid: 'showing-dashboard',
-                spaceUuid: 'dashboard-space-uuid',
+                spaceUuid: 'space-uuid',
             },
         );
         expect(submitComposerRun).not.toHaveBeenCalled();
@@ -1265,7 +1263,6 @@ describe('ComposerChartService.run', () => {
         dashboardModel.getByIdOrSlug.mockResolvedValue({
             uuid: 'another-dashboard',
             name: 'Another',
-            spaceUuid: 'dashboard-space-uuid',
             filters: savedDashboardFilters,
             tiles: [
                 {
