@@ -37912,6 +37912,12 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "composerChartOwnerType": {
+                                "type": "string",
+                                "enum": ["dashboard", "space", null],
+                                "nullable": true,
+                                "description": "What owns the chart; null when it is no longer available."
+                            },
                             "composerChartSlug": {
                                 "type": "string",
                                 "nullable": true
@@ -37928,6 +37934,7 @@
                         "required": [
                             "displayName",
                             "pinnedVersionUuid",
+                            "composerChartOwnerType",
                             "composerChartSlug",
                             "composerChartUuid",
                             "type"
@@ -82258,7 +82265,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.441.0",
+        "version": "3.442.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

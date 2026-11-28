@@ -36151,6 +36151,15 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
+                        composerChartOwnerType: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['dashboard'] },
+                                { dataType: 'enum', enums: ['space'] },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         composerChartSlug: {
                             dataType: 'union',
                             subSchemas: [
