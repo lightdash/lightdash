@@ -209,6 +209,7 @@ import {
     assertComposerChartOwnerTypeKept,
     assertNotComposerChartFile,
     isComposerChartAsCodeUnchanged,
+    isSameSpaceSlug,
     toComposerChartAsCode,
 } from './composerChartsAsCode';
 import {
@@ -4055,7 +4056,7 @@ export class CoderService extends BaseService {
             });
         }
         let targetSpaceUuid: string | null = null;
-        if (file.spaceSlug !== current.spaceSlug) {
+        if (!isSameSpaceSlug(file.spaceSlug, current.spaceSlug)) {
             await assertOneSpaceAtPath();
             await this.assertContentAccessForMissingSpace({
                 user,

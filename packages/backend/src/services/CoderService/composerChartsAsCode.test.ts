@@ -163,6 +163,12 @@ describe('composer charts as code', () => {
                 inSpace,
             ),
         ).toBe(false);
+        expect(
+            isComposerChartAsCodeUnchanged(
+                { ...asFile(inSpace), spaceSlug: 'jaffle/sales_ops' },
+                { ...inSpace, spaceSlug: 'jaffle/sales-ops' },
+            ),
+        ).toBe(true);
     });
 });
 

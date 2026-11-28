@@ -3,6 +3,7 @@ import {
     ChartType,
     ContentAsCodeType,
     currentVersion,
+    getLtreePathFromContentAsCodePath,
     NotSupportedError,
     ParameterError,
     type ChartAsCodeConfig,
@@ -84,12 +85,18 @@ const withCurrentPin = (
     };
 };
 
+/** Slugs naming one space path, as `sales_ops` and `sales-ops` do. */
+export const isSameSpaceSlug = (a: string, b: string): boolean =>
+    getLtreePathFromContentAsCodePath(a) ===
+    getLtreePathFromContentAsCodePath(b);
+
 /** True when uploading `file` over `current`, as downloaded, writes nothing. A dashboard chart ignores the file's dashboard and space; a space chart compares its space. */
 export const isComposerChartAsCodeUnchanged = (
     file: ComposerChartAsCode,
     current: ComposerChartAsCode,
 ): boolean =>
-    (current.dashboardSlug !== null || file.spaceSlug === current.spaceSlug) &&
+    (current.dashboardSlug !== null ||
+        isSameSpaceSlug(file.spaceSlug, current.spaceSlug)) &&
     file.name === current.name &&
     (file.description ?? null) === current.description &&
     isEqual(plain(file.pipeline), plain(current.pipeline)) &&
