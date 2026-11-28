@@ -107,7 +107,7 @@ const composerChartOwnerShape = {
         .min(1)
         .nullable()
         .describe(
-            'The existing dashboard that owns the chart and gets its tile; null to save it into spaceSlug.',
+            'The existing dashboard that owns the chart and gets its tile. Pass null to save the chart into spaceSlug.',
         ),
     spaceSlug: z
         .string()

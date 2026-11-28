@@ -5,7 +5,7 @@ description: Creating, reading, testing and editing a composer chart (a chart dr
 
 # Composer Chart Reference
 
-A composer chart is a chart whose definition is a pipeline of queries (nodes) plus a chart. A space or a dashboard owns it. A space's composer chart opens on its own page, as a chart in a space does. A dashboard's composer chart shows in a `composer_chart` tile that names it by `chartSlug`. You can create, read, run and edit one.
+A composer chart has a pipeline of query nodes and a chart. A space or a dashboard owns it. A space's composer chart opens on its own page, as a chart in a space does. A dashboard's composer chart shows in a `composer_chart` tile that names it by `chartSlug`. You can create, read, run and edit one.
 
 ## Always state the type
 
@@ -26,12 +26,12 @@ A pipeline with an `external` node cannot be saved. Composer charts already on a
 
 ## Create
 
-Save it into a space (`spaceSlug`), as a chart is saved, unless the user names a dashboard or the conversation is bound to one. Then save it onto that dashboard (`dashboardSlug`), where it gets a tile at the bottom of the first tab. Pass the content in one of two shapes:
+Save it into a space with `spaceSlug`, as you save a chart, unless the user names a dashboard or the conversation is bound to one. In that case, save it onto that dashboard with `dashboardSlug`, where it gets a tile at the bottom of the first tab. Pass the content in one of two shapes:
 
 - **From a query node** (usual): `{ from: "node", nodeId, sessionId, dashboardSlug, spaceSlug, name, description, vizConfig }`. `nodeId` names a node from a successful `query` call; the chart saves it and every node it reads. `vizConfig` references that node's result columns: pass the one the user saw with `visualize`, or over MCP the one you chose for the result. `sessionId` is the query result's session id over MCP, and null in an agent conversation. The node's SQL was approved when `query` ran it, so this asks no approval.
 - **From full JSON**: `{ from: "json", dashboardSlug, spaceSlug, name, description, pipeline, chart }`, with `pipeline` and `chart` shaped as `readContent` returns them; a `slug` is not kept. Warehouse SQL in it needs approval, as for a SQL chart.
 
-Done when the result links the chart's page (the dashboard, for a dashboard's chart) and `runContentQuery` on the new chart returns the rows the user saw.
+Done when the result links the chart's page and `runContentQuery` on the new chart returns the rows the user saw. For a dashboard's chart, the link is the dashboard.
 
 ## Read, test, edit
 
