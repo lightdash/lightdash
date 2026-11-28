@@ -113,24 +113,51 @@ export type SqlApprovalDecisionOnCall = {
 
 export type SameTurnSqlApproval = { decidedByUserUuid: string | null };
 
+/**
+ * SQL a call asks the user to approve. A composer chart edit also lists each
+ * new node's SQL, so approvals of those exact statements earlier in the turn
+ * cover it; null for every other call.
+ */
+export type SqlApprovalRequest = { sql: string; nodeSql: string[] | null };
+
+/** A request for SQL that no earlier approval covers node by node. */
+export const toSqlApprovalRequest = (
+    sql: string | null,
+): SqlApprovalRequest | null => (sql === null ? null : { sql, nodeSql: null });
+
 /** Another call's approval of this SQL in the turn; null once this call has its own decision. */
 export const findSameTurnSqlApproval = (
     decisions: SqlApprovalDecisionOnCall[],
-    { toolCallId, sql }: { toolCallId: string; sql: string },
+    { toolCallId, sql, nodeSql }: SqlApprovalRequest & { toolCallId: string },
 ): SameTurnSqlApproval | null => {
     if (decisions.some((decision) => decision.toolCallId === toolCallId)) {
         return null;
     }
-    const match = decisions.find((decision) => {
+    const approved = decisions.flatMap((decision) => {
         if (
             decision.decision !== 'approved' ||
             !isNativeSqlApprovalToolCall(decision.toolName, decision.toolArgs)
         ) {
-            return false;
+            return [];
         }
         const approvedSql = getSqlApprovalSql(decision.toolArgs);
-        return approvedSql !== null && isSameApprovalSql(approvedSql, sql);
+        return approvedSql === null
+            ? []
+            : [
+                  {
+                      sql: approvedSql,
+                      decidedByUserUuid: decision.decidedByUserUuid,
+                  },
+              ];
     });
+    const findApproval = (candidate: string) =>
+        approved.find((approval) => isSameApprovalSql(approval.sql, candidate));
+    const nodeApprovals = (nodeSql ?? []).map(findApproval);
+    const coversEveryNode =
+        nodeApprovals.length > 0 &&
+        nodeApprovals.every((approval) => approval !== undefined);
+    const match =
+        findApproval(sql) ?? (coversEveryNode ? nodeApprovals[0] : undefined);
     return match ? { decidedByUserUuid: match.decidedByUserUuid } : null;
 };
 
@@ -252,11 +279,12 @@ export const sqlNotApprovedOutput = (
  * Resolves once the SQL is approved; throws SqlNotApprovedError otherwise.
  * Unchanged SQL needs no approval but still settles a resumed call.
  */
-export type ApproveSqlFn = (request: {
-    sql: string;
-    chartName: string;
-    sqlChanged: boolean;
-}) => Promise<void>;
+export type ApproveSqlFn = (
+    request: SqlApprovalRequest & {
+        chartName: string;
+        sqlChanged: boolean;
+    },
+) => Promise<void>;
 
 /** Nothing to wait on: the caller already approved the SQL. */
 export const approveClientSql: ApproveSqlFn = async () => {};

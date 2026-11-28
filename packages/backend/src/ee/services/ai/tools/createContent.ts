@@ -31,6 +31,7 @@ import {
     approveClientSql,
     SqlNotApprovedError,
     sqlNotApprovedOutput,
+    toSqlApprovalRequest,
     type ApproveSqlFn,
     type SqlNotApprovedOutput,
 } from './sqlApprovals';
@@ -136,7 +137,7 @@ export const getCreateContent = ({
     const sqlChartGate = createSqlChartGate(
         sqlChartSaving,
         'createContent',
-        async (args) => getSqlApprovalSql(args),
+        async (args) => toSqlApprovalRequest(getSqlApprovalSql(args)),
     );
     const variant = getToolVariant(documentsEnabled, chartsEnabled);
 

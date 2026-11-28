@@ -194,7 +194,10 @@ import { type AiAgentModel } from '../../models/AiAgentModel';
 import { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import type { BuiltInSkills } from '../ai/skills/builtInSkills';
-import type { ApproveSqlFn } from '../ai/tools/sqlApprovals';
+import type {
+    ApproveSqlFn,
+    SqlApprovalRequest,
+} from '../ai/tools/sqlApprovals';
 import {
     AnalyzeFieldImpactFn,
     ComposerChartSummary,
@@ -1212,7 +1215,7 @@ export class AiAgentToolsService extends BaseService {
             getSqlChart: (slug) => this.getSqlChartForRuntime(context, slug),
             prepareComposerChartEdit: (args) =>
                 this.prepareComposerChartEdit(context, args).then(
-                    ({ approvalSql }) => ({ approvalSql }),
+                    ({ approval }) => ({ approval }),
                 ),
             getComposerChart: (args) =>
                 this.getComposerChartForRuntime(context, args).then(
@@ -4316,7 +4319,7 @@ export class AiAgentToolsService extends BaseService {
         slug: string;
         edited: ComposerChartAsCode;
         versionUuid: string | null;
-        approvalSql: string | null;
+        approval: SqlApprovalRequest | null;
         spaceEdit: SpaceComposerChartEdit | null;
     }> {
         if (!Array.isArray(patch)) {
@@ -4440,12 +4443,15 @@ export class AiAgentToolsService extends BaseService {
             edited,
             versionUuid,
             spaceEdit,
-            approvalSql:
+            approval:
                 newSqlNodes.length === 0
                     ? null
-                    : newSqlNodes
-                          .map(({ nodeId, sql }) => `-- ${nodeId}\n${sql}`)
-                          .join('\n\n'),
+                    : {
+                          sql: newSqlNodes
+                              .map(({ nodeId, sql }) => `-- ${nodeId}\n${sql}`)
+                              .join('\n\n'),
+                          nodeSql: newSqlNodes.map(({ sql }) => sql),
+                      },
         };
     }
 
@@ -4721,6 +4727,7 @@ export class AiAgentToolsService extends BaseService {
         );
         await approveSql({
             sql: approvalSql,
+            nodeSql: null,
             chartName: content.name,
             sqlChanged: true,
         });
@@ -4840,17 +4847,17 @@ export class AiAgentToolsService extends BaseService {
     ): Promise<
         Extract<Awaited<ReturnType<EditContentFn>>, { type: 'composer_chart' }>
     > {
-        const { slug, edited, versionUuid, approvalSql, spaceEdit } =
+        const { slug, edited, versionUuid, approval, spaceEdit } =
             await this.prepareComposerChartEdit(context, {
                 slug: composerChartUuidOrSlug,
                 patch,
             });
-        if (approvalSql !== null) {
+        if (approval !== null) {
             if (!approveSql) {
                 throw new ForbiddenError(COMPOSER_CHART_SQL_DISABLED_MESSAGE);
             }
             await approveSql({
-                sql: approvalSql,
+                ...approval,
                 chartName: edited.name,
                 sqlChanged: true,
             });
@@ -5059,6 +5066,7 @@ export class AiAgentToolsService extends BaseService {
         if (sqlChanged || doesPatchTouchSqlChartSql(patch)) {
             await approveSql({
                 sql: patched.sql,
+                nodeSql: null,
                 chartName: patched.name,
                 sqlChanged,
             });
@@ -5096,6 +5104,7 @@ export class AiAgentToolsService extends BaseService {
         this.assertCanSaveSqlCharts(context);
         await approveSql({
             sql: content.sql,
+            nodeSql: null,
             chartName: content.name,
             sqlChanged: true,
         });

@@ -156,6 +156,7 @@ describe('findSameTurnSqlApproval', () => {
             findSameTurnSqlApproval([runSqlApproved], {
                 toolCallId: 'create-1',
                 sql: 'select 1;',
+                nodeSql: null,
             }),
         ).toEqual({ decidedByUserUuid: 'user-uuid' });
     });
@@ -183,12 +184,14 @@ describe('findSameTurnSqlApproval', () => {
             findSameTurnSqlApproval(approvals, {
                 toolCallId: 'run-sql-1',
                 sql: 'select 2',
+                nodeSql: null,
             }),
         ).toEqual({ decidedByUserUuid: null });
         expect(
             findSameTurnSqlApproval(approvals, {
                 toolCallId: 'run-sql-1',
                 sql: 'select 3',
+                nodeSql: null,
             }),
         ).toEqual({ decidedByUserUuid: 'user-uuid' });
     });
@@ -198,12 +201,17 @@ describe('findSameTurnSqlApproval', () => {
             findSameTurnSqlApproval([runSqlApproved], {
                 toolCallId: 'create-1',
                 sql: 'select 2',
+                nodeSql: null,
             }),
         ).toBeNull();
         expect(
             findSameTurnSqlApproval(
                 [{ ...runSqlApproved, decision: 'rejected' }],
-                { toolCallId: 'create-1', sql: 'select 1' },
+                {
+                    toolCallId: 'create-1',
+                    sql: 'select 1',
+                    nodeSql: null,
+                },
             ),
         ).toBeNull();
     });
@@ -223,14 +231,125 @@ describe('findSameTurnSqlApproval', () => {
             findSameTurnSqlApproval([composerApproved], {
                 toolCallId: 'run-sql-2',
                 sql: 'select 1',
+                nodeSql: null,
             }),
         ).toBeNull();
         expect(
             findSameTurnSqlApproval([composerApproved], {
                 toolCallId: 'composer-2',
                 sql: '-- raw\nselect 1',
+                nodeSql: null,
             }),
         ).toEqual({ decidedByUserUuid: 'user-uuid' });
+    });
+
+    describe('composer chart edit nodes', () => {
+        const contentQueryApproved = (
+            toolCallId: string,
+            sql: string,
+        ): SqlApprovalDecisionOnCall => ({
+            ...runSqlApproved,
+            toolCallId,
+            toolName: 'runContentQuery',
+            toolArgs: { source: { type: 'sql', sql, limit: null } },
+        });
+        const edit = (nodes: Array<[string, string]>) => ({
+            toolCallId: 'edit-1',
+            sql: nodes.map(([id, sql]) => `-- ${id}\n${sql}`).join('\n\n'),
+            nodeSql: nodes.map(([, sql]) => sql),
+        });
+
+        it('covers a node whose SQL was approved on its own', () => {
+            expect(
+                findSameTurnSqlApproval(
+                    [contentQueryApproved('query-1', 'select 1;')],
+                    edit([['payments', 'select 1']]),
+                ),
+            ).toEqual({ decidedByUserUuid: 'user-uuid' });
+        });
+
+        it('asks for SQL that differs in one character', () => {
+            expect(
+                findSameTurnSqlApproval(
+                    [contentQueryApproved('query-1', 'select 1')],
+                    edit([['payments', 'select 2']]),
+                ),
+            ).toBeNull();
+        });
+
+        it('asks unless every node was approved', () => {
+            const decisions = [
+                contentQueryApproved('query-1', 'select 1'),
+                contentQueryApproved('query-2', 'select 2'),
+            ];
+            expect(
+                findSameTurnSqlApproval(
+                    decisions.slice(0, 1),
+                    edit([
+                        ['a', 'select 1'],
+                        ['b', 'select 2'],
+                    ]),
+                ),
+            ).toBeNull();
+            expect(
+                findSameTurnSqlApproval(
+                    decisions,
+                    edit([
+                        ['a', 'select 1'],
+                        ['b', 'select 2'],
+                    ]),
+                ),
+            ).toEqual({ decidedByUserUuid: 'user-uuid' });
+        });
+
+        it('ignores rejected SQL', () => {
+            expect(
+                findSameTurnSqlApproval(
+                    [
+                        {
+                            ...contentQueryApproved('query-1', 'select 1'),
+                            decision: 'rejected',
+                        },
+                    ],
+                    edit([['payments', 'select 1']]),
+                ),
+            ).toBeNull();
+        });
+
+        it('does not split a composer pipeline approval into its nodes', () => {
+            const composerApproved: SqlApprovalDecisionOnCall = {
+                ...runSqlApproved,
+                toolCallId: 'composer-1',
+                toolName: 'runComposerQueries',
+                toolArgs: {
+                    queries: [
+                        { nodeId: 'raw', sourceType: 'sql', sql: 'select 1' },
+                    ],
+                },
+            };
+            expect(
+                findSameTurnSqlApproval(
+                    [composerApproved],
+                    edit([['payments', 'select 1']]),
+                ),
+            ).toBeNull();
+            expect(
+                findSameTurnSqlApproval(
+                    [composerApproved],
+                    edit([['raw', 'select 1']]),
+                ),
+            ).toEqual({ decidedByUserUuid: 'user-uuid' });
+        });
+
+        it('compares node by node only for a composer chart edit', () => {
+            expect(
+                findSameTurnSqlApproval([runSqlApproved], {
+                    toolCallId: 'composer-2',
+                    sql: '-- raw\nselect 1',
+                    nodeSql: null,
+                }),
+            ).toBeNull();
+        });
     });
 
     it('leaves a call that has its own decision to that decision', () => {
@@ -244,7 +363,11 @@ describe('findSameTurnSqlApproval', () => {
                         decision: 'rejected',
                     },
                 ],
-                { toolCallId: 'run-sql-2', sql: 'select 1' },
+                {
+                    toolCallId: 'run-sql-2',
+                    sql: 'select 1',
+                    nodeSql: null,
+                },
             ),
         ).toBeNull();
     });

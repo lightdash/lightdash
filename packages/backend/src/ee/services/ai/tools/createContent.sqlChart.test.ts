@@ -76,6 +76,7 @@ const makeCreateContent = () => {
             }
             await args.approveSql({
                 sql: args.content.sql,
+                nodeSql: null,
                 chartName: args.content.name,
                 sqlChanged: true,
             });

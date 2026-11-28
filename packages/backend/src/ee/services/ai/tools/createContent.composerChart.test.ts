@@ -42,6 +42,7 @@ const makeTool = (
             if (!args.approveSql) throw new Error('SQL mode is off');
             await args.approveSql({
                 sql: 'select 1',
+                nodeSql: null,
                 chartName: args.content.name,
                 sqlChanged: true,
             });

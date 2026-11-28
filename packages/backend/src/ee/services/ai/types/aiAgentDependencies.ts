@@ -91,6 +91,7 @@ import { AiAgentSkill } from '../skills/types';
 import type {
     ApproveSqlFn,
     SqlApprovalDecisionOnCall,
+    SqlApprovalRequest,
     SqlAutoApprovalSource,
 } from '../tools/sqlApprovals';
 
@@ -458,7 +459,7 @@ export type PrepareComposerChartEditFn = (args: {
     /** The chart's slug or uuid; the tool field keeps its name. */
     slug: UuidOrSlug;
     patch: unknown;
-}) => Promise<{ approvalSql: string | null }>;
+}) => Promise<{ approval: SqlApprovalRequest | null }>;
 
 type CreateContentArgs =
     | {

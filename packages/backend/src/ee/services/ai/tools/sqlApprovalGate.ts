@@ -24,6 +24,7 @@ import {
     SqlNotApprovedError,
     type NativeSqlApprovalToolName,
     type SameTurnSqlApproval,
+    type SqlApprovalRequest,
     type TrackSqlApprovalTimeoutFn,
 } from './sqlApprovals';
 
@@ -84,12 +85,12 @@ export const createSqlApprovalGate = (
     /** An approval of the same SQL by another call in this turn. */
     const fetchSameTurnApproval = async (
         toolCallId: string,
-        sql: string,
+        request: SqlApprovalRequest,
     ): Promise<SameTurnSqlApproval | null> => {
         const prompt = await dependencies.getPrompt();
         return findSameTurnSqlApproval(
             await dependencies.listSqlApprovalDecisions(prompt.promptUuid),
-            { toolCallId, sql },
+            { toolCallId, ...request },
         );
     };
 
@@ -99,22 +100,25 @@ export const createSqlApprovalGate = (
      */
     const needsNativeApproval = async ({
         toolCallId,
-        sql,
+        request,
     }: {
         toolCallId: string;
-        sql: string | null;
+        request: SqlApprovalRequest | null;
     }): Promise<boolean> =>
-        sql !== null &&
+        request !== null &&
         (await usesNativeApproval()) &&
-        (await fetchSameTurnApproval(toolCallId, sql)) === null;
+        (await fetchSameTurnApproval(toolCallId, request)) === null;
 
-    // `sql` mirrors `needsNativeApproval`: a natively gated call resumes an
-    // earlier run, so its result must be persisted here.
+    // `request` mirrors `needsNativeApproval`: a natively gated call resumes
+    // an earlier run, so its result must be persisted here.
     const forToolCall = async (
         toolCallId: string,
-        { sql: gatedSql }: { sql: string | null },
+        { request: gatedRequest }: { request: SqlApprovalRequest | null },
     ) => {
-        let resume = await needsNativeApproval({ toolCallId, sql: gatedSql });
+        let resume = await needsNativeApproval({
+            toolCallId,
+            request: gatedRequest,
+        });
 
         const renderState = async (state: SectionState) => {
             const prompt = await dependencies.getPrompt();
@@ -162,10 +166,10 @@ export const createSqlApprovalGate = (
         /** Resolves once approved; throws SqlNotApprovedError otherwise. */
         const approveSql = async ({
             sql,
+            nodeSql,
             heading,
             steps,
-        }: {
-            sql: string;
+        }: SqlApprovalRequest & {
             heading: string;
             // Pipeline steps to show one by one; null shows `sql` as one block.
             steps: SqlApprovalStep[] | null;
@@ -181,10 +185,10 @@ export const createSqlApprovalGate = (
 
             if (await recordAutoApproval(prompt.threadUuid)) return;
 
-            const sameTurnApproval = await fetchSameTurnApproval(
-                toolCallId,
+            const sameTurnApproval = await fetchSameTurnApproval(toolCallId, {
                 sql,
-            );
+                nodeSql,
+            });
             if (sameTurnApproval) {
                 await dependencies.recordSqlApproval({
                     toolCallId,

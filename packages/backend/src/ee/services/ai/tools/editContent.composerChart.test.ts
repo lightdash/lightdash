@@ -80,6 +80,7 @@ const makeTool = (
             if (!args.approveSql) throw new Error('needs SQL mode');
             await args.approveSql({
                 sql: 'select 2',
+                nodeSql: null,
                 chartName: 'Orders',
                 sqlChanged: true,
             });
@@ -170,8 +171,11 @@ describe('editContent composer charts', () => {
         const prepare = vi.fn(async ({ patch }: { patch: unknown }) => {
             const is = (expected: unknown[]) =>
                 JSON.stringify(patch) === JSON.stringify(expected);
-            if (is(sqlPatch)) return { approvalSql: 'select 2' };
-            if (is(chartTypePatch)) return { approvalSql: null };
+            if (is(sqlPatch))
+                return {
+                    approval: { sql: 'select 2', nodeSql: ['select 2'] },
+                };
+            if (is(chartTypePatch)) return { approval: null };
             throw new Error('You cannot write SQL nodes');
         });
         const { needsApproval } = makeTool(
@@ -195,7 +199,9 @@ describe('editContent composer charts', () => {
         const prepare = vi
             .fn()
             .mockRejectedValueOnce(new Error('database unavailable'))
-            .mockResolvedValue({ approvalSql: 'select 2' });
+            .mockResolvedValue({
+                approval: { sql: 'select 2', nodeSql: ['select 2'] },
+            });
         const { needsApproval, execute, save } = makeTool(
             {
                 mode: 'thread_approval',
