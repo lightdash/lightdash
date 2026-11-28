@@ -56,8 +56,8 @@ export type ComposerLineageTourSave = 'menu' | 'agent' | null;
 const SAVE_STEP: Record<'menu' | 'agent', (scope: string) => GuidedTourStep> = {
     menu: (scope) => ({
         target: `${scope} ${TARGETS.actions}`,
-        title: 'Save to a dashboard',
-        body: 'Add the chart to a dashboard from this menu, or just ask the agent to save it for you.',
+        title: 'Save the chart',
+        body: 'Save the chart to a space or dashboard from this menu, or ask the agent to save it.',
     }),
     agent: () => ({
         target: null,

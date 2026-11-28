@@ -36151,6 +36151,15 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
+                        composerChartOwnerType: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['dashboard'] },
+                                { dataType: 'enum', enums: ['space'] },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         composerChartSlug: {
                             dataType: 'union',
                             subSchemas: [
@@ -85553,6 +85562,90 @@ const models: TsoaRoute.Models = {
         type: { ref: 'DeletedSqlChartContentSummary', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DeletedChartBase.Exclude_keyofDeletedChartBase.contentType-or-chartKind__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    description: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    name: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                    organizationUuid: { dataType: 'string', required: true },
+                    projectUuid: { dataType: 'string', required: true },
+                    spaceUuid: { dataType: 'string', required: true },
+                    spaceName: { dataType: 'string', required: true },
+                    deletedAt: { dataType: 'datetime', required: true },
+                    deletedBy: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    lastName: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    firstName: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    userUuid: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_DeletedChartBase.contentType-or-chartKind_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_DeletedChartBase.Exclude_keyofDeletedChartBase.contentType-or-chartKind__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DeletedComposerChartContentSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_DeletedChartBase.contentType-or-chartKind_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        chartKind: { ref: 'ChartKind', required: true },
+                        contentType: {
+                            ref: 'ContentType.COMPOSER_CHART',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WithDescendantCounts_DeletedComposerChartContentSummary.never_': {
+        dataType: 'refAlias',
+        type: { ref: 'DeletedComposerChartContentSummary', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DeletedDashboardContentSummary: {
         dataType: 'refAlias',
         type: {
@@ -85876,6 +85969,9 @@ const models: TsoaRoute.Models = {
                 },
                 {
                     ref: 'WithDescendantCounts_DeletedSqlChartContentSummary.never_',
+                },
+                {
+                    ref: 'WithDescendantCounts_DeletedComposerChartContentSummary.never_',
                 },
                 {
                     ref: 'WithDescendantCounts_DeletedDashboardContentSummary.chart-or-scheduler_',
@@ -86231,6 +86327,55 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: { ref: 'ComposerChartWithDetails', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateComposerChart: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                name: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerChartDashboard: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiComposerChartDashboardsResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ComposerChartDashboard',
+                    },
+                    required: true,
+                },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -162632,6 +162777,213 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'get',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsComposerChartController_update: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        composerChartUuid: {
+            in: 'path',
+            name: 'composerChartUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateComposerChart',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.patch(
+        '/api/v2/projects/:projectUuid/composer-charts/:composerChartUuid',
+        ...fetchMiddlewares<RequestHandler>(ComposerChartController),
+        ...fetchMiddlewares<RequestHandler>(
+            ComposerChartController.prototype.update,
+        ),
+
+        async function ComposerChartController_update(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsComposerChartController_update,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ComposerChartController>(
+                        ComposerChartController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'update',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsComposerChartController_delete: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        composerChartUuid: {
+            in: 'path',
+            name: 'composerChartUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.delete(
+        '/api/v2/projects/:projectUuid/composer-charts/:composerChartUuid',
+        ...fetchMiddlewares<RequestHandler>(ComposerChartController),
+        ...fetchMiddlewares<RequestHandler>(
+            ComposerChartController.prototype.delete,
+        ),
+
+        async function ComposerChartController_delete(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsComposerChartController_delete,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ComposerChartController>(
+                        ComposerChartController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'delete',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsComposerChartController_getDashboards: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        composerChartUuid: {
+            in: 'path',
+            name: 'composerChartUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v2/projects/:projectUuid/composer-charts/:composerChartUuid/dashboards',
+        ...fetchMiddlewares<RequestHandler>(ComposerChartController),
+        ...fetchMiddlewares<RequestHandler>(
+            ComposerChartController.prototype.getDashboards,
+        ),
+
+        async function ComposerChartController_getDashboards(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsComposerChartController_getDashboards,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ComposerChartController>(
+                        ComposerChartController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getDashboards',
                     controller,
                     response,
                     next,

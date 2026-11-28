@@ -1,23 +1,28 @@
 import {
     assertRegisteredAccount,
     QueryExecutionContext,
+    type ApiComposerChartDashboardsResponse,
     type ApiComposerChartDetailsResponse,
     type ApiComposerChartParametersResponse,
     type ApiComposerChartResponse,
     type ApiComposerChartRunResponse,
     type ApiErrorPayload,
+    type ApiSuccessEmpty,
     type ComposerChartRunRequest,
     type CreateComposerChart,
+    type UpdateComposerChart,
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Deprecated,
     Extension,
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Request,
@@ -88,6 +93,89 @@ export class ComposerChartController extends BaseController {
         const results = await this.services
             .getComposerChartService()
             .getWithDetails(req.account, projectUuid, composerChartUuidOrSlug);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Renames a composer chart that a space owns, or changes its description.
+     * Does not create a new version and keeps the slug. Omitted fields keep
+     * their current value. Requires permission to save charts in the chart's
+     * space. Returns 400 for a composer chart that a dashboard owns, because
+     * that chart is edited through its dashboard.
+     * @summary Update composer chart
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{composerChartUuid}')
+    @OperationId('updateComposerChart')
+    async update(
+        @Path() projectUuid: UUID,
+        @Path() composerChartUuid: UUID,
+        @Body() body: UpdateComposerChart,
+        @Request() req: express.Request,
+    ): Promise<ApiComposerChartResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getComposerChartService()
+            .update(req.account, projectUuid, composerChartUuid, body);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Deletes a composer chart that a space owns. With soft delete on, the
+     * server keeps the chart marked as deleted. With soft delete off, it
+     * deletes the chart permanently. Dashboard tiles that show the chart stay and
+     * show it as deleted. Requires permission to delete charts in the
+     * chart's space. Returns 400 for a composer chart that a dashboard owns,
+     * because deleting its tile deletes that chart.
+     * @summary Delete composer chart
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{composerChartUuid}')
+    @OperationId('deleteComposerChart')
+    async delete(
+        @Path() projectUuid: UUID,
+        @Path() composerChartUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getComposerChartService()
+            .delete(req.account, projectUuid, composerChartUuid);
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Lists the dashboards whose latest version has a tile that shows the
+     * composer chart. Leaves out dashboards the caller cannot view. Anyone
+     * who can view the chart can read the list.
+     * @summary List dashboards showing composer chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{composerChartUuid}/dashboards')
+    @OperationId('getComposerChartDashboards')
+    async getDashboards(
+        @Path() projectUuid: UUID,
+        @Path() composerChartUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiComposerChartDashboardsResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getComposerChartService()
+            .getDashboardsShowing(req.account, projectUuid, composerChartUuid);
         this.setStatus(200);
         return { status: 'ok', results };
     }

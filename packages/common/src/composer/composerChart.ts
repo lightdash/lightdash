@@ -549,6 +549,12 @@ export type CreateComposerChart = {
     chart: ComposerStoredChart;
 };
 
+/** A rename of a space-owned chart: no new version, the slug unchanged. An omitted field keeps its value. */
+export type UpdateComposerChart = {
+    name?: string;
+    description?: string | null;
+};
+
 /** The dashboard or the space a composer chart belongs to: exactly one. */
 export type ComposerChartOwner =
     | { type: 'dashboard'; dashboardUuid: string }
@@ -574,6 +580,17 @@ export type ComposerChart = {
 export type ApiComposerChartResponse = {
     status: 'ok';
     results: ComposerChart;
+};
+
+/** A dashboard whose latest version has a tile for the chart. */
+export type ComposerChartDashboard = {
+    uuid: string;
+    name: string;
+};
+
+export type ApiComposerChartDashboardsResponse = {
+    status: 'ok';
+    results: ComposerChartDashboard[];
 };
 
 // An interface, not an intersection, so the API schema stays one flat object

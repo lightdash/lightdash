@@ -8,7 +8,7 @@ const listed = {
 };
 
 describe('Composer chart content', () => {
-    it('is listed only when asked for by type with the flag on, and never in Recently deleted', () => {
+    it('is listed only when asked for by type with the flag on, in Recently deleted too', () => {
         const included =
             composerChartContentConfiguration.shouldQueryBeIncluded;
         expect(included(listed)).toBe(true);
@@ -20,7 +20,7 @@ describe('Composer chart content', () => {
                 contentTypes: [ContentType.CHART],
             }),
         ).toBe(false);
-        expect(included({ ...listed, deleted: true })).toBe(false);
+        expect(included({ ...listed, deleted: true })).toBe(true);
         expect(included({ ...listed, sharedWithMe: true })).toBe(false);
         expect(included({ ...listed, ownerUserUuids: ['owner'] })).toBe(false);
     });

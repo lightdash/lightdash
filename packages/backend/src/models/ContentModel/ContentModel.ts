@@ -7,6 +7,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     SummaryContentBase,
+    type ChartConfig,
     type DeletedDataAppContentSummary,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -15,7 +16,10 @@ import {
     AnalyticsDashboardViewsTableName,
 } from '../../database/entities/analytics';
 import KnexPaginate from '../../database/pagination';
-import { composerChartContentConfiguration } from './ContentConfigurations/ComposerChartContentConfiguration';
+import {
+    composerChartContentConfiguration,
+    toComposerChartKind,
+} from './ContentConfigurations/ComposerChartContentConfiguration';
 import { dashboardContentConfiguration } from './ContentConfigurations/DashboardContentConfiguration';
 import { dataAppContentConfiguration } from './ContentConfigurations/DataAppContentConfiguration';
 import { dbtExploreChartContentConfiguration } from './ContentConfigurations/DbtExploreChartContentConfiguration';
@@ -292,6 +296,15 @@ export class ContentModel {
                         );
                 }
             }
+            case ContentType.COMPOSER_CHART:
+                return {
+                    ...base,
+                    contentType: ContentType.COMPOSER_CHART,
+                    chartKind: toComposerChartKind(
+                        (row.metadata.chart_config as ChartConfig | null) ??
+                            null,
+                    ),
+                };
             case ContentType.DASHBOARD:
                 return {
                     ...base,
