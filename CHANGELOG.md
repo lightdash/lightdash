@@ -1,3 +1,10 @@
+## [3.449.1](https://github.com/lightdash/lightdash/compare/3.449.0...3.449.1) (2026-11-28)
+
+
+### Bug Fixes
+
+* **composer-charts:** uuid-addressed edit follow-ups ([#33622](https://github.com/lightdash/lightdash/issues/33622)) ([6ec391c](https://github.com/lightdash/lightdash/commit/6ec391cd522320aa9229aac09def139361296aee))
+
 # [3.449.0](https://github.com/lightdash/lightdash/compare/3.448.0...3.449.0) (2026-11-28)
 
 
