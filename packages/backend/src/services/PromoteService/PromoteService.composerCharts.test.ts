@@ -301,8 +301,11 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamProjectUuid,
             {
                 slug: 'revenue',
-                dashboardUuid: upstreamDashboardUuid,
-                spaceOwner: 'refuse',
+                owner: {
+                    type: 'dashboard',
+                    dashboardUuid: upstreamDashboardUuid,
+                },
+                liveOwner: { type: 'dashboard' },
                 name: 'Revenue',
                 description: null,
                 pipeline,
@@ -350,7 +353,10 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamProjectUuid,
             expect.objectContaining({
                 slug: 'revenue',
-                dashboardUuid: upstreamDashboardUuid,
+                owner: {
+                    type: 'dashboard',
+                    dashboardUuid: upstreamDashboardUuid,
+                },
                 pipeline,
             }),
         );

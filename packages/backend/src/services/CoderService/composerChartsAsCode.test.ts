@@ -7,6 +7,8 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    assertComposerChartOwnerTypeKept,
+    ComposerChartOwnerChangeError,
     isComposerChartAsCodeUnchanged,
     toComposerChartAsCode,
 } from './composerChartsAsCode';
@@ -137,12 +139,69 @@ describe('composer charts as code', () => {
         ).toBe(false);
     });
 
-    it('ignores the owning dashboard, since an existing chart cannot move', () => {
+    it("ignores a dashboard chart's dashboard and space, since it cannot move", () => {
         expect(
             isComposerChartAsCodeUnchanged(
-                { ...asFile(download()), dashboardSlug: 'elsewhere' },
+                {
+                    ...asFile(download()),
+                    dashboardSlug: 'elsewhere',
+                    spaceSlug: 'other',
+                },
                 download(),
             ),
         ).toBe(true);
+    });
+
+    it("compares a space chart's space, so a moved file is a change", () => {
+        const inSpace = { ...download(), dashboardSlug: null };
+        expect(isComposerChartAsCodeUnchanged(asFile(inSpace), inSpace)).toBe(
+            true,
+        );
+        expect(
+            isComposerChartAsCodeUnchanged(
+                { ...asFile(inSpace), spaceSlug: 'jaffle/other' },
+                inSpace,
+            ),
+        ).toBe(false);
+        expect(
+            isComposerChartAsCodeUnchanged(
+                { ...asFile(inSpace), spaceSlug: 'jaffle/sales_ops' },
+                { ...inSpace, spaceSlug: 'jaffle/sales-ops' },
+            ),
+        ).toBe(true);
+    });
+});
+
+describe('composer chart owner change from a file', () => {
+    const dashboardOwner = {
+        type: 'dashboard',
+        dashboardUuid: 'dashboard-uuid',
+    } as const;
+    const spaceOwner = { type: 'space', spaceUuid: 'space-uuid' } as const;
+
+    it.each([
+        ['a dashboard chart staying on a dashboard', dashboardOwner, 'ops'],
+        ['a space chart staying in a space', spaceOwner, null],
+    ])('allows %s', (_, owner, dashboardSlug) => {
+        expect(() =>
+            assertComposerChartOwnerTypeKept('orders', owner, dashboardSlug),
+        ).not.toThrow();
+    });
+
+    it('refuses a dashboard chart into a space, saying why', () => {
+        expect(() =>
+            assertComposerChartOwnerTypeKept('orders', dashboardOwner, null),
+        ).toThrow(
+            /Composer chart "orders" belongs to a dashboard\. An upload cannot move a chart from a dashboard to a space/,
+        );
+    });
+
+    it('refuses a space chart onto a dashboard', () => {
+        expect(() =>
+            assertComposerChartOwnerTypeKept('orders', spaceOwner, 'ops'),
+        ).toThrow(ComposerChartOwnerChangeError);
+        expect(() =>
+            assertComposerChartOwnerTypeKept('orders', spaceOwner, 'ops'),
+        ).toThrow(/Composer chart "orders" belongs to a space/);
     });
 });

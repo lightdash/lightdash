@@ -1,12 +1,15 @@
 import {
+    assertUnreachable,
     ChartType,
     ContentAsCodeType,
     currentVersion,
+    getLtreePathFromContentAsCodePath,
     NotSupportedError,
     ParameterError,
     type ChartAsCodeConfig,
     type ComposerChart,
     type ComposerChartAsCode,
+    type ComposerChartOwner,
 } from '@lightdash/common';
 import { isEqual } from 'es-toolkit/compat';
 
@@ -82,11 +85,18 @@ const withCurrentPin = (
     };
 };
 
-/** True when uploading `file` would write nothing; the owning dashboard is ignored. */
+/** Slugs naming one space path, as `sales_ops` and `sales-ops` do. */
+export const isSameSpaceSlug = (a: string, b: string): boolean =>
+    getLtreePathFromContentAsCodePath(a) ===
+    getLtreePathFromContentAsCodePath(b);
+
+/** True when uploading `file` over `current`, as downloaded, writes nothing. A dashboard chart ignores the file's dashboard and space; a space chart compares its space. */
 export const isComposerChartAsCodeUnchanged = (
     file: ComposerChartAsCode,
     current: ComposerChartAsCode,
 ): boolean =>
+    (current.dashboardSlug !== null ||
+        isSameSpaceSlug(file.spaceSlug, current.spaceSlug)) &&
     file.name === current.name &&
     (file.description ?? null) === current.description &&
     isEqual(plain(file.pipeline), plain(current.pipeline)) &&
@@ -112,11 +122,27 @@ export const assertNotComposerChartFile = (slug: string, body: unknown) => {
     }
 };
 
-/** Upload refuses a composer chart a space owns until it can write one. */
-export class SpaceOwnedComposerChartUploadError extends NotSupportedError {
-    constructor(slug: string) {
-        super(
-            `Composer chart "${slug}" belongs to a space, not a dashboard. For now, only composer charts that belong to a dashboard can be uploaded.`,
-        );
+/** A file cannot switch a chart between a dashboard and a space. */
+export class ComposerChartOwnerChangeError extends NotSupportedError {}
+
+/** The owner type `existing` has must be the one the file names; a deleted chart included. */
+export const assertComposerChartOwnerTypeKept = (
+    slug: string,
+    existing: ComposerChartOwner,
+    fileDashboardSlug: string | null,
+): void => {
+    switch (existing.type) {
+        case 'dashboard':
+            if (fileDashboardSlug !== null) return;
+            throw new ComposerChartOwnerChangeError(
+                `Composer chart "${slug}" belongs to a dashboard. An upload cannot move a chart from a dashboard to a space, so the file must keep its dashboardSlug.`,
+            );
+        case 'space':
+            if (fileDashboardSlug === null) return;
+            throw new ComposerChartOwnerChangeError(
+                `Composer chart "${slug}" belongs to a space. You cannot move it to dashboard "${fileDashboardSlug}" by uploading a file. Remove dashboardSlug to keep it in a space. Change spaceSlug to move it between spaces.`,
+            );
+        default:
+            return assertUnreachable(existing, 'Unknown composer chart owner');
     }
-}
+};

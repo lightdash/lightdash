@@ -10,8 +10,9 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
+import { fromSession } from '../../auth/account';
 import { CoderService } from './CoderService';
-import { SpaceOwnedComposerChartUploadError } from './composerChartsAsCode';
+import { ComposerChartOwnerChangeError } from './composerChartsAsCode';
 
 const PROJECT_UUID = 'project-uuid';
 const ORG_UUID = 'org-uuid';
@@ -279,6 +280,7 @@ describe('CoderService composer chart upsert for the agent', () => {
             },
             composerChartService: {
                 isEnabled: vi.fn(async () => true),
+                assertCanView: vi.fn(async () => ({})),
                 writeFromCode,
             },
         } as AnyType);
@@ -294,7 +296,7 @@ describe('CoderService composer chart upsert for the agent', () => {
         await expect(
             service.upsertComposerChart(
                 viewer,
-                account,
+                fromSession(viewer),
                 PROJECT_UUID,
                 'visible',
                 editedFile(),
@@ -307,7 +309,7 @@ describe('CoderService composer chart upsert for the agent', () => {
         const { service, writeFromCode } = makeUpsertService();
         await service.upsertComposerChart(
             viewer,
-            account,
+            fromSession(viewer),
             PROJECT_UUID,
             'visible',
             editedFile(),
@@ -316,104 +318,393 @@ describe('CoderService composer chart upsert for the agent', () => {
         expect(writeFromCode).toHaveBeenCalledOnce();
     });
 
-    const withoutDashboard = (): AnyType => {
-        const { dashboardSlug: _, ...file } = editedFile();
-        return { ...file, name: 'visible' };
-    };
-
-    it.each([
-        ['names no dashboard', { ...withoutDashboard(), dashboardSlug: null }],
-        ['omits its dashboard', withoutDashboard()],
-    ])('refuses a file that %s, even unchanged', async (_, file) => {
+    it('refuses a file taking a dashboard chart into a space', async () => {
         const { service, writeFromCode } = makeUpsertService();
+        const { dashboardSlug: _, ...file } = editedFile();
         await expect(
             service.upsertComposerChart(
                 user,
-                account,
+                fromSession(user),
                 PROJECT_UUID,
                 'visible',
                 file,
                 { authorization: 'space_access' },
             ),
-        ).rejects.toThrow(SpaceOwnedComposerChartUploadError);
+        ).rejects.toThrow(
+            /belongs to a dashboard.*cannot move a chart from a dashboard to a space/,
+        );
         expect(writeFromCode).not.toHaveBeenCalled();
     });
+});
 
-    it.each([false, true])(
-        'refuses a file for a space-owned chart (deleted: %s), even naming a dashboard',
-        async (deleted) => {
-            const { service, writeFromCode } = makeUpsertService({
-                owner: { type: 'space', spaceUuid: 'marketing-uuid' },
-                deleted,
-            });
-            await expect(
-                service.upsertComposerChart(
-                    user,
-                    account,
-                    PROJECT_UUID,
-                    'visible',
-                    { ...editedFile(), name: 'visible' },
-                    { authorization: 'space_access' },
+describe('CoderService composer chart upload into a space', () => {
+    const SPACE_PATH = 'marketing';
+    const uploader = {
+        ...user,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'ContentAsCode', action: 'create' },
+            { subject: 'Space', action: 'create' },
+        ] as RawRuleOf<Ability<PossibleAbilities>>[]),
+    } as unknown as SessionUser;
+    const uploaderAccount = fromSession(uploader);
+    const spaceFile = (spaceSlug = SPACE_PATH): AnyType => ({
+        ...storedChart('visible'),
+        contentType: 'composer_chart',
+        version: 1,
+        dashboardSlug: null,
+        spaceSlug,
+    });
+    const setup = ({
+        existing = null,
+        spaces = [{ uuid: 'marketing-uuid', path: SPACE_PATH }],
+        flagEnabled = true,
+        composerChartService = {},
+    }: {
+        existing?: AnyType;
+        spaces?: Array<{ uuid: string; path: string }>;
+        flagEnabled?: boolean;
+        composerChartService?: Record<string, AnyType>;
+    } = {}) => {
+        const chartService = {
+            isEnabled: vi.fn(async () => flagEnabled),
+            assertCanView: vi.fn(async () => ({})),
+            preflightWrite: vi.fn(async () => undefined),
+            preflightSpaceChartEdit: vi.fn(async () => undefined),
+            writeFromCode: vi.fn(async () => 'visible'),
+            moveToSpace: vi.fn(async () => undefined),
+            ...composerChartService,
+        };
+        const dashboardModel = { find: vi.fn(), create: vi.fn() };
+        const service = new CoderService({
+            lightdashConfig: { contentAsCode: { maxDownloads: 100 } },
+            projectModel: {
+                get: vi.fn(async () => ({
+                    projectUuid: PROJECT_UUID,
+                    organizationUuid: ORG_UUID,
+                })),
+            },
+            appModel: { findAppsByUuids: vi.fn(async () => []) },
+            dashboardModel,
+            composerChartModel: {
+                findIdentityBySlug: vi.fn(async () => existing),
+                get: vi.fn(async () => storedChart('visible')),
+            },
+            composerChartService: chartService,
+            spaceModel: {
+                find: vi.fn(async ({ path }: { path: string }) =>
+                    spaces.filter((space) => space.path === path),
                 ),
-            ).rejects.toThrow(SpaceOwnedComposerChartUploadError);
-            expect(writeFromCode).not.toHaveBeenCalled();
-        },
-    );
+                getSpaceSummary: vi.fn(async (uuid: string) => ({
+                    uuid,
+                    path: uuid === 'jaffle-uuid' ? 'jaffle' : SPACE_PATH,
+                })),
+                findClosestAncestorByPath: vi.fn(
+                    async ({ path }: { path: string }) =>
+                        spaces.find((space) =>
+                            path.startsWith(`${space.path}.`),
+                        )?.uuid ?? null,
+                ),
+            },
+            spacePermissionService: { can: vi.fn(async () => true) },
+        } as AnyType);
+        const getOrCreateSpace = vi
+            .spyOn(service, 'getOrCreateSpace')
+            .mockImplementation(async (_project, spaceSlug) => ({
+                space: {
+                    uuid:
+                        spaces.find(({ path }) => path === spaceSlug)?.uuid ??
+                        'new-space-uuid',
+                } as AnyType,
+                created: !spaces.some(({ path }) => path === spaceSlug),
+            }));
+        const upload = (file: AnyType, options = {}) =>
+            service.upsertComposerChart(
+                uploader,
+                uploaderAccount,
+                PROJECT_UUID,
+                'visible',
+                file,
+                options,
+            );
+        return {
+            upload,
+            chartService,
+            dashboardModel,
+            getOrCreateSpace,
+        };
+    };
+    const liveInJaffle = {
+        uuid: 'visible',
+        deleted: false,
+        owner: { type: 'space', spaceUuid: 'jaffle-uuid' },
+    };
 
-    it("writes the agent's edit of a live chart its space owns, keeping that owner", async () => {
-        const { service, writeFromCode } = makeUpsertService({
-            owner: { type: 'space', spaceUuid: 'marketing-uuid' },
+    it('creates a chart in its space after every write check, with no placeholder dashboard', async () => {
+        const { upload, chartService, dashboardModel } = setup();
+        await expect(upload(spaceFile())).resolves.toEqual({
+            action: 'create',
+            composerChartUuid: 'visible',
         });
-        await service.upsertComposerChart(
-            user,
-            account,
-            PROJECT_UUID,
-            'visible',
-            { ...withoutDashboard(), name: 'Renamed', dashboardSlug: null },
-            { authorization: 'space_access', spaceOwner: 'keep' },
-        );
-        expect(writeFromCode).toHaveBeenCalledWith(
-            account,
+        expect(chartService.preflightWrite).toHaveBeenCalledOnce();
+        expect(chartService.writeFromCode).toHaveBeenCalledWith(
+            uploaderAccount,
             PROJECT_UUID,
             expect.objectContaining({
                 slug: 'visible',
-                dashboardUuid: null,
-                spaceOwner: 'keep',
+                owner: { type: 'space', spaceUuid: 'marketing-uuid' },
+                liveOwner: { type: 'space', spaceUuid: 'marketing-uuid' },
+            }),
+        );
+        expect(dashboardModel.find).not.toHaveBeenCalled();
+        expect(dashboardModel.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a missing space, honouring skipSpaceCreate and the space create permission', async () => {
+        const { upload, chartService, getOrCreateSpace } = setup({
+            spaces: [],
+        });
+        await upload(spaceFile('marketing/new'), { skipSpaceCreate: false });
+        expect(getOrCreateSpace).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'marketing/new',
+            uploader,
+            false,
+            undefined,
+            undefined,
+            true,
+        );
+        expect(chartService.writeFromCode).toHaveBeenCalledWith(
+            uploaderAccount,
+            PROJECT_UUID,
+            expect.objectContaining({
+                owner: { type: 'space', spaceUuid: 'new-space-uuid' },
             }),
         );
     });
 
-    it.each([
-        [
-            'a deleted chart its space owns',
-            {
-                owner: { type: 'space', spaceUuid: 'marketing-uuid' },
-                deleted: true,
+    it('creates no space for a chart its checks refuse', async () => {
+        const { upload, chartService, getOrCreateSpace } = setup({
+            spaces: [],
+            composerChartService: {
+                preflightWrite: vi.fn(async () => {
+                    throw new ForbiddenError('no sql');
+                }),
             },
-            { ...withoutDashboard(), dashboardSlug: null },
-        ],
-        [
-            'a file putting a chart its space owns on a dashboard',
-            { owner: { type: 'space', spaceUuid: 'marketing-uuid' } },
-            { ...editedFile(), name: 'Renamed' },
-        ],
-        [
-            'a file taking a dashboard chart into a space',
-            {},
-            { ...withoutDashboard(), name: 'Renamed', dashboardSlug: null },
-        ],
-    ])("refuses %s, even for the agent's edit", async (_, options, file) => {
-        const { service, writeFromCode } = makeUpsertService(options);
-        await expect(
-            service.upsertComposerChart(
-                user,
-                account,
+        });
+        await expect(upload(spaceFile('marketing/new'))).rejects.toThrow(
+            'no sql',
+        );
+        expect(getOrCreateSpace).not.toHaveBeenCalled();
+        expect(chartService.writeFromCode).not.toHaveBeenCalled();
+    });
+
+    it('revives a deleted chart in the space the file names', async () => {
+        const { upload, chartService } = setup({
+            existing: { ...liveInJaffle, deleted: true },
+        });
+        await expect(upload(spaceFile())).resolves.toMatchObject({
+            action: 'create',
+        });
+        expect(chartService.assertCanView).not.toHaveBeenCalled();
+        expect(chartService.writeFromCode).toHaveBeenCalledWith(
+            uploaderAccount,
+            PROJECT_UUID,
+            expect.objectContaining({
+                owner: { type: 'space', spaceUuid: 'marketing-uuid' },
+            }),
+        );
+    });
+
+    it.each([true, false])(
+        'writes nothing for an identical file (flag on: %s), after checking view on the chart',
+        async (flagEnabled) => {
+            const { upload, chartService } = setup({
+                existing: liveInJaffle,
+                flagEnabled,
+            });
+            await expect(upload(spaceFile('jaffle'))).resolves.toEqual({
+                action: 'no changes',
+                composerChartUuid: 'visible',
+            });
+            expect(chartService.assertCanView).toHaveBeenCalledWith(
+                uploaderAccount,
                 PROJECT_UUID,
                 'visible',
-                file,
-                { authorization: 'space_access', spaceOwner: 'keep' },
-            ),
-        ).rejects.toThrow(SpaceOwnedComposerChartUploadError);
-        expect(writeFromCode).not.toHaveBeenCalled();
+            );
+            expect(chartService.writeFromCode).not.toHaveBeenCalled();
+            expect(chartService.moveToSpace).not.toHaveBeenCalled();
+        },
+    );
+
+    it('moves a chart whose spaceSlug changed, writing no version', async () => {
+        const { upload, chartService } = setup({ existing: liveInJaffle });
+        await expect(upload(spaceFile())).resolves.toEqual({
+            action: 'update',
+            composerChartUuid: 'visible',
+        });
+        expect(chartService.preflightSpaceChartEdit).toHaveBeenCalledWith(
+            uploaderAccount,
+            PROJECT_UUID,
+            'visible',
+            { targetSpaceUuid: 'marketing-uuid' },
+        );
+        expect(chartService.moveToSpace).toHaveBeenCalledWith(uploaderAccount, {
+            projectUuid: PROJECT_UUID,
+            itemUuid: 'visible',
+            targetSpaceUuid: 'marketing-uuid',
+        });
+        expect(chartService.writeFromCode).not.toHaveBeenCalled();
     });
+
+    it('writes a changed chart in its space, then moves it', async () => {
+        const { upload, chartService } = setup({ existing: liveInJaffle });
+        await upload({ ...spaceFile(), name: 'Renamed' });
+        expect(chartService.writeFromCode).toHaveBeenCalledWith(
+            uploaderAccount,
+            PROJECT_UUID,
+            expect.objectContaining({
+                name: 'Renamed',
+                owner: null,
+                liveOwner: { type: 'space', spaceUuid: 'jaffle-uuid' },
+            }),
+        );
+        expect(
+            chartService.writeFromCode.mock.invocationCallOrder[0],
+        ).toBeLessThan(chartService.moveToSpace.mock.invocationCallOrder[0]);
+    });
+
+    it.each([
+        ['creating', null],
+        ['moving', liveInJaffle],
+    ])(
+        'refuses %s into a path two spaces share, or under one',
+        async (_, existing) => {
+            const { upload, chartService, getOrCreateSpace } = setup({
+                existing,
+                spaces: [
+                    { uuid: 'marketing-uuid', path: SPACE_PATH },
+                    { uuid: 'other-marketing-uuid', path: SPACE_PATH },
+                ],
+            });
+            await expect(upload(spaceFile())).rejects.toThrow(
+                'More than one space has the path "marketing"',
+            );
+            await expect(upload(spaceFile('marketing/new'))).rejects.toThrow(
+                'cannot be uploaded to "marketing/new"',
+            );
+            expect(getOrCreateSpace).not.toHaveBeenCalled();
+            expect(chartService.writeFromCode).not.toHaveBeenCalled();
+            expect(chartService.moveToSpace).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        ['creating', null],
+        ['moving', liveInJaffle],
+    ])('refuses %s with an empty spaceSlug', async (_, existing) => {
+        const { upload, chartService, getOrCreateSpace } = setup({ existing });
+        await expect(upload(spaceFile(''))).rejects.toThrow(
+            'needs a spaceSlug or a dashboardSlug',
+        );
+        expect(getOrCreateSpace).not.toHaveBeenCalled();
+        expect(chartService.writeFromCode).not.toHaveBeenCalled();
+        expect(chartService.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it('checks write on the chart before creating a missing target space', async () => {
+        const { upload, chartService, getOrCreateSpace } = setup({
+            existing: liveInJaffle,
+            spaces: [],
+            composerChartService: {
+                preflightSpaceChartEdit: vi.fn(async () => {
+                    throw new ForbiddenError('no write');
+                }),
+            },
+        });
+        await expect(upload(spaceFile('marketing/new'))).rejects.toThrow(
+            'no write',
+        );
+        expect(getOrCreateSpace).not.toHaveBeenCalled();
+        expect(chartService.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['a space chart, onto a dashboard', liveInJaffle, 'ops'],
+        [
+            'a dashboard chart, into a space',
+            {
+                ...liveInJaffle,
+                owner: { type: 'dashboard', dashboardUuid: 'd' },
+            },
+            null,
+        ],
+    ])(
+        'refuses %s the uploader cannot view before naming its owner',
+        async (_, existing, dashboardSlug) => {
+            const { upload, chartService } = setup({
+                existing,
+                composerChartService: {
+                    assertCanView: vi.fn(async () => {
+                        throw new ForbiddenError(
+                            "You don't have permission to view this composer chart",
+                        );
+                    }),
+                },
+            });
+            await expect(
+                upload({ ...spaceFile('jaffle'), dashboardSlug }),
+            ).rejects.toThrow('view this composer chart');
+            expect(chartService.writeFromCode).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        ['a new chart', null, spaceFile()],
+        [
+            'a changed chart',
+            liveInJaffle,
+            { ...spaceFile('jaffle'), name: 'Renamed' },
+        ],
+        ['a moved chart', liveInJaffle, spaceFile()],
+    ])('refuses %s with the flag off, by name', async (_, existing, file) => {
+        const { upload, chartService } = setup({
+            existing,
+            flagEnabled: false,
+        });
+        await expect(upload(file)).rejects.toThrow(
+            'composer chart "visible" cannot be created or changed',
+        );
+        expect(chartService.writeFromCode).not.toHaveBeenCalled();
+        expect(chartService.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it.each([false, true])(
+        'refuses putting a chart its space owns on a dashboard (deleted: %s)',
+        async (deleted) => {
+            const { upload, chartService } = setup({
+                existing: { ...liveInJaffle, deleted },
+            });
+            await expect(
+                upload({ ...spaceFile('jaffle'), dashboardSlug: 'ops' }),
+            ).rejects.toThrow(ComposerChartOwnerChangeError);
+            expect(chartService.writeFromCode).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([false, true])(
+        'refuses taking a dashboard chart into a space (deleted: %s)',
+        async (deleted) => {
+            const { upload, chartService } = setup({
+                existing: {
+                    uuid: 'visible',
+                    deleted,
+                    owner: { type: 'dashboard', dashboardUuid: 'd' },
+                },
+            });
+            await expect(upload(spaceFile())).rejects.toThrow(
+                ComposerChartOwnerChangeError,
+            );
+            expect(chartService.writeFromCode).not.toHaveBeenCalled();
+        },
+    );
 });

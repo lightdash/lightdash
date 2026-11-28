@@ -615,7 +615,7 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
                 ) as JsonObject),
                 additionalProperties: false,
                 description:
-                    'A composer chart: a pipeline of nodes and a chart over its result columns, owned by a dashboard',
+                    'A composer chart has a pipeline of nodes and a chart over its result columns. It belongs to a dashboard or a space.',
             },
         },
     };

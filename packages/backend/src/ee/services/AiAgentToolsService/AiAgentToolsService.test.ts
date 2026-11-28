@@ -4514,14 +4514,26 @@ describe('AiAgentToolsService', () => {
         } = {}) => {
             let version = 1;
             let current = spaceChart;
-            const upsertComposerChart = vi.fn(async (...args: unknown[]) => {
-                version += 1;
-                current = args[4] as typeof spaceChart;
-                return {
-                    action: 'update',
-                    composerChartUuid: 'composer-chart-uuid',
-                };
-            });
+            const writeFromCode = vi.fn(
+                async (
+                    _account: unknown,
+                    _project: string,
+                    data: Pick<
+                        typeof spaceChart,
+                        'name' | 'description' | 'pipeline' | 'chart'
+                    >,
+                ) => {
+                    version += 1;
+                    current = {
+                        ...current,
+                        name: data.name,
+                        description: data.description,
+                        pipeline: data.pipeline,
+                        chart: data.chart,
+                    };
+                    return 'composer-chart-uuid';
+                },
+            );
             const update = vi.fn(async () => ({}));
             const moveToSpace = vi.fn(async () => undefined);
             const getDashboardsShowing = vi
@@ -4538,7 +4550,6 @@ describe('AiAgentToolsService', () => {
                         contentUuid: 'composer-chart-uuid',
                         versionUuid: `version-${version}`,
                     })),
-                    upsertComposerChart,
                     toStoredComposerChart: vi.fn(
                         async (_: string, chart: unknown) => chart,
                     ),
@@ -4556,6 +4567,7 @@ describe('AiAgentToolsService', () => {
                     update,
                     moveToSpace,
                     getDashboardsShowing,
+                    writeFromCode,
                 },
                 aiAgentContentValidation: new AiAgentContentValidation(),
             });
@@ -4569,7 +4581,7 @@ describe('AiAgentToolsService', () => {
             };
             return {
                 runtime,
-                upsertComposerChart,
+                writeFromCode,
                 update,
                 moveToSpace,
                 preflightWrite,
@@ -4580,7 +4592,7 @@ describe('AiAgentToolsService', () => {
         it('renames without a version, a pipeline check or SQL approval', async () => {
             const {
                 runtime,
-                upsertComposerChart,
+                writeFromCode,
                 update,
                 moveToSpace,
                 preflightWrite,
@@ -4600,7 +4612,7 @@ describe('AiAgentToolsService', () => {
                 'composer-chart-uuid',
                 { name: 'Orders by state', description: 'By state' },
             );
-            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(writeFromCode).not.toHaveBeenCalled();
             expect(moveToSpace).not.toHaveBeenCalled();
             expect(preflightWrite).not.toHaveBeenCalled();
             expect(approveSql).not.toHaveBeenCalled();
@@ -4611,10 +4623,9 @@ describe('AiAgentToolsService', () => {
         });
 
         it('writes a pipeline change as a new version after approval, keeping the space owner', async () => {
-            const { runtime, upsertComposerChart, update } =
-                makeSpaceEditService();
+            const { runtime, writeFromCode, update } = makeSpaceEditService();
             const approveSql = vi.fn(async () => {
-                expect(upsertComposerChart).not.toHaveBeenCalled();
+                expect(writeFromCode).not.toHaveBeenCalled();
             });
 
             const edited = await runtime.editContent({
@@ -4629,13 +4640,14 @@ describe('AiAgentToolsService', () => {
                 chartName: 'Orders by status',
                 sqlChanged: true,
             });
-            expect(upsertComposerChart).toHaveBeenCalledExactlyOnceWith(
-                user,
+            expect(writeFromCode).toHaveBeenCalledExactlyOnceWith(
                 account,
                 projectUuid,
-                'orders-by-status',
-                expect.objectContaining({ dashboardSlug: null }),
-                { authorization: 'space_access', spaceOwner: 'keep' },
+                expect.objectContaining({
+                    slug: 'orders-by-status',
+                    owner: null,
+                    liveOwner: { type: 'space', spaceUuid: 'jaffle-uuid' },
+                }),
             );
             expect(update).not.toHaveBeenCalled();
             expect(edited).toMatchObject({
@@ -4644,7 +4656,7 @@ describe('AiAgentToolsService', () => {
         });
 
         it('runs the version write checks before asking for SQL approval', async () => {
-            const { runtime, upsertComposerChart } = makeSpaceEditService({
+            const { runtime, writeFromCode } = makeSpaceEditService({
                 preflightWrite: vi
                     .fn()
                     .mockRejectedValue(new ParameterError('bad chart')),
@@ -4660,7 +4672,7 @@ describe('AiAgentToolsService', () => {
                 }),
             ).rejects.toThrow('bad chart');
             expect(approveSql).not.toHaveBeenCalled();
-            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(writeFromCode).not.toHaveBeenCalled();
         });
 
         it('refuses a root replace that puts the chart on a dashboard', async () => {
@@ -4688,7 +4700,7 @@ describe('AiAgentToolsService', () => {
         });
 
         it('checks the pipeline before saving a chart change with no new SQL', async () => {
-            const { runtime, upsertComposerChart } = makeSpaceEditService({
+            const { runtime, writeFromCode } = makeSpaceEditService({
                 preflightWrite: vi
                     .fn()
                     .mockRejectedValue(new ForbiddenError('no composer')),
@@ -4708,11 +4720,11 @@ describe('AiAgentToolsService', () => {
                     approveSql: vi.fn(),
                 }),
             ).rejects.toThrow(ForbiddenError);
-            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(writeFromCode).not.toHaveBeenCalled();
         });
 
         it('saves nothing when the new SQL is rejected, even with a rename and a move', async () => {
-            const { runtime, upsertComposerChart, update, moveToSpace } =
+            const { runtime, writeFromCode, update, moveToSpace } =
                 makeSpaceEditService();
 
             await expect(
@@ -4723,13 +4735,13 @@ describe('AiAgentToolsService', () => {
                     approveSql: vi.fn().mockRejectedValue(new Error('no')),
                 }),
             ).rejects.toThrow('no');
-            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(writeFromCode).not.toHaveBeenCalled();
             expect(update).not.toHaveBeenCalled();
             expect(moveToSpace).not.toHaveBeenCalled();
         });
 
         it('moves the chart when its spaceSlug changes, writing no version', async () => {
-            const { runtime, upsertComposerChart, moveToSpace, update } =
+            const { runtime, writeFromCode, moveToSpace, update } =
                 makeSpaceEditService();
 
             await runtime.editContent({
@@ -4744,12 +4756,38 @@ describe('AiAgentToolsService', () => {
                 itemUuid: 'composer-chart-uuid',
                 targetSpaceUuid: 'marketing-uuid',
             });
-            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(writeFromCode).not.toHaveBeenCalled();
             expect(update).not.toHaveBeenCalled();
         });
 
+        it('writes a version in place, keeping its owner, then moves with its own check', async () => {
+            const { runtime, writeFromCode, moveToSpace } =
+                makeSpaceEditService();
+
+            await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: [...changeSql, ...moveToMarketing],
+                approveSql: vi.fn(),
+            });
+
+            expect(writeFromCode).toHaveBeenCalledExactlyOnceWith(
+                account,
+                projectUuid,
+                expect.objectContaining({
+                    owner: null,
+                    liveOwner: { type: 'space', spaceUuid: 'jaffle-uuid' },
+                }),
+            );
+            expect(moveToSpace).toHaveBeenCalledExactlyOnceWith(account, {
+                projectUuid,
+                itemUuid: 'composer-chart-uuid',
+                targetSpaceUuid: 'marketing-uuid',
+            });
+        });
+
         it('checks write on the chart and the target space before asking for approval', async () => {
-            const { runtime, upsertComposerChart, moveToSpace } =
+            const { runtime, writeFromCode, moveToSpace } =
                 makeSpaceEditService({
                     preflightSpaceChartEdit: vi
                         .fn()
@@ -4770,7 +4808,7 @@ describe('AiAgentToolsService', () => {
                 }),
             ).rejects.toThrow(ForbiddenError);
             expect(approveSql).not.toHaveBeenCalled();
-            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(writeFromCode).not.toHaveBeenCalled();
             expect(moveToSpace).not.toHaveBeenCalled();
         });
 
@@ -4792,7 +4830,7 @@ describe('AiAgentToolsService', () => {
         });
 
         it('saves nothing when the chart was renamed while approval waited', async () => {
-            const { runtime, upsertComposerChart, renameElsewhere } =
+            const { runtime, writeFromCode, renameElsewhere } =
                 makeSpaceEditService();
 
             await expect(
@@ -4803,7 +4841,7 @@ describe('AiAgentToolsService', () => {
                     approveSql: vi.fn(async () => renameElsewhere()),
                 }),
             ).rejects.toThrow('changed while this edit waited');
-            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(writeFromCode).not.toHaveBeenCalled();
         });
 
         it('refuses a move to a path two spaces share', async () => {
@@ -4826,8 +4864,7 @@ describe('AiAgentToolsService', () => {
         });
 
         it('refuses putting a space-owned chart on a dashboard', async () => {
-            const { runtime, upsertComposerChart, update } =
-                makeSpaceEditService();
+            const { runtime, writeFromCode, update } = makeSpaceEditService();
 
             await expect(
                 runtime.editContent({
@@ -4843,7 +4880,7 @@ describe('AiAgentToolsService', () => {
                     approveSql: vi.fn(),
                 }),
             ).rejects.toThrow(ParameterError);
-            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(writeFromCode).not.toHaveBeenCalled();
             expect(update).not.toHaveBeenCalled();
         });
 

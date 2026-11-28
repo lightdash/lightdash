@@ -611,6 +611,7 @@ type AiAgentToolsServiceDependencies = {
         | 'update'
         | 'moveToSpace'
         | 'getDashboardsShowing'
+        | 'writeFromCode'
     >;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
@@ -4931,11 +4932,8 @@ export class AiAgentToolsService extends BaseService {
         const { account } = context;
         assertRegisteredAccount(account);
         const { composerChartUuid, targetSpaceUuid, read } = spaceEdit;
-        const { content: now } = await this.readComposerChartAsCode(
-            context,
-            slug,
-            'update',
-        );
+        const { composerChart: now, spaceUuid } =
+            await this.findComposerChartForAgent(context, slug, 'update');
         if (
             now.name !== read.name ||
             (now.description ?? null) !== read.description ||
@@ -4944,13 +4942,22 @@ export class AiAgentToolsService extends BaseService {
             throw new ParameterError(composerChartChangedWhileWaiting(slug));
         }
         if (spaceEdit.write === 'version') {
-            await this.coderService.upsertComposerChart(
-                context.user,
+            // In place, in the space just checked: a moved or deleted chart is refused
+            await this.composerChartService.writeFromCode(
                 account,
                 context.projectUuid,
-                slug,
-                edited,
-                { authorization: 'space_access', spaceOwner: 'keep' },
+                {
+                    slug,
+                    owner: null,
+                    liveOwner: { type: 'space', spaceUuid },
+                    name: edited.name,
+                    description: edited.description ?? null,
+                    pipeline: edited.pipeline,
+                    chart: await this.coderService.toStoredComposerChart(
+                        context.projectUuid,
+                        edited.chart,
+                    ),
+                },
             );
         } else if (spaceEdit.write === 'rename') {
             await this.composerChartService.update(

@@ -945,7 +945,7 @@ export class ComposerChartModel {
             return this.create({ ...record, uuid: null });
         }
         return this.database.transaction(async (trx) => {
-            await trx(ComposerChartsTableName)
+            const query = trx(ComposerChartsTableName)
                 .where('composer_chart_uuid', existing.uuid)
                 .update({
                     name: record.name,
@@ -956,6 +956,17 @@ export class ComposerChartModel {
                         deleted_by_user_uuid: null,
                     }),
                 });
+            // Only the chart as authorized: still deleted, or live with the owner checked
+            const count = await (existing.deleted
+                ? query.whereNotNull('deleted_at')
+                : query
+                      .where(toOwnerColumns(record.owner))
+                      .whereNull('deleted_at'));
+            if (count !== 1) {
+                throw new ConflictError(
+                    'This composer chart moved or was deleted. Reload and try again.',
+                );
+            }
             await trx(ComposerChartVersionsTableName).insert({
                 composer_chart_uuid: existing.uuid,
                 pipeline: JSON.stringify(record.pipeline),

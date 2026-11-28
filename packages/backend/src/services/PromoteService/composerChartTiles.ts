@@ -144,8 +144,11 @@ export const upsertComposerCharts = async (
                 data.projectUuid,
                 {
                     slug: data.slug,
-                    dashboardUuid: dashboardChange.data.uuid,
-                    spaceOwner: 'refuse',
+                    owner: {
+                        type: 'dashboard',
+                        dashboardUuid: dashboardChange.data.uuid,
+                    },
+                    liveOwner: { type: 'dashboard' },
                     name: data.name,
                     description: data.description,
                     pipeline,
