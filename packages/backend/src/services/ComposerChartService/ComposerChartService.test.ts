@@ -260,7 +260,7 @@ const savedDashboardFilters: DashboardFilters = {
     tableCalculations: [],
 };
 
-const setup = ({ flagEnabled = true } = {}) => {
+const setup = ({ flagEnabled = true, softDeleteEnabled = false } = {}) => {
     const querySourceService = {
         submitComposerRun: vi.fn(
             async ({
@@ -410,6 +410,9 @@ const setup = ({ flagEnabled = true } = {}) => {
         } as unknown as QueryHistoryModel,
         getQuerySourceService: () => querySourceService,
         getAsyncQueryService: () => asyncQueryService,
+        lightdashConfig: {
+            softDelete: { enabled: softDeleteEnabled, retentionDays: 30 },
+        },
     });
     return {
         service,
@@ -1842,19 +1845,23 @@ describe('ComposerChartService lifecycle writes', () => {
         writableSpaces = [sourceSpaceUuid, targetSpaceUuid],
         spaceProjects = {},
         flagEnabled = true,
+        softDeleteEnabled = false,
     }: {
         owner?: ComposerChartOwner;
         writableSpaces?: readonly string[];
         spaceProjects?: Record<string, string>;
         flagEnabled?: boolean;
+        softDeleteEnabled?: boolean;
     } = {}) => {
-        const deps = setup({ flagEnabled });
+        const deps = setup({ flagEnabled, softDeleteEnabled });
         const update = vi.fn(async () => ({ uuid: 'chart-uuid' }));
         const moveToSpace = vi.fn(async () => undefined);
+        const deleteFromSpace = vi.fn(async () => undefined);
         Object.assign(deps.composerChartModel, {
             getOwner: vi.fn(async () => ({ projectUuid, owner })),
             update,
             moveToSpace,
+            deleteFromSpace,
         });
         const resolveAccess = vi.fn(
             async (_: string, target: { spaceUuid: string }) => ({
@@ -1878,8 +1885,146 @@ describe('ComposerChartService lifecycle writes', () => {
                 },
             ]),
         );
-        return { ...deps, update, moveToSpace, account, resolveAccess };
+        return {
+            ...deps,
+            update,
+            moveToSpace,
+            deleteFromSpace,
+            account,
+            resolveAccess,
+        };
     };
+
+    describe('delete', () => {
+        test.each([
+            [
+                'soft, by the caller, with soft delete on',
+                true,
+                defaultSessionUser.userUuid,
+            ],
+            ['permanently with soft delete off', false, null],
+        ])(
+            'deletes a chart its space owns %s, with the flag off',
+            async (_, softDeleteEnabled, deletedBy) => {
+                const { service, account, deleteFromSpace } = setupWrite({
+                    softDeleteEnabled,
+                    flagEnabled: false,
+                });
+                await service.delete(account, projectUuid, 'chart-uuid');
+                expect(deleteFromSpace).toHaveBeenCalledWith(
+                    'chart-uuid',
+                    sourceSpaceUuid,
+                    deletedBy,
+                );
+            },
+        );
+
+        test('refuses a user who cannot write charts in the space', async () => {
+            const { service, account, deleteFromSpace } = setupWrite({
+                writableSpaces: [],
+            });
+            await expect(
+                service.delete(account, projectUuid, 'chart-uuid'),
+            ).rejects.toThrow(ForbiddenError);
+            expect(deleteFromSpace).not.toHaveBeenCalled();
+        });
+
+        test('refuses a chart a dashboard owns', async () => {
+            const { service, account, deleteFromSpace } = setupWrite({
+                owner: { type: 'dashboard', dashboardUuid },
+                writableSpaces: ['space-uuid'],
+            });
+            await expect(
+                service.delete(account, projectUuid, 'chart-uuid'),
+            ).rejects.toThrow(ParameterError);
+            expect(deleteFromSpace).not.toHaveBeenCalled();
+        });
+
+        test('misses a chart in another project', async () => {
+            const { service, account, deleteFromSpace } = setupWrite();
+            await expect(
+                service.delete(account, 'another-project', 'chart-uuid'),
+            ).rejects.toThrow(NotFoundError);
+            expect(deleteFromSpace).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getDashboardsShowing', () => {
+        test('lists the dashboards showing the chart that the caller can view', async () => {
+            const deps = setupWrite();
+            const findDashboardsShowing = vi.fn(async () => [
+                {
+                    uuid: 'visible',
+                    name: 'Visible',
+                    spaceUuid: sourceSpaceUuid,
+                },
+                {
+                    uuid: 'hidden',
+                    name: 'Hidden',
+                    spaceUuid: 'private-space',
+                },
+            ]);
+            const resolveAccessBatch = vi.fn(
+                async (
+                    _: string,
+                    targets: { dashboardUuid: string; spaceUuid: string }[],
+                ) =>
+                    targets.map((target) => ({
+                        target,
+                        context:
+                            target.spaceUuid === 'private-space'
+                                ? {
+                                      organizationUuid,
+                                      projectUuid,
+                                      inheritsFromOrgOrProject: false,
+                                      access: [],
+                                      admins: [],
+                                  }
+                                : {
+                                      organizationUuid,
+                                      projectUuid,
+                                      inheritsFromOrgOrProject: true,
+                                      access: [],
+                                      admins: [],
+                                  },
+                    })),
+            );
+            Object.assign(deps.composerChartModel, { findDashboardsShowing });
+            Object.assign(deps.spacePermissionService, { resolveAccessBatch });
+            const account = sessionAccount(
+                new Ability<PossibleAbilities>([
+                    { subject: 'SavedChart', action: 'view' as const },
+                    {
+                        subject: 'Dashboard',
+                        action: 'view' as const,
+                        conditions: { inheritsFromOrgOrProject: true },
+                    },
+                ]),
+            );
+
+            await expect(
+                deps.service.getDashboardsShowing(
+                    account,
+                    projectUuid,
+                    'chart-uuid',
+                ),
+            ).resolves.toEqual([{ uuid: 'visible', name: 'Visible' }]);
+        });
+
+        test('refuses a caller who cannot view the chart', async () => {
+            const deps = setupWrite();
+            const findDashboardsShowing = vi.fn(async () => []);
+            Object.assign(deps.composerChartModel, { findDashboardsShowing });
+            await expect(
+                deps.service.getDashboardsShowing(
+                    sessionAccount(new Ability<PossibleAbilities>([])),
+                    projectUuid,
+                    'chart-uuid',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(findDashboardsShowing).not.toHaveBeenCalled();
+        });
+    });
 
     describe('update', () => {
         test('renames a chart its space owns, checking write on that space', async () => {

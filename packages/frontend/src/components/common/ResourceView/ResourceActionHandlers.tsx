@@ -18,6 +18,7 @@ import { useCallback, useEffect, type FC } from 'react';
 import { RequestReviewModal } from '../../../ee/features/contentReview';
 import { MoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useAppPinningMutation } from '../../../features/apps/hooks/useAppPinningMutation';
+import { ComposerChartDeleteModal } from '../../../features/composerCharts/components/ComposerChartDeleteModal';
 import { ComposerChartUpdateModal } from '../../../features/composerCharts/components/ComposerChartUpdateModal';
 import { DeleteSqlChartModal } from '../../../features/sqlRunner/components/DeleteSqlChartModal';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
@@ -371,7 +372,16 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         />
                     );
                 case ResourceViewItemType.COMPOSER_CHART:
-                    return null;
+                    return (
+                        <ComposerChartDeleteModal
+                            opened
+                            projectUuid={projectUuid}
+                            composerChartUuid={action.item.data.uuid}
+                            name={action.item.data.name}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
                 default:
                     return assertUnreachable(
                         action.item,

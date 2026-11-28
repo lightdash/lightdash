@@ -149,6 +149,7 @@ const createService = ({
     };
     const composerChartService = {
         moveToSpace: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
     };
     const documentService = {
         delete: vi.fn().mockResolvedValue(undefined),
@@ -194,6 +195,7 @@ const createService = ({
         validationModel,
         directAccessService,
         documentService,
+        composerChartService,
     };
 };
 
@@ -1065,11 +1067,6 @@ describe('ContentService composer chart actions', () => {
 
     it.each([
         [
-            'delete',
-            (deps: ReturnType<typeof createService>) =>
-                deps.service.delete(createUser(), projectUuid, item),
-        ],
-        [
             'restore',
             (deps: ReturnType<typeof createService>) =>
                 deps.service.restoreContent(createUser(), projectUuid, item),
@@ -1094,16 +1091,32 @@ describe('ContentService composer chart actions', () => {
         await expect(act(deps)).rejects.toThrow(NotSupportedError);
     });
 
-    it('deletes nothing when a bulk delete mixes a composer chart in', async () => {
+    it('bulk delete deletes the rest and skips a composer chart the user may not delete', async () => {
         const deps = createService();
+        deps.composerChartService.delete.mockRejectedValueOnce(
+            new ForbiddenError(),
+        );
 
-        await expect(
-            deps.service.bulkDelete(createUser(), projectUuid, [
+        const results = await deps.service.bulkDelete(
+            createUser(),
+            projectUuid,
+            [
                 { uuid: 'dashboard-uuid', contentType: ContentType.DASHBOARD },
                 item,
-            ]),
-        ).rejects.toThrow(NotSupportedError);
-        expect(deps.dashboardService.delete).not.toHaveBeenCalled();
+            ],
+        );
+
+        expect(deps.dashboardService.delete).toHaveBeenCalled();
+        expect(results).toEqual({
+            deletedCount: 1,
+            skipped: [
+                {
+                    uuid: item.uuid,
+                    contentType: ContentType.COMPOSER_CHART,
+                    reason: 'You do not have permission to delete this content',
+                },
+            ],
+        });
     });
 });
 

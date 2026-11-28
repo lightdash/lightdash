@@ -932,7 +932,11 @@ export class ContentService extends BaseService {
                     'Data apps cannot be deleted via content actions',
                 );
             case ContentType.COMPOSER_CHART:
-                throw composerChartActionNotSupported('Deleting');
+                return this.composerChartService.delete(
+                    fromSession(user),
+                    projectUuid,
+                    item.uuid,
+                );
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }
@@ -953,10 +957,6 @@ export class ContentService extends BaseService {
         content: ApiContentBulkActionBody<ContentActionDelete>['content'],
     ): Promise<ContentBulkDeleteResults> {
         await this.assertProjectViewAccess(user, projectUuid);
-
-        if (content.some((c) => c.contentType === ContentType.COMPOSER_CHART)) {
-            throw composerChartActionNotSupported('Deleting');
-        }
 
         const skipped: ContentBulkDeleteResults['skipped'] = [];
         let deletedCount = 0;

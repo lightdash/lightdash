@@ -78,7 +78,7 @@ const renderMenu = () => {
 };
 
 describe('Composer chart resource actions', () => {
-    it('offers rename and move to a space editor', () => {
+    it('offers rename, move and delete to a space editor', () => {
         mocks.spaceRole = 'editor';
         mocks.canAsk = false;
         const onAction = renderMenu();
@@ -90,6 +90,11 @@ describe('Composer chart resource actions', () => {
         fireEvent.click(screen.getByRole('menuitem', { name: 'Move' }));
         expect(onAction).toHaveBeenCalledWith({
             type: ResourceViewItemAction.TRANSFER_TO_SPACE,
+            item,
+        });
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+        expect(onAction).toHaveBeenCalledWith({
+            type: ResourceViewItemAction.DELETE,
             item,
         });
     });

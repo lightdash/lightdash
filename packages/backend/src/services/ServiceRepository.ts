@@ -2045,6 +2045,7 @@ export class ServiceRepository
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     getQuerySourceService: () => this.getQuerySourceService(),
                     getAsyncQueryService: () => this.getAsyncQueryService(),
+                    lightdashConfig: this.context.lightdashConfig,
                 }),
         );
     }

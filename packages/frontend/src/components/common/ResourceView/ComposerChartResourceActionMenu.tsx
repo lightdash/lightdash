@@ -1,6 +1,11 @@
 import { type ResourceViewComposerChartItem } from '@lightdash/common';
 import { ActionIcon, Menu, Tooltip } from '@mantine/core';
-import { IconDots, IconEdit, IconFolderSymlink } from '@tabler/icons-react';
+import {
+    IconDots,
+    IconEdit,
+    IconFolderSymlink,
+    IconTrash,
+} from '@tabler/icons-react';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import { useAskAiAgentAction } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/useAskAiAgentAction';
 import { useCanWriteComposerChart } from '../../../features/composerCharts/hooks/useCanWriteComposerChart';
@@ -78,6 +83,23 @@ const ComposerChartResourceActionMenu = ({
                     </>
                 )}
                 {canAsk && <AskAiAgentMenuItem {...askAiProps} />}
+                {canWrite && (
+                    <>
+                        <Menu.Divider />
+                        <Menu.Item
+                            color="red"
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            onClick={() =>
+                                onAction({
+                                    type: ResourceViewItemAction.DELETE,
+                                    item,
+                                })
+                            }
+                        >
+                            Delete
+                        </Menu.Item>
+                    </>
+                )}
             </Menu.Dropdown>
         </Menu>
     );
