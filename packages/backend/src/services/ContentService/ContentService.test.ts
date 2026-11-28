@@ -14,6 +14,7 @@ import {
 import type { DeletedContentItem, SessionUser } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SpaceModel } from '../../models/SpaceModel';
 import type { ValidationModel } from '../../models/ValidationModel/ValidationModel';
@@ -93,6 +94,9 @@ const createService = ({
         Record<string, SpaceMemberRole[]>
     >;
 } = {}) => {
+    const featureFlagModel = {
+        get: vi.fn().mockResolvedValue({ enabled: false }),
+    };
     const projectModel = {
         getAllByOrganizationUuid: vi.fn().mockResolvedValue([
             {
@@ -174,6 +178,7 @@ const createService = ({
             validationModel: validationModel as unknown as ValidationModel,
             appMoveService: undefined,
             appGenerateService: undefined,
+            featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
         }),
         projectModel,
         savedChartService,

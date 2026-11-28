@@ -1,3 +1,17 @@
+# [3.441.0](https://github.com/lightdash/lightdash/compare/3.440.0...3.441.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** a space lists its composer charts under Charts, with counts ([#33599](https://github.com/lightdash/lightdash/issues/33599)) ([0ad90b6](https://github.com/lightdash/lightdash/commit/0ad90b6fe842a12839b7c14d51e9b0dd34dbc1a0))
+
+# [3.440.0](https://github.com/lightdash/lightdash/compare/3.439.0...3.440.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** search and the omnibar find space-owned composer charts ([#33598](https://github.com/lightdash/lightdash/issues/33598)) ([a36a4bf](https://github.com/lightdash/lightdash/commit/a36a4bf576b13c068ebde76ab71ee852aed7d0d2))
+
 # [3.439.0](https://github.com/lightdash/lightdash/compare/3.438.0...3.439.0) (2026-11-28)
 
 

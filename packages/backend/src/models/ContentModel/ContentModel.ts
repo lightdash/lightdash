@@ -15,6 +15,7 @@ import {
     AnalyticsDashboardViewsTableName,
 } from '../../database/entities/analytics';
 import KnexPaginate from '../../database/pagination';
+import { composerChartContentConfiguration } from './ContentConfigurations/ComposerChartContentConfiguration';
 import { dashboardContentConfiguration } from './ContentConfigurations/DashboardContentConfiguration';
 import { dataAppContentConfiguration } from './ContentConfigurations/DataAppContentConfiguration';
 import { dbtExploreChartContentConfiguration } from './ContentConfigurations/DbtExploreChartContentConfiguration';
@@ -44,6 +45,7 @@ export class ContentModel {
         spaceContentConfiguration,
         dataAppContentConfiguration,
         documentContentConfiguration,
+        composerChartContentConfiguration,
     ];
 
     constructor(args: { database: Knex }) {

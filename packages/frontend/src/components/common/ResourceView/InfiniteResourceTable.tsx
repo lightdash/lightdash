@@ -83,7 +83,11 @@ import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceActionMenu from './ResourceActionMenu';
 import AttributeCount from './ResourceAttributeCount';
 import ResourceLastEdited from './ResourceLastEdited';
-import { getResourceUrl, getViewStatsResourceType } from './resourceUtils';
+import {
+    getFilteredContentTypes,
+    getResourceUrl,
+    getViewStatsResourceType,
+} from './resourceUtils';
 import {
     ColumnVisibility,
     ResourceViewItemAction,
@@ -561,9 +565,10 @@ const InfiniteResourceTable = ({
     } = useInfiniteContent(
         {
             spaceUuids: filters.spaceUuids,
-            contentTypes: selectedContentType
-                ? [selectedContentType]
-                : filters.contentTypes,
+            contentTypes: getFilteredContentTypes(
+                selectedContentType,
+                filters.contentTypes,
+            ),
             projectUuids: [filters.projectUuid],
             page: 1,
             pageSize: 25,
@@ -1047,6 +1052,10 @@ const InfiniteResourceTable = ({
                       typeof contentTableProps.enableRowSelection === 'function'
                           ? contentTableProps.enableRowSelection(row)
                           : true;
+                  // No actions on composer charts yet, so nothing to select them for.
+                  if (isResourceViewComposerChartItem(row.original)) {
+                      return false;
+                  }
                   if (!allowed || !isResourceViewDocumentItem(row.original)) {
                       return allowed;
                   }

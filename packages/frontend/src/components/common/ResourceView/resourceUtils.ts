@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     ChartKind,
     ChartSourceType,
+    ContentType,
     ResourceViewItemType,
     getDocumentUrl,
     type ResourceViewChartItem,
@@ -160,4 +161,19 @@ export const getResourceViewsSinceWhenDescription = (
               item.data.firstViewedAt,
           ).format('MMM D, YYYY h:mm A')}`
         : undefined;
+};
+
+/** "Charts" covers composer charts too, where the listing asks for them. */
+const getChartContentTypes = (listed: ContentType[] | undefined) =>
+    listed?.includes(ContentType.COMPOSER_CHART)
+        ? [ContentType.CHART, ContentType.COMPOSER_CHART]
+        : [ContentType.CHART];
+
+export const getFilteredContentTypes = (
+    selected: ContentType | undefined,
+    listed: ContentType[] | undefined,
+): ContentType[] | undefined => {
+    if (selected === undefined) return listed;
+    if (selected === ContentType.CHART) return getChartContentTypes(listed);
+    return [selected];
 };

@@ -502,6 +502,7 @@ const Space: FC = () => {
                                 contentTypes: [
                                     ContentType.DASHBOARD,
                                     ContentType.CHART,
+                                    ContentType.COMPOSER_CHART,
                                     ContentType.SPACE,
                                     ContentType.DATA_APP,
                                     ContentType.DOCUMENT,
