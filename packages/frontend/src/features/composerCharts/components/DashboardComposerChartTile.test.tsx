@@ -4,6 +4,7 @@ import {
     type DashboardComposerChartTile as ComposerChartTile,
 } from '@lightdash/common';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDashboardTestStore } from '../../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
@@ -12,14 +13,16 @@ import DashboardComposerChartTile from './DashboardComposerChartTile';
 
 const drawMocks = vi.hoisted(() => ({
     chartType: 'cartesian' as string,
+    config: {} as object,
     hasFetchedAllRows: true,
+    drawThrows: false,
 }));
 
 vi.mock('../../../api');
 vi.mock('@lightdash/common', async (importOriginal) => ({
     ...(await importOriginal<object>()),
     getComposerChartDraw: () => ({
-        chartConfig: { type: drawMocks.chartType, config: {} },
+        chartConfig: { type: drawMocks.chartType, config: drawMocks.config },
         metricQuery: {},
         fields: {},
         columnOrder: [],
@@ -97,10 +100,19 @@ vi.mock('../../../providers/Dashboard/useDashboardTileStatusContext', () => ({
     ),
 }));
 vi.mock('./ComposerChartVisualization', () => ({
-    ComposerChartVisualization: () => null,
+    ComposerChartVisualization: () => {
+        if (drawMocks.drawThrows) throw new Error('Unexpected series type');
+        return null;
+    },
 }));
 vi.mock('./ComposerTileLineagePanel', () => ({
-    ComposerTileLineagePanel: () => null,
+    ComposerTileLineagePanel: ({
+        opened,
+        chart,
+    }: {
+        opened: boolean;
+        chart: ReactNode;
+    }) => (opened ? chart : null),
 }));
 vi.mock(
     '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton',
@@ -229,5 +241,35 @@ describe('DashboardComposerChartTile with a deleted chart', () => {
         expect(
             await screen.findByText('This chart has been deleted.'),
         ).toBeInTheDocument();
+    });
+});
+
+describe('DashboardComposerChartTile with a stored series type this build does not know', () => {
+    afterEach(() => {
+        cleanup();
+        drawMocks.config = {};
+        drawMocks.drawThrows = false;
+    });
+
+    it('keeps the tile and its menu', async () => {
+        drawMocks.chartType = ChartType.CARTESIAN;
+        drawMocks.config = {
+            layout: {},
+            eChartsConfig: { series: [{ type: 'waterfall' }] },
+        };
+        await openMenu();
+        expect(exportImageItem()).toBeInTheDocument();
+    });
+
+    it('keeps the tile when its chart fails to draw inside Lineage', async () => {
+        drawMocks.chartType = ChartType.CARTESIAN;
+        drawMocks.drawThrows = true;
+        await openMenu();
+        expect(screen.getAllByTestId('composer-chart-error')).toHaveLength(1);
+        fireEvent.click(screen.getByRole('menuitem', { name: 'View lineage' }));
+        expect(
+            await screen.findAllByTestId('composer-chart-error'),
+        ).toHaveLength(2);
+        expect(screen.getByTestId('tile-icon-more')).toBeInTheDocument();
     });
 });

@@ -2,8 +2,8 @@ import { subject } from '@casl/ability';
 import {
     ChartType,
     FeatureFlags,
-    getChartKind,
     getComposerChartExportLabels,
+    toComposerChartKind,
     type DashboardComposerChartTile as ComposerChartTile,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
@@ -21,6 +21,8 @@ import {
     useState,
     type ComponentProps,
     type FC,
+    type ReactElement,
+    type ReactNode,
     type RefObject,
 } from 'react';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../components/common/ChartDownload/chartDownloadUtils';
@@ -307,6 +309,23 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
           }
         : {};
 
+    // The Lineage panel draws the chart too, outside the tile body
+    const withChartBoundary = (
+        chartNode: ReactNode,
+        renderError: (message: string) => ReactElement,
+    ) => (
+        <Sentry.ErrorBoundary
+            beforeCapture={(scope) => scope.setTags(COMPOSER_CHART_SENTRY_TAGS)}
+            fallback={({ error }) =>
+                renderError(
+                    error instanceof Error ? error.message : String(error),
+                )
+            }
+        >
+            {chartNode}
+        </Sentry.ErrorBoundary>
+    );
+
     return (
         <TileBase
             {...props}
@@ -316,12 +335,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             isLoading={isLoading}
             hasError={errorMessage !== null}
             chartKind={
-                readyDraw
-                    ? getChartKind(
-                          readyDraw.chartConfig.type,
-                          readyDraw.chartConfig.config,
-                      )
-                    : null
+                readyDraw ? toComposerChartKind(readyDraw.chartConfig) : null
             }
             fullWidth={readyDraw?.chartConfig.type === ChartType.TABLE}
             extraMenuItems={
@@ -369,40 +383,31 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             ) : (
                 readyDraw &&
                 results.hasFetchedAllRows &&
-                projectUuid && (
-                    <Sentry.ErrorBoundary
-                        beforeCapture={(scope) =>
-                            scope.setTags(COMPOSER_CHART_SENTRY_TAGS)
-                        }
-                        fallback={({ error }) => (
-                            <TileError
-                                tileUuid={tile.uuid}
-                                minimal={minimal}
-                                message={
-                                    error instanceof Error
-                                        ? error.message
-                                        : String(error)
-                                }
-                            />
-                        )}
-                    >
-                        <ComposerChartVisualization
-                            key={chart?.versionUuid}
-                            projectUuid={projectUuid}
-                            composerChartUuid={composerChartUuid}
-                            dashboardUuid={dashboardUuid ?? null}
+                projectUuid &&
+                withChartBoundary(
+                    <ComposerChartVisualization
+                        key={chart?.versionUuid}
+                        projectUuid={projectUuid}
+                        composerChartUuid={composerChartUuid}
+                        dashboardUuid={dashboardUuid ?? null}
+                        tileUuid={tile.uuid}
+                        isDashboard
+                        isTitleHidden={!!tile.properties.hideTitle}
+                        minimal={minimal}
+                        draw={readyDraw}
+                        results={results}
+                        rows={rows}
+                        onScreenshotReady={handleScreenshotReady}
+                        onScreenshotError={handleScreenshotError}
+                        setEchartsRef={setEchartRef}
+                    />,
+                    (message) => (
+                        <TileError
                             tileUuid={tile.uuid}
-                            isDashboard
-                            isTitleHidden={!!tile.properties.hideTitle}
                             minimal={minimal}
-                            draw={readyDraw}
-                            results={results}
-                            rows={rows}
-                            onScreenshotReady={handleScreenshotReady}
-                            onScreenshotError={handleScreenshotError}
-                            setEchartsRef={setEchartRef}
+                            message={message}
                         />
-                    </Sentry.ErrorBoundary>
+                    ),
                 )
             )}
             {chart && projectUuid && (
@@ -415,22 +420,30 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                     run={run ?? null}
                     runError={runQuery.error?.error.message ?? null}
                     chart={
-                        readyDraw && results.hasFetchedAllRows ? (
-                            <ComposerChartVisualization
-                                projectUuid={projectUuid}
-                                composerChartUuid={composerChartUuid}
-                                dashboardUuid={dashboardUuid ?? null}
-                                tileUuid={tile.uuid}
-                                isDashboard
-                                isTitleHidden
-                                minimal
-                                draw={readyDraw}
-                                results={results}
-                                rows={rows}
-                                onScreenshotReady={noop}
-                                onScreenshotError={noop}
-                            />
-                        ) : null
+                        readyDraw && results.hasFetchedAllRows
+                            ? withChartBoundary(
+                                  <ComposerChartVisualization
+                                      projectUuid={projectUuid}
+                                      composerChartUuid={composerChartUuid}
+                                      dashboardUuid={dashboardUuid ?? null}
+                                      tileUuid={tile.uuid}
+                                      isDashboard
+                                      isTitleHidden
+                                      minimal
+                                      draw={readyDraw}
+                                      results={results}
+                                      rows={rows}
+                                      onScreenshotReady={noop}
+                                      onScreenshotError={noop}
+                                  />,
+                                  (message) => (
+                                      <ComposerTileErrorState
+                                          message={message}
+                                          minimal={false}
+                                      />
+                                  ),
+                              )
+                            : null
                     }
                 />
             )}

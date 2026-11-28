@@ -2080,6 +2080,46 @@ describe('Composer charts', () => {
             }
         });
 
+        it('renames a chart through MCP edit_content given the uuid its read link carries', async () => {
+            const space = await createSpace();
+            const created = await postChart(composerSpaceChartBody(space.uuid));
+            expect(created.status).toBe(201);
+            const chart = created.body.results;
+            const adminMcp = await openMcpSession(admin);
+            try {
+                const renamed = await adminMcp('edit_content', {
+                    projectUuid,
+                    type: 'composer_chart',
+                    slug: chart.uuid,
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/name',
+                            value: 'Renamed by uuid',
+                        },
+                    ],
+                });
+                expect(mcpText(renamed)).toContain('"name": "Renamed by uuid"');
+                expect(
+                    (
+                        await admin.get<Body<ComposerChart>>(
+                            `${chartsUrl}/${chart.uuid}`,
+                        )
+                    ).body.results,
+                ).toMatchObject({
+                    name: 'Renamed by uuid',
+                    slug: chart.slug,
+                    versionUuid: chart.versionUuid,
+                });
+            } finally {
+                for (const { client, uuid } of personalAccessTokens.splice(0)) {
+                    await client.delete(
+                        `/api/v1/user/me/personal-access-tokens/${uuid}`,
+                    );
+                }
+            }
+        });
+
         describe('agent and MCP create into a space', () => {
             it('MCP create_content saves into a space and links its page; refuses a space viewer and a missing space', async () => {
                 const privateSpace = await createSpace(false);
