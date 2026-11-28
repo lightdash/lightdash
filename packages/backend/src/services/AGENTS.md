@@ -178,7 +178,7 @@ Space
     └── Schedulers
 ```
 
-Documents and space-owned composer charts instead follow the Space in SQL, inside `SpaceModel.softDelete`/`restore`: stamped with the Space's `deleted_at` and deleter, and restored only when both match, so content deleted earlier stays deleted.
+Documents and space-owned composer charts instead follow the Space in SQL, inside `SpaceModel.softDelete`/`restore`: stamped with the Space's `deleted_at` and deleter, and restored only when both match (for composer charts, also a deleter cleared by account removal), so content deleted earlier stays deleted.
 
 Permanent delete relies on DB CASCADE for cleanup (schedulers FK to charts/dashboards).
 
