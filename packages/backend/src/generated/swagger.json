@@ -81065,6 +81065,36 @@
                 "type": "object",
                 "description": "A rename of a space-owned chart: no new version, the slug unchanged. An omitted field keeps its value."
             },
+            "ComposerChartDashboard": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object",
+                "description": "A dashboard whose latest version has a tile for the chart."
+            },
+            "ApiComposerChartDashboardsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ComposerChartDashboard"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ComposerChartParameters": {
                 "properties": {
                     "parameterDefinitions": {
@@ -82278,7 +82308,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.443.0",
+        "version": "3.444.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -130114,6 +130144,102 @@
                         }
                     }
                 }
+            },
+            "delete": {
+                "operationId": "deleteComposerChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Deletes a composer chart that a space owns. With soft delete on, the\nserver keeps the chart marked as deleted. With soft delete off, it\ndeletes the chart permanently. Dashboard tiles that show the chart stay and\nshow it as deleted. Requires permission to delete charts in the\nchart's space. Returns 400 for a composer chart that a dashboard owns,\nbecause deleting its tile deletes that chart.",
+                "summary": "Delete composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "composerChartUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}/dashboards": {
+            "get": {
+                "operationId": "getComposerChartDashboards",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartDashboardsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Lists the dashboards whose latest version has a tile that shows the\ncomposer chart. Leaves out dashboards the caller cannot view. Anyone\nwho can view the chart can read the list.",
+                "summary": "List dashboards showing composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "composerChartUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}/parameters": {
