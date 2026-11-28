@@ -225,20 +225,34 @@ artifact
 **Composer chart**:
 A saved chart whose definition is a pipeline and a chart config. It is saved
 from a composer artifact version and keeps no link to the thread or the
-agent. It belongs to one owner. Running it never changes it.
+agent. It belongs to one owner, a dashboard or a space. Running it never
+changes it.
 _Avoid_: pipeline chart, saved composer query, composer tile (the dashboard
 tile that shows one)
 
 **Owner**:
 The dashboard or space a composer chart belongs to. A chart has one owner,
-never both. Access to the chart follows its owner. Today every owner is a
-dashboard.
+never both. Access to the chart follows its owner. A dashboard tile shows a
+chart its own dashboard owns or one a space owns.
 _Avoid_: parent, container, location, home
 
 **Bound run**:
 A run of a stored chart's pipeline for someone viewing it. Only the stored
 nodes run, and the viewer's own write permissions are not checked.
 _Avoid_: viewer run, document run
+
+**Chart run**:
+A bound run of a space-owned composer chart outside any dashboard, as on its
+own page or for the agent. A value saved on a node beats the parameter's
+default, and a value passed with the run beats both; no dashboard filters or
+date zoom apply.
+_Avoid_: standalone run, page run
+
+**Tile run**:
+A bound run of a composer chart shown on a dashboard tile, on whichever
+dashboard holds the tile. The dashboard's filters, parameters and date zoom
+apply, and a parameter's default beats a value saved on a node.
+_Avoid_: dashboard run, owner run
 
 **Run binding**:
 The server-only proof a bound run carries: who is viewing, which stored chart,

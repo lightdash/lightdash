@@ -20,11 +20,10 @@ import {
 } from '@lightdash/common';
 import { buildLiveExplores, getLiveBaseLayer } from './explores/build';
 import { assertLiveQuery } from './explores/definition';
-import { getInitialLiveSourceFieldEdits } from './explores/fields';
 import { type LiveCapabilities } from './types';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
-// One entry per integration, with the built-in fields every case uses, by
+// One entry per integration, with the declared fields every case uses, by
 // semantic-layer name. Every case below reads what each integration declares.
 const SOURCES = [
     {
@@ -108,13 +107,13 @@ const SOURCES = [
     },
     {
         apiSource: { connector: ApiConnectorType.ATTIO },
-        // Built-in fields only: attributes come from a scan. No metrics.
+        // Declared fields only: attributes come from a scan. No metrics.
         fields: { dimension: 'record_id', other: 'record_id' },
         date: 'created_at',
     },
     {
         apiSource: { connector: ApiConnectorType.HUBSPOT, object: 'deals' },
-        // Built-in fields only: properties come from a scan. Count is the
+        // Declared fields only: properties come from a scan. Count is the
         // search total, so cases filter on dimensions instead of selecting them
         fields: {
             dimension: 'record_id',
@@ -126,7 +125,7 @@ const SOURCES = [
     },
     {
         apiSource: { connector: ApiConnectorType.SALESFORCE },
-        // Built-in fields only: the object's fields come from a scan
+        // Declared fields only: the object's fields come from a scan
         fields: {
             dimension: 'record_id',
             other: 'created_at_day',
@@ -155,11 +154,6 @@ const build = (connector: ApiConnectorType): Explore => {
         sourceName: connector,
         name: 'Source',
         apiSource,
-        scannedFields: [],
-        edits: getInitialLiveSourceFieldEdits({
-            scannedFields: [],
-            isExistingSource: true,
-        }),
     });
     return explore;
 };
@@ -707,7 +701,7 @@ describe('connector capability declarations', () => {
             });
         });
 
-        test('every built-in metric has a reviewed additivity tag', () => {
+        test('every declared metric has a reviewed additivity tag', () => {
             definitions.forEach(({ metrics }) => {
                 metrics.forEach((metric) => {
                     expect([metric.name, metric.aggregation]).toEqual([

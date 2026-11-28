@@ -1,5 +1,11 @@
+import { ParameterError } from '@lightdash/common';
 import { z } from 'zod';
+import { jsonRequest } from '../../sdk';
 import { type HydraDataset } from './data';
+import {
+    hydraObjectReportSchema,
+    type HydraObjectReportRequest,
+} from './objects';
 
 /** What each of Hydra's reports groups by and totals. */
 export const HYDRA_REPORTS = {
@@ -56,7 +62,7 @@ export const hydraReportSchema = z
                     .strict(),
             )
             .default([]),
-        // Agents often copy the API's own limit; the smaller limit wins.
+        // Agents often copy a limit of their own; the smaller limit wins.
         limit: z.number().int().positive().optional(),
     })
     .strict()
@@ -106,6 +112,29 @@ export const hydraReportSchema = z
 
 export type HydraReportRequest = z.infer<typeof hydraReportSchema>;
 
+/** A report on the events or users explore, or on one workspace object (`object`). */
+export type HydraRequest = HydraReportRequest | HydraObjectReportRequest;
+
+export const isHydraObjectRequest = (
+    request: HydraRequest,
+): request is HydraObjectReportRequest => 'object' in request;
+
+const readReport = jsonRequest('Hydra', hydraReportSchema);
+const readObjectReport = jsonRequest('Hydra object', hydraObjectReportSchema);
+
+/** Reads a report on the events or users explore, or on an object when it names one. */
+export const parseHydraRequest = (query: string): HydraRequest => {
+    let json: unknown;
+    try {
+        json = JSON.parse(query);
+    } catch {
+        throw new ParameterError('The Hydra request must be a JSON object');
+    }
+    return typeof json === 'object' && json !== null && 'object' in json
+        ? readObjectReport(query)
+        : readReport(query);
+};
+
 export type HydraReportRow = Record<string, string | number>;
 
 const toMonday = (isoDate: string) => {
@@ -141,7 +170,7 @@ const compare = (a: string | number, b: string | number) => {
 };
 
 /**
- * Runs a report the way Hydra's API would: filters, groups, totals and
+ * Runs a report over the seeded rows: filters, groups, totals and
  * sorts every matching row. Returns every group; the caller cuts it.
  */
 export const runHydraReport = (

@@ -3768,6 +3768,37 @@ describe('AiAgentToolsService', () => {
             ).rejects.toThrow(NotFoundError);
         });
 
+        it('reads the chart in its own space and refuses one in another space with the same path', async () => {
+            const chartIn = (slug: string, spaceUuid: string) => ({
+                composerChart: {
+                    ...composerChartAsCode,
+                    slug,
+                    dashboardSlug: null,
+                    spaceSlug: 'shared',
+                },
+                spaceUuid,
+            });
+            const { service } = makeComposerService({
+                getComposerChartForRead: vi.fn(async (_a, _p, slug: string) =>
+                    slug === 'mine'
+                        ? chartIn('mine', 'allowed-space-uuid')
+                        : chartIn('theirs', 'other-space-uuid'),
+                ),
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.readContent({ type: 'composer_chart', slug: 'mine' }),
+            ).resolves.toMatchObject({
+                href: `/projects/${projectUuid}/spaces/allowed-space-uuid`,
+            });
+            await expect(
+                runtime.readContent({ type: 'composer_chart', slug: 'theirs' }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
         it('reports composer charts as not found with the composer charts flag off', async () => {
             const { service, run } = makeComposerService({
                 flagEnabled: false,

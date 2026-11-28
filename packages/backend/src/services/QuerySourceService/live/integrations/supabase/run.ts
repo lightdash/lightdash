@@ -1,28 +1,25 @@
 import {
     DimensionType,
     getSupabaseTablePath,
-    ParameterError,
-    SUPABASE_REST_PATH,
     type ApiConnectorType,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
-import { readRowsWithinCap } from '../../query/rows';
 import {
-    type LiveCalls,
+    assertMaxRows,
+    readRowsWithinCap,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-    type LiveScanResult,
-} from '../../types';
+} from '../../sdk';
 
 const LABEL = 'Supabase';
 
 /** Supabase's default max-rows: the most rows one Data API call returns. */
-const PAGE_SIZE = 1_000;
+export const SUPABASE_PAGE_SIZE = 1_000;
 export const SUPABASE_MAX_PAGES = 5;
 /** One fewer than the pages hold, so reading every page detects a cut-off result. */
-export const SUPABASE_MAX_QUERY_ROWS = PAGE_SIZE * SUPABASE_MAX_PAGES - 1;
+export const SUPABASE_MAX_QUERY_ROWS =
+    SUPABASE_PAGE_SIZE * SUPABASE_MAX_PAGES - 1;
 
 const FILTER_OPERATORS = [
     'eq',
@@ -200,7 +197,7 @@ export const runSupabaseQuery = async ({
     settings,
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.SUPABASE,
     SupabaseRequest
@@ -212,11 +209,11 @@ export const runSupabaseQuery = async ({
         label: LABEL,
         requestedRows,
         maxRows: SUPABASE_MAX_QUERY_ROWS,
-        pageSize: PAGE_SIZE,
+        pageSize: SUPABASE_PAGE_SIZE,
         maxPages: SUPABASE_MAX_PAGES,
         fetchPage: async ({ limit: pageLimit, cursor }) => {
             const offset = cursor ? Number(cursor) : 0;
-            const page = await calls.fetch(
+            const page = await runtime.fetch(
                 {
                     method: 'GET',
                     path: getSupabaseTablePath(settings.table),
@@ -252,36 +249,4 @@ export const runSupabaseQuery = async ({
         rows,
         hasMoreRows,
     };
-};
-
-const openApiSchema = z.object({
-    definitions: z.record(z.string(), z.unknown()).optional(),
-});
-
-/**
- * Reads the table's columns from the Data API's OpenAPI description. Only
- * secret (service role) keys may read it, and only tables the key can see
- * are listed.
- */
-export const scanSupabaseTable = async ({
-    settings,
-    calls,
-}: {
-    settings: { table: string };
-    calls: LiveCalls;
-}): Promise<LiveScanResult> => {
-    const description = await calls.fetch(
-        { method: 'GET', path: SUPABASE_REST_PATH, body: undefined },
-        openApiSchema,
-    );
-    const definitions = description.definitions ?? {};
-    if (!Object.hasOwn(definitions, settings.table)) {
-        const known = Object.keys(definitions).slice(0, 10);
-        throw new ParameterError(
-            `Supabase has no table or view called "${settings.table}" in the exposed schema${
-                known.length > 0 ? `; it has ${known.join(', ')}` : ''
-            }. Check the table name, and that the schema is exposed in the project's Data API settings.`,
-        );
-    }
-    return { supabaseTable: definitions[settings.table] };
 };

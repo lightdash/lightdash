@@ -1,41 +1,15 @@
 import {
-    DimensionType,
-    FilterOperator,
-    MetricType,
     ParameterError,
     type LiveSourceExploreChange,
     type LiveSourceField,
     type LiveSourceFieldChange,
     type LiveSourceFieldEditor,
 } from '@lightdash/common';
-import { z } from 'zod';
 import {
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveMetricDefinition,
 } from './definition';
-
-/**
- * A field the integration offered at its last scan, beyond the built-in ones.
- * `model` names the explore it belongs to; absent, it is the first explore's.
- */
-export type ScannedLiveSourceField = (
-    | {
-          kind: 'dimension';
-          definition: LiveDimensionDefinition;
-          isInternal: boolean;
-      }
-    | {
-          kind: 'metric';
-          definition: LiveMetricDefinition;
-          isInternal: boolean;
-      }
-) & { model?: string };
-
-export type LiveSourceScan = {
-    scannedAt: string;
-    fields: ScannedLiveSourceField[];
-};
 
 /** What an admin or the agent changed on one field; unset keys keep the default. */
 export type LiveSourceFieldEdit = {
@@ -49,8 +23,8 @@ export type LiveSourceFieldEdit = {
 
 /**
  * Edits by field name. The first explore's fields keep their bare name;
- * another scanned explore's are keyed `<model>.<name>`, so stored edits from
- * before several explores were scanned read the same.
+ * every other explore's are keyed `<model>.<name>`, so stored edits from
+ * before several explores could be curated read the same.
  */
 export type LiveSourceFieldEdits = Record<string, LiveSourceFieldEdit>;
 
@@ -58,40 +32,27 @@ export type LiveSourceFieldEdits = Record<string, LiveSourceFieldEdit>;
 export const getLiveFieldEditKey = (model: string | null, name: string) =>
     model === null ? name : `${model}.${name}`;
 
-/** One scanned explore's scanned fields and edits, keyed by bare field name. */
-export const getLiveModelFieldInputs = ({
-    model,
-    scannedFields,
-    edits,
-}: {
-    model: string | null;
-    scannedFields: ScannedLiveSourceField[];
-    edits: LiveSourceFieldEdits;
-}): {
-    scannedFields: ScannedLiveSourceField[];
-    edits: LiveSourceFieldEdits;
-} => {
+/** One explore's edits, keyed by bare field name; `model` is null for the first explore. */
+export const getLiveModelEdits = (
+    edits: LiveSourceFieldEdits,
+    model: string | null,
+): LiveSourceFieldEdits => {
     const prefix = model === null ? null : `${model}.`;
-    return {
-        scannedFields: scannedFields.filter(
-            (field) => (field.model ?? null) === model,
-        ),
-        edits: Object.fromEntries(
-            Object.entries(edits).flatMap(([key, edit]) => {
-                if (prefix === null) {
-                    return key.includes('.') ? [] : [[key, edit]];
-                }
-                return key.startsWith(prefix)
-                    ? [[key.slice(prefix.length), edit]]
-                    : [];
-            }),
-        ),
-    };
+    return Object.fromEntries(
+        Object.entries(edits).flatMap(([key, edit]) => {
+            if (prefix === null) {
+                return key.includes('.') ? [] : [[key, edit]];
+            }
+            return key.startsWith(prefix)
+                ? [[key.slice(prefix.length), edit]]
+                : [];
+        }),
+    );
 };
 
 /** What an admin changed on one explore; unset keys keep the default. */
 export type LiveSourceExploreEdit = {
-    /** Missing means on, so explores added later start on. */
+    /** Missing, the explore is on unless its definition says otherwise. */
     inUse?: boolean;
     label?: string;
     description?: string;
@@ -109,274 +70,129 @@ export const getLiveExploreEdit = (
 ): LiveSourceExploreEdit | undefined =>
     Object.hasOwn(edits, model) ? edits[model] : undefined;
 
-/** Whether the explore is built; it is unless an admin switched it off. */
+/**
+ * Whether the explore is built: as an admin set it, else as its definition
+ * starts (on, unless `onByDefault` is false).
+ */
 export const isLiveExploreInUse = (
     edits: LiveSourceExploreEdits,
     model: string,
-): boolean => getLiveExploreEdit(edits, model)?.inUse !== false;
+    onByDefault: boolean = true,
+): boolean => getLiveExploreEdit(edits, model)?.inUse ?? onByDefault;
 
-/** How a source's fields are curated, as stored next to its settings. */
-export type LiveSourceFieldState = {
-    lastScan: LiveSourceScan | null;
-    /** Absent until the source's first build under curation. */
-    fields: LiveSourceFieldEdits | null;
-    explores: LiveSourceExploreEdits;
-    aiHint: string | null;
-    targetLabel: string | null;
-    /** Tags the source's explores carry, for AI agents limited to tags. */
-    tags: string[];
-};
+type LiveFieldDefinition = LiveDimensionDefinition | LiveMetricDefinition;
 
-const fieldDefinitionSchema = z.object({
-    name: z.string(),
-    apiName: z.string(),
-    label: z.string(),
-    description: z.string().optional(),
-    filterOperators: z.array(z.nativeEnum(FilterOperator)),
-    sql: z.string().optional(),
-    valueLabels: z.record(z.string(), z.string()).optional(),
-});
-
-const scannedFieldSchema = z.discriminatedUnion('kind', [
-    z.object({
-        kind: z.literal('dimension'),
-        definition: fieldDefinitionSchema.extend({
-            type: z.nativeEnum(DimensionType),
-        }),
-        isInternal: z.boolean(),
-        model: z.string().optional(),
-    }),
-    z.object({
-        kind: z.literal('metric'),
-        definition: fieldDefinitionSchema.extend({
-            type: z.nativeEnum(MetricType),
-            format: z.string().optional(),
-        }),
-        isInternal: z.boolean(),
-        model: z.string().optional(),
-    }),
-]);
-
-const editorSchema = z.object({
-    userUuid: z.string(),
-    userName: z.string(),
-    at: z.string(),
-});
-
-const fieldStateSchema = z.object({
-    aiHint: z.string().nullish().catch(null),
-    targetLabel: z.string().nullish().catch(null),
-    tags: z.array(z.string()).nullish().catch(null),
-    lastScan: z
-        .object({
-            scannedAt: z.string(),
-            fields: z.array(scannedFieldSchema),
-        })
-        .nullish(),
-    fields: z
-        .record(
-            z.string(),
-            z.object({
-                inUse: z.boolean().optional(),
-                label: z.string().optional(),
-                description: z.string().optional(),
-                aiHint: z.string().optional(),
-                group: z.string().nullable().optional(),
-                lastEdit: editorSchema.nullable(),
-            }),
-        )
-        .nullish(),
-    explores: z
-        .record(
-            z.string(),
-            z.object({
-                inUse: z.boolean().optional(),
-                label: z.string().optional(),
-                description: z.string().optional(),
-                aiHint: z.string().optional(),
-                lastEdit: editorSchema.nullish(),
-            }),
-        )
-        .nullish()
-        .catch(null),
-});
-
-/** Reads the curation keys of a stored `api_source`; unreadable keys read as absent. */
-export const parseLiveSourceFieldState = (
-    apiSource: unknown,
-): LiveSourceFieldState => {
-    const parsed = fieldStateSchema.safeParse(apiSource);
-    if (!parsed.success) {
-        return {
-            lastScan: null,
-            fields: null,
-            explores: {},
-            aiHint: null,
-            targetLabel: null,
-            tags: [],
-        };
-    }
-    return {
-        lastScan: parsed.data.lastScan ?? null,
-        fields: parsed.data.fields ?? null,
-        explores: parsed.data.explores ?? {},
-        aiHint: parsed.data.aiHint ?? null,
-        targetLabel: parsed.data.targetLabel ?? null,
-        tags: parsed.data.tags ?? [],
-    };
-};
-
-type ResolvedField = {
-    kind: 'dimension' | 'metric';
-    definition: LiveDimensionDefinition | LiveMetricDefinition;
-    isBuiltIn: boolean;
-    isInternal: boolean;
-    edit: LiveSourceFieldEdit | null;
-};
-
-const resolveFields = ({
-    base,
-    scannedFields,
-}: {
-    base: LiveExploreDefinition;
-    scannedFields: ScannedLiveSourceField[];
-}) => {
-    const builtInNames = new Set([
-        ...base.dimensions.map(({ name }) => name),
-        ...base.metrics.map(({ name }) => name),
-    ]);
-    return [
-        ...base.dimensions.map((definition) => ({
+/** An explore's fields with their kind: declared ones first, then the ones `extend` added. */
+const resolveFields = (
+    definition: LiveExploreDefinition,
+    declaredNames: ReadonlySet<string>,
+) => {
+    const fields = [
+        ...definition.dimensions.map((field) => ({
             kind: 'dimension' as const,
-            definition,
-            isBuiltIn: true,
-            isInternal: false,
+            definition: field as LiveFieldDefinition,
         })),
-        ...base.metrics.map((definition) => ({
+        ...definition.metrics.map((field) => ({
             kind: 'metric' as const,
-            definition,
-            isBuiltIn: true,
-            isInternal: false,
+            definition: field as LiveFieldDefinition,
         })),
-        ...scannedFields
-            .filter(({ definition }) => !builtInNames.has(definition.name))
-            .map((field) => ({ ...field, isBuiltIn: false })),
+    ].map((field) => ({
+        ...field,
+        isDeclared: declaredNames.has(field.definition.name),
+    }));
+    return [
+        ...fields.filter(({ isDeclared }) => isDeclared),
+        ...fields.filter(({ isDeclared }) => !isDeclared),
     ];
 };
 
 /** The field every query on the explore filters by; it can never be taken out of use. */
-export const getRequiredFieldNames = (base: LiveExploreDefinition) =>
-    base.dateRange ? [base.dateRange.dimension] : [];
+export const getRequiredFieldNames = (definition: LiveExploreDefinition) =>
+    definition.dateRange ? [definition.dateRange.dimension] : [];
 
+/**
+ * Whether a field is built: always when every query needs it, else as an
+ * admin set it, else as its definition starts.
+ */
 const isFieldInUse = (
-    field: Omit<ResolvedField, 'edit'>,
+    field: LiveFieldDefinition,
     edit: LiveSourceFieldEdit | undefined,
     required: Set<string>,
-) => required.has(field.definition.name) || (edit?.inUse ?? field.isBuiltIn);
+) => required.has(field.name) || (edit?.inUse ?? field.onByDefault ?? true);
 
-/** Every field of a source with its current state, for the Fields page and the agent. */
+const getEdit = (edits: LiveSourceFieldEdits, name: string) =>
+    Object.hasOwn(edits, name) ? edits[name] : undefined;
+
+/** Every field of one explore with its current state, for the Fields page and the agent. */
 export const listLiveSourceFields = ({
-    base,
-    scannedFields,
+    definition,
+    declaredNames,
     edits,
     usageByFieldName,
 }: {
-    base: LiveExploreDefinition;
-    scannedFields: ScannedLiveSourceField[];
+    definition: LiveExploreDefinition;
+    /** The fields the integration's code declares, as opposed to ones a Refresh found. */
+    declaredNames: ReadonlySet<string>;
+    /** The explore's edits, keyed by bare field name. */
     edits: LiveSourceFieldEdits;
     usageByFieldName: Record<string, number>;
 }): LiveSourceField[] => {
-    const required = new Set(getRequiredFieldNames(base));
-    return resolveFields({ base, scannedFields }).map((field) => {
-        const edit = Object.hasOwn(edits, field.definition.name)
-            ? edits[field.definition.name]
-            : undefined;
-        return {
-            name: field.definition.name,
-            apiName: field.definition.apiName,
-            kind: field.kind,
-            type: field.definition.type,
-            label: edit?.label ?? field.definition.label,
-            description:
-                edit?.description ?? field.definition.description ?? '',
-            aiHint: edit?.aiHint ?? field.definition.aiHint ?? null,
-            group: edit?.group ?? null,
-            isBuiltIn: field.isBuiltIn,
-            isInternal: field.isInternal,
-            isRequired: required.has(field.definition.name),
-            inUse: isFieldInUse(field, edit, required),
-            usedByChartCount: usageByFieldName[field.definition.name] ?? 0,
-            lastEdit: edit?.lastEdit ?? null,
-        };
-    });
+    const required = new Set(getRequiredFieldNames(definition));
+    return resolveFields(definition, declaredNames).map(
+        ({ kind, definition: field, isDeclared }) => {
+            const edit = getEdit(edits, field.name);
+            return {
+                name: field.name,
+                apiName: field.apiName,
+                kind,
+                type: field.type,
+                label: edit?.label ?? field.label,
+                description: edit?.description ?? field.description ?? '',
+                aiHint: edit?.aiHint ?? field.aiHint ?? null,
+                group: edit?.group ?? null,
+                isBuiltIn: isDeclared,
+                isInternal: field.onByDefault === false,
+                isRequired: required.has(field.name),
+                inUse: isFieldInUse(field, edit, required),
+                usedByChartCount: usageByFieldName[field.name] ?? 0,
+                lastEdit: edit?.lastEdit ?? null,
+            };
+        },
+    );
 };
 
 /** The explore definition with only the fields in use, edits applied. */
 export const applyLiveSourceFieldEdits = ({
-    base,
-    scannedFields,
+    definition,
     edits,
 }: {
-    base: LiveExploreDefinition;
-    scannedFields: ScannedLiveSourceField[];
+    definition: LiveExploreDefinition;
+    /** The explore's edits, keyed by bare field name. */
     edits: LiveSourceFieldEdits;
 }): LiveExploreDefinition => {
-    const required = new Set(getRequiredFieldNames(base));
-    const inUse = resolveFields({ base, scannedFields }).flatMap((field) => {
-        const edit = Object.hasOwn(edits, field.definition.name)
-            ? edits[field.definition.name]
-            : undefined;
-        if (!isFieldInUse(field, edit, required)) {
-            return [];
-        }
-        return [
-            {
-                ...field,
-                definition: {
-                    ...field.definition,
-                    label: edit?.label ?? field.definition.label,
-                    description:
-                        edit?.description ?? field.definition.description,
+    const required = new Set(getRequiredFieldNames(definition));
+    const curate = <F extends LiveFieldDefinition>(fields: F[]): F[] =>
+        fields.flatMap((field) => {
+            const edit = getEdit(edits, field.name);
+            if (!isFieldInUse(field, edit, required)) {
+                return [];
+            }
+            return [
+                {
+                    ...field,
+                    label: edit?.label ?? field.label,
+                    description: edit?.description ?? field.description,
                     ...(edit?.aiHint ? { aiHint: edit.aiHint } : {}),
                     ...(edit?.group ? { groups: [edit.group] } : {}),
                 },
-            },
-        ];
-    });
+            ];
+        });
     return {
-        ...base,
-        dimensions: inUse.flatMap((field) =>
-            field.kind === 'dimension'
-                ? [field.definition as LiveDimensionDefinition]
-                : [],
-        ),
-        metrics: inUse.flatMap((field) =>
-            field.kind === 'metric'
-                ? [field.definition as LiveMetricDefinition]
-                : [],
-        ),
+        ...definition,
+        dimensions: curate(definition.dimensions),
+        metrics: curate(definition.metrics),
     };
 };
-
-/**
- * The edits a source starts curation with. A source built before curation
- * keeps every scanned field it already had in use, so its charts keep working.
- */
-export const getInitialLiveSourceFieldEdits = ({
-    scannedFields,
-    isExistingSource,
-}: {
-    scannedFields: ScannedLiveSourceField[];
-    isExistingSource: boolean;
-}): LiveSourceFieldEdits =>
-    isExistingSource
-        ? Object.fromEntries(
-              scannedFields.map(({ definition, model }) => [
-                  getLiveFieldEditKey(model ?? null, definition.name),
-                  { inUse: true, lastEdit: null },
-              ]),
-          )
-        : {};
 
 const MAX_FIELD_TEXT_LENGTH = 2000;
 
@@ -472,9 +288,7 @@ export type LiveSourceExploreModelChange = Omit<
 
 /**
  * Applies explore changes to the stored edits and stamps each changed
- * explore with its editor. Switching an explore on drops `inUse`, so the
- * edits only ever store explores that are off. Fails on an empty label or
- * text over the limit.
+ * explore with its editor. Fails on an empty label or text over the limit.
  */
 export const applyLiveSourceExploreChanges = ({
     current,
@@ -514,13 +328,10 @@ export const applyLiveSourceExploreChanges = ({
             const text = value?.trim();
             return text ? { ...rest, [key]: text } : rest;
         }, existing);
-        const { inUse: _inUse, ...withoutInUse } = texts;
-        let next = texts;
-        if (change.inUse !== undefined) {
-            next = change.inUse
-                ? withoutInUse
-                : { ...withoutInUse, inUse: false };
-        }
+        const next =
+            change.inUse === undefined
+                ? texts
+                : { ...texts, inUse: change.inUse };
         return { ...edits, [change.model]: { ...next, lastEdit: editor } };
     }, current);
 };

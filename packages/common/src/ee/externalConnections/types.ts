@@ -79,6 +79,20 @@ export type SupabaseApiSource = {
     table: string;
 };
 
+/**
+ * The projects of a Sentry organization a source reads, with an internal
+ * integration's token. The token reads every project of the organization,
+ * so the source names the ones it may read. The connection's origin says
+ * where the data lives.
+ */
+export type SentryApiSource = {
+    connector: ApiConnectorType.SENTRY;
+    /** The organization slug, as in https://<slug>.sentry.io. */
+    organizationSlug: string;
+    /** Slugs of the only projects the source reads, such as an app's. */
+    projectSlugs: string[];
+};
+
 /** A Pylon workspace; the API token decides which one. */
 export type PylonApiSource = {
     connector: ApiConnectorType.PYLON;
@@ -163,73 +177,38 @@ export type MixpanelApiSource = {
 };
 
 /**
- * Hydra, the test integration: its rows are seeded from the sign-in token,
- * and these settings make its fake API slow, fail, page or rate limit.
- * Every setting is optional; one left out takes its default
- * (`HYDRA_DEFAULT_SETTINGS`).
+ * Hydra, an integration with seeded data and no vendor behind it: it
+ * answers from rows it makes itself, so it calls nothing. Every setting is
+ * optional; one left out takes its default (`HYDRA_DEFAULT_SETTINGS`).
  */
 export type HydraApiSource = {
     connector: ApiConnectorType.HYDRA;
-    /** Events seeded per sign-in token, over the last 90 days. */
+    /** Events seeded, over the last 90 days. */
     rowCount?: number;
-    /** Rows per call, 10 or more; a bigger report takes several calls. 0 never pages. */
-    pageSize?: number;
-    /** Milliseconds each call waits before answering. */
-    latencyMs?: number;
-    /** Up to this many milliseconds more, at random, per call. */
-    jitterMs?: number;
-    /** Share of calls, 0 to 1, that fail with a 500. */
-    errorRate?: number;
-    /** Every call answers 401, as a revoked sign-in would. */
-    failAuth?: boolean;
-    /** The limits Hydra's API enforces, refusing calls past them; null enforces none. */
-    vendorLimits?: HydraRateLimits | null;
-    /** How Hydra refuses a call past `vendorLimits`. */
-    onLimit?: HydraOnLimit;
-    /**
-     * The limits Lightdash keeps the source's calls under: "vendor" copies
-     * `vendorLimits`, and null declares none.
-     */
-    declaredLimits?: 'vendor' | HydraRateLimits | null;
-    /** Fake answers a test sets for given calls, counted per source from 1; the first match wins. */
-    mockResponses?: HydraMockResponse[];
+    /** Objects the workspace made; each becomes an explore, as a CRM's own objects do. */
+    objects?: HydraObject[];
+};
+
+/** One object a Hydra workspace made. */
+export type HydraObject = {
+    /** The vendor id, e.g. `Invoice__c`; letters, digits and underscores. */
+    id: string;
+    label: string;
+    /** Records seeded. */
+    recordCount?: number;
+    fields: HydraObjectField[];
+};
+
+export type HydraObjectField = {
+    id: string;
+    label: string;
+    type: 'string' | 'number' | 'date' | 'boolean';
+    /** A field the vendor keeps for itself, such as a sync timestamp. */
+    system?: boolean;
 };
 
 /** A Hydra source's settings with every default filled in. */
 export type HydraSettings = Required<Omit<HydraApiSource, 'connector'>>;
-
-/** Rate limits, in the shape the rate-limit gate reads. */
-export type HydraRateLimits = {
-    /** Calls in flight at once; null for no cap. */
-    concurrentCalls: number | null;
-    callsPerSecond: number | null;
-    /** Fixed windows of calls, like a minute or an hour: up to 5, unique ids, "second" kept for `callsPerSecond`. */
-    buckets: { id: string; windowMs: number; capacity: number }[];
-};
-
-export type HydraOnLimit = {
-    status: number;
-    /** How Retry-After is written: as seconds, as an HTTP date, or left out. */
-    retryAfterFormat: 'seconds' | 'date' | 'none';
-    /** The body Hydra answers; `{"code": "rate_limited"}` marks a throttle in a non-429. */
-    body?: Record<string, unknown>;
-};
-
-/**
- * A fake answer a test sets for one call (`call`) or a range (`fromCall`, and `toCall`
- * or every call after). Status 200 answers as usual, skipping `errorRate`;
- * 400 to 599 is answered as given.
- */
-export type HydraMockResponse = {
-    call?: number;
-    fromCall?: number;
-    toCall?: number;
-    status: number;
-    /** Sent as Retry-After; error statuses only. */
-    retryAfterSeconds?: number;
-    /** The error body; error statuses only. */
-    body?: Record<string, unknown>;
-};
 
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
@@ -248,6 +227,7 @@ export type ExternalConnectionApiSource =
     | AmplitudeApiSource
     | MixpanelApiSource
     | SupabaseApiSource
+    | SentryApiSource
     | HydraApiSource;
 
 /** The settings of one integration's sources. */
@@ -340,12 +320,46 @@ export const isSupabaseOrigin = (origin: string) => {
     }
 };
 
-/** Never resolves: Hydra answers in-process, so nothing is sent to it. */
+/**
+ * Sentry's API, by where the organization's data lives. US organizations
+ * also answer on sentry.io, the host Sentry's API reference uses.
+ */
+export const SENTRY_ORIGIN = 'https://sentry.io';
+export const SENTRY_REGION_ORIGINS = {
+    us: 'https://us.sentry.io',
+    eu: 'https://de.sentry.io',
+} as const;
+
+/**
+ * An organization or project slug as Sentry writes it: lowercase letters,
+ * digits, dashes and underscores. Not digits only, which Sentry reads as an
+ * ID and not a name.
+ */
+export const isSentrySlug = (slug: string) =>
+    /^(?!\d+$)[a-z0-9][a-z0-9_-]{0,99}$/.test(slug);
+
+/** The most projects one source reads. */
+export const SENTRY_MAX_PROJECTS = 20;
+
+const getSentryOrganizationPath = (organizationSlug: string) =>
+    `/api/0/organizations/${organizationSlug}`;
+
+/**
+ * The organization endpoints a source reads; each takes a trailing slash.
+ * Each takes the projects to read as parameters. The list of the
+ * organization's projects is not one of them.
+ */
+export const getSentryPaths = (organizationSlug: string) => {
+    const organization = getSentryOrganizationPath(organizationSlug);
+    return {
+        events: `${organization}/events/`,
+        issues: `${organization}/issues/`,
+        sessions: `${organization}/sessions/`,
+    } as const;
+};
+
+/** Never resolves: Hydra answers from seeded data, so nothing is sent to it. */
 export const HYDRA_ORIGIN = 'https://hydra.invalid';
-export const HYDRA_REPORT_PATH = '/v1/report';
-export const HYDRA_ACCOUNT_PATH = '/v1/account';
-/** Set to "true" to register Hydra; it is absent everywhere otherwise. */
-export const HYDRA_ENABLED_ENV = 'LIVE_SOURCES_HYDRA_ENABLED';
 
 export const ATTIO_ORIGIN = 'https://api.attio.com';
 /** Owner names; reading them needs the user_management:read scope. */

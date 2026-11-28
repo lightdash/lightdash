@@ -2,7 +2,6 @@ import {
     ApiConnectorType,
     DimensionType,
     getHubspotPipelinesPath,
-    getHubspotPropertiesPath,
     getHubspotSearchPath,
     HUBSPOT_OBJECTS,
     HUBSPOT_PIPELINE_OBJECTS,
@@ -10,17 +9,14 @@ import {
     type HubspotPipelineObject,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
 import {
-    type LiveCalls,
+    assertMaxRows,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-    type LiveScanResult,
-} from '../../types';
-import { isUnreadableObjectError } from './errors';
+    type LiveRuntime,
+} from '../../sdk';
 import {
-    HUBSPOT_BUILT_IN_COLUMNS,
     HUBSPOT_LABEL_SUFFIX,
     HUBSPOT_MAX_FILTERS,
     HUBSPOT_MAX_PAGES,
@@ -28,34 +24,36 @@ import {
     HUBSPOT_OBJECT_LABELS,
     HUBSPOT_PAGE_SIZE,
     HUBSPOT_PIPELINE_COLUMNS,
-    toHubspotPropertyName,
-    type HubspotBuiltInColumn,
+    HUBSPOT_RECORD_COLUMNS,
+    isUnreadableObjectError,
     type HubspotPipelineColumn,
-} from './explores';
+    type HubspotRecordColumn,
+} from './api';
+import { toHubspotPropertyName } from './model';
 
 const PROPERTY_NAME = /^[a-z][a-z0-9_]*$/;
 
-const isBuiltInColumn = (name: string): name is HubspotBuiltInColumn =>
-    (HUBSPOT_BUILT_IN_COLUMNS as readonly string[]).includes(name);
+const isRecordColumn = (name: string): name is HubspotRecordColumn =>
+    (HUBSPOT_RECORD_COLUMNS as readonly string[]).includes(name);
 
-/** A property's internal name, or a built-in field (id, createdAt, updatedAt). */
+/** A property's internal name, or a declared field (id, createdAt, updatedAt). */
 const nameSchema = z
     .string()
-    .refine((name) => isBuiltInColumn(name) || PROPERTY_NAME.test(name), {
-        message: `names are HubSpot property names (lowercase, digits, underscores) or ${HUBSPOT_BUILT_IN_COLUMNS.join(
+    .refine((name) => isRecordColumn(name) || PROPERTY_NAME.test(name), {
+        message: `names are HubSpot property names (lowercase, digits, underscores) or ${HUBSPOT_RECORD_COLUMNS.join(
             ', ',
         )}`,
     });
 
-/** A column: a property or built-in field, or a property's labels (`dealstage:label`). */
+/** A column: a property or declared field, or a property's labels (`dealstage:label`). */
 const columnNameSchema = z
     .string()
     .refine(
         (name) =>
-            isBuiltInColumn(name) ||
+            isRecordColumn(name) ||
             PROPERTY_NAME.test(toHubspotPropertyName(name)),
         {
-            message: `columns are HubSpot property names, a property name followed by ${HUBSPOT_LABEL_SUFFIX}, or ${HUBSPOT_BUILT_IN_COLUMNS.join(
+            message: `columns are HubSpot property names, a property name followed by ${HUBSPOT_LABEL_SUFFIX}, or ${HUBSPOT_RECORD_COLUMNS.join(
                 ', ',
             )}`,
         },
@@ -175,7 +173,7 @@ const searchResponseSchema = z.object({
         .optional(),
 });
 
-/** The property a built-in field filters and sorts by, per object. */
+/** The property a declared field filters and sorts by, per object. */
 const toPropertyName = (name: string, object: HubspotObject): string => {
     switch (name) {
         case 'id':
@@ -193,7 +191,7 @@ const toPropertyName = (name: string, object: HubspotObject): string => {
     }
 };
 
-/** Search filters with built-in fields named as properties; none sends no group. */
+/** Search filters with declared fields named as properties; none sends no group. */
 const toFilterGroups = (filters: HubspotFilter[], object: HubspotObject) =>
     filters.length === 0
         ? {}
@@ -283,9 +281,9 @@ const DIMENSION_TYPES: Record<HubspotColumnType, DimensionType> = {
 const runCount = async (
     object: HubspotObject,
     filters: HubspotFilter[],
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<LiveRunResult> => {
-    const { total } = await calls.fetch(
+    const { total } = await runtime.fetch(
         {
             method: 'POST',
             path: getHubspotSearchPath(object),
@@ -312,13 +310,13 @@ const runRecords = async (
     object: HubspotObject,
     request: Extract<HubspotRequest, { kind: 'records' }>,
     limit: number,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<LiveRunResult> => {
     const properties = [
         ...new Set(
             request.columns
                 .map(({ name }) => toHubspotPropertyName(name))
-                .filter((name) => !isBuiltInColumn(name)),
+                .filter((name) => !isRecordColumn(name)),
         ),
     ];
     const results: HubspotResult[] = [];
@@ -326,7 +324,7 @@ const runRecords = async (
     let total = 0;
     for (let page = 0; page < HUBSPOT_MAX_PAGES; page += 1) {
         // eslint-disable-next-line no-await-in-loop
-        const response = await calls.fetch(
+        const response = await runtime.fetch(
             {
                 method: 'POST',
                 path: getHubspotSearchPath(object),
@@ -445,12 +443,12 @@ const toStageRows = (
 const runPipelineStages = async (
     request: Extract<HubspotRequest, { kind: 'pipeline_stages' }>,
     limit: number,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<LiveRunResult> => {
     const objects = [...new Set(request.objects)];
     const lists = await Promise.allSettled(
         objects.map((object) =>
-            calls.fetch(
+            runtime.fetch(
                 {
                     method: 'GET',
                     path: getHubspotPipelinesPath(object),
@@ -496,60 +494,17 @@ const runPipelineStages = async (
 export const runHubspotQuery = async ({
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.HUBSPOT,
     HubspotRequest
 >): Promise<LiveRunResult> => {
     if (request.kind === 'count') {
-        return runCount(request.object, request.filters, calls);
+        return runCount(request.object, request.filters, runtime);
     }
     if (request.kind === 'pipeline_stages') {
-        return runPipelineStages(request, limit, calls);
+        return runPipelineStages(request, limit, runtime);
     }
     assertMaxRows(limit, HUBSPOT_MAX_ROWS);
-    return runRecords(request.object, request, limit, calls);
-};
-
-/**
- * Reads each object's properties, which become its explore's fields: one
- * call per object. An object the token can't read is left out, so the others
- * still build and querying it says which scope is missing. Any other
- * failure, such as a timeout or rate limit, fails the scan and keeps the
- * last one.
- */
-export const scanHubspotProperties = async ({
-    calls,
-}: {
-    calls: LiveCalls;
-}): Promise<LiveScanResult> => {
-    const lists = await Promise.allSettled(
-        HUBSPOT_OBJECTS.map((object) =>
-            calls.fetch(
-                {
-                    method: 'GET',
-                    path: getHubspotPropertiesPath(object),
-                    body: undefined,
-                },
-                z.unknown(),
-            ),
-        ),
-    );
-    const rejected = lists.flatMap((list) =>
-        list.status === 'rejected' ? [list.reason as unknown] : [],
-    );
-    const failure = rejected.find((error) => !isUnreadableObjectError(error));
-    if (failure !== undefined || rejected.length === lists.length) {
-        throw failure ?? rejected[0];
-    }
-    return {
-        hubspotProperties: Object.fromEntries(
-            HUBSPOT_OBJECTS.flatMap((object, index) => {
-                const list = lists[index];
-                return list.status === 'fulfilled'
-                    ? [[object, list.value]]
-                    : [];
-            }),
-        ),
-    };
+    return runRecords(request.object, request, limit, runtime);
 };
