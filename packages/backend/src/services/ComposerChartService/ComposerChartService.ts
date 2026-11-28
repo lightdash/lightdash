@@ -553,7 +553,7 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.get(uuid);
     }
 
-    /** Content-as-code upload; an existing chart stays on its dashboard. */
+    /** Content-as-code write; an existing chart keeps its owner. */
     async writeFromCode(
         account: RegisteredAccount,
         projectUuid: string,
@@ -561,6 +561,8 @@ export class ComposerChartService extends BaseService {
             slug: string;
             /** Owner of a new or revived chart; an existing chart keeps its own. */
             dashboardUuid: string | null;
+            /** `keep` lets a live chart a space owns take the version; an upload refuses it. */
+            spaceOwner: 'refuse' | 'keep';
         },
     ): Promise<string> {
         const existing = await this.composerChartModel.findIdentityBySlug(
@@ -568,12 +570,16 @@ export class ComposerChartService extends BaseService {
             data.slug,
         );
         const live = existing && !existing.deleted ? existing : null;
-        const dashboardUuid = live
-            ? ComposerChartService.requireDashboardOwner(
+        const owner = live
+            ? ComposerChartService.getLiveWriteOwner(
                   (await this.composerChartModel.getOwner(live.uuid)).owner,
+                  data.spaceOwner,
               )
-            : data.dashboardUuid;
-        if (dashboardUuid === null) {
+            : data.dashboardUuid !== null && {
+                  type: 'dashboard' as const,
+                  dashboardUuid: data.dashboardUuid,
+              };
+        if (!owner) {
             throw new ParameterError(
                 `Composer chart "${data.slug}" needs a dashboard to belong to`,
             );
@@ -581,17 +587,14 @@ export class ComposerChartService extends BaseService {
         const { pipeline, chart } = await this.authorizeWrite(
             account,
             projectUuid,
-            {
-                owner: { type: 'dashboard', dashboardUuid },
-                composerChartUuid: live?.uuid ?? null,
-            },
+            { owner, composerChartUuid: live?.uuid ?? null },
             data,
         );
         return this.composerChartModel.writeFromCode({
             existing,
             slug: data.slug,
             projectUuid,
-            owner: { type: 'dashboard', dashboardUuid },
+            owner,
             name: data.name,
             description: data.description ?? null,
             pipeline,
@@ -633,12 +636,16 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.remapPreviewDataAppVizs(...args);
     }
 
-    /** The owning dashboard; uploading a chart a space owns is not served yet. */
-    private static requireDashboardOwner(owner: ComposerChartOwner): string {
+    /** A live chart's owner for a code write; a space owner only with `keep`. */
+    private static getLiveWriteOwner(
+        owner: ComposerChartOwner,
+        spaceOwner: 'refuse' | 'keep',
+    ): ComposerChartOwner {
         switch (owner.type) {
             case 'dashboard':
-                return owner.dashboardUuid;
+                return owner;
             case 'space':
+                if (spaceOwner === 'keep') return owner;
                 throw new NotSupportedError(
                     'Composer charts in a space are not supported yet',
                 );
@@ -882,6 +889,52 @@ export class ComposerChartService extends BaseService {
         });
     }
 
+    private async assertCanMoveToSpace(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        targetSpaceUuid: UUID,
+    ): Promise<UUID> {
+        const sourceSpaceUuid = await this.assertCanWriteSpaceChart(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'update',
+        );
+        await this.assertChartPermission(
+            account,
+            'update',
+            projectUuid,
+            { type: 'space', spaceUuid: targetSpaceUuid },
+            composerChartUuid,
+        );
+        return sourceSpaceUuid;
+    }
+
+    /** The write checks of a space-owned chart's edit, so a caller can refuse before asking anyone to approve its SQL. */
+    async preflightSpaceChartEdit(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        { targetSpaceUuid }: { targetSpaceUuid: UUID | null },
+    ): Promise<void> {
+        if (targetSpaceUuid === null) {
+            await this.assertCanWriteSpaceChart(
+                account,
+                projectUuid,
+                composerChartUuid,
+                'update',
+            );
+            return;
+        }
+        await this.assertCanMoveToSpace(
+            account,
+            projectUuid,
+            composerChartUuid,
+            targetSpaceUuid,
+        );
+    }
+
     /** Moves a space-owned chart to another space; needs write on both. */
     async moveToSpace(
         account: RegisteredAccount,
@@ -899,18 +952,11 @@ export class ComposerChartService extends BaseService {
         if (targetSpaceUuid === null) {
             throw new ParameterError('A composer chart must stay in a space');
         }
-        const sourceSpaceUuid = await this.assertCanWriteSpaceChart(
+        const sourceSpaceUuid = await this.assertCanMoveToSpace(
             account,
             projectUuid,
             composerChartUuid,
-            'update',
-        );
-        await this.assertChartPermission(
-            account,
-            'update',
-            projectUuid,
-            { type: 'space', spaceUuid: targetSpaceUuid },
-            composerChartUuid,
+            targetSpaceUuid,
         );
         await this.composerChartModel.moveToSpace(
             {

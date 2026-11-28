@@ -2003,6 +2003,72 @@ describe('Composer charts', () => {
             }
         });
 
+        it('renames a chart its space owns through MCP edit_content without a new version, and refuses an editor who can only view the space', async () => {
+            const privateSpace = await createSpace(false);
+            const created = await postChart(
+                composerSpaceChartBody(privateSpace.uuid),
+            );
+            expect(created.status).toBe(201);
+            const chart = created.body.results;
+            const shareUrl = `/api/v1/projects/${projectUuid}/spaces/${privateSpace.uuid}/share`;
+            expect(
+                (
+                    await admin.post(shareUrl, {
+                        userUuid: SEED_ORG_1_EDITOR.user_uuid,
+                        spaceRole: 'viewer',
+                    })
+                ).status,
+            ).toBe(200);
+            const editorMcp = await openMcpSession(await loginAsEditor());
+            const adminMcp = await openMcpSession(admin);
+            const rename = (callTool: typeof adminMcp, name: string) =>
+                callTool('edit_content', {
+                    projectUuid,
+                    type: 'composer_chart',
+                    slug: chart.slug,
+                    patch: [{ op: 'replace', path: '/name', value: name }],
+                });
+            const stored = async () =>
+                (
+                    await admin.get<Body<ComposerChart>>(
+                        `${chartsUrl}/${chart.uuid}`,
+                    )
+                ).body.results;
+            try {
+                const refused = await rename(editorMcp, 'Renamed by editor');
+                expect(mcpText(refused)).toContain(
+                    "You don't have permission to save composer charts here",
+                );
+                expect(await stored()).toMatchObject({
+                    name: chart.name,
+                    versionUuid: chart.versionUuid,
+                });
+
+                const renamed = await rename(adminMcp, 'Renamed through MCP');
+                expect(mcpText(renamed)).toContain(
+                    '"name": "Renamed through MCP"',
+                );
+                expect(await stored()).toMatchObject({
+                    name: 'Renamed through MCP',
+                    versionUuid: chart.versionUuid,
+                    owner: chart.owner,
+                });
+            } finally {
+                for (const { client, uuid } of personalAccessTokens.splice(0)) {
+                    await client.delete(
+                        `/api/v1/user/me/personal-access-tokens/${uuid}`,
+                    );
+                }
+                expect(
+                    (
+                        await admin.delete(
+                            `${shareUrl}/${SEED_ORG_1_EDITOR.user_uuid}`,
+                        )
+                    ).status,
+                ).toBe(200);
+            }
+        });
+
         it('creates a chart the space owns, which a viewer of the space reads and no one from another organization', async () => {
             const { space, chart } = await createSpaceChart();
             expect(chart).toMatchObject({

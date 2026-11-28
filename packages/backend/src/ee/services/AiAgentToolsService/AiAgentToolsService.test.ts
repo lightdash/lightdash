@@ -63,12 +63,12 @@ import {
     withAgentActionScope,
 } from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from '../../../services/CoderService/CoderService';
-import { SpaceOwnedComposerChartUploadError } from '../../../services/CoderService/composerChartsAsCode';
 import { developmentView } from '../../../services/ProjectService/developmentView';
 import { validatePagination } from '../../../services/ProjectService/resultsPagination';
 import { PromoteService } from '../../../services/PromoteService/PromoteService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
+import { executeEditContent } from '../ai/tools/editContent';
 import { getRunContentQuery } from '../ai/tools/runContentQuery';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import type { DataAppReadSource } from '../AppGenerateService/AppGenerateService';
@@ -4365,24 +4365,6 @@ describe('AiAgentToolsService', () => {
             expect(upsertComposerChart).not.toHaveBeenCalled();
         });
 
-        it('refuses a space-owned chart before asking for SQL approval', async () => {
-            const { runtime, upsertComposerChart } = makeEditService({
-                composerChart: { ...editableChart, dashboardSlug: null },
-            });
-            const approveSql = vi.fn();
-
-            await expect(
-                runtime.editContent({
-                    type: 'composer_chart',
-                    slug: 'orders-by-status',
-                    patch: changeSql,
-                    approveSql,
-                }),
-            ).rejects.toThrow(SpaceOwnedComposerChartUploadError);
-            expect(approveSql).not.toHaveBeenCalled();
-            expect(upsertComposerChart).not.toHaveBeenCalled();
-        });
-
         it('refuses a chart whose dashboard is in a read-only agent space', async () => {
             const { runtime, upsertComposerChart } = makeEditService({
                 readOnlySpaceUuids: ['jaffle-uuid'],
@@ -4467,6 +4449,431 @@ describe('AiAgentToolsService', () => {
 
             expect(upsertComposerChart).toHaveBeenCalledOnce();
             expect(upsertChart).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('space-owned composer chart edits', () => {
+        const spaceChart = {
+            contentType: 'composer_chart',
+            version: 1,
+            slug: 'orders-by-status',
+            name: 'Orders by status',
+            description: null,
+            dashboardSlug: null,
+            spaceSlug: 'jaffle',
+            pipeline: {
+                schemaVersion: 1,
+                terminalNodeId: 'orders',
+                nodes: [
+                    {
+                        sourceType: 'sql',
+                        nodeId: 'orders',
+                        title: 'Orders',
+                        sql: 'select status, count(*) as n from orders group by 1',
+                    },
+                ],
+            },
+            chart: {
+                schemaVersion: 1,
+                columns: [
+                    { reference: 'status', fieldType: 'dimension' },
+                    { reference: 'n', fieldType: 'metric' },
+                ],
+                chartConfig: { type: 'table' },
+                pivotConfig: null,
+                tableConfig: { columnOrder: ['status', 'n'] },
+            },
+        };
+        const rename = [
+            { op: 'replace', path: '/name', value: 'Orders by state' },
+            { op: 'replace', path: '/description', value: 'By state' },
+        ];
+        const changeSql = [
+            {
+                op: 'replace',
+                path: '/pipeline/nodes/0/sql',
+                value: 'select status from orders',
+            },
+        ];
+        const moveToMarketing = [
+            { op: 'replace', path: '/spaceSlug', value: 'marketing' },
+        ];
+
+        const makeSpaceEditService = ({
+            spaces = [{ uuid: 'marketing-uuid', path: 'marketing' }],
+            spaceAccess = null,
+            preflightSpaceChartEdit = vi.fn().mockResolvedValue(undefined),
+            preflightWrite = vi.fn().mockResolvedValue(undefined),
+            dashboardsShowing = [],
+        }: {
+            spaces?: Array<{ uuid: string; path: string }>;
+            spaceAccess?: string[] | null;
+            preflightSpaceChartEdit?: import('vitest').Mock;
+            preflightWrite?: import('vitest').Mock;
+            dashboardsShowing?: Array<{ uuid: string; name: string }>;
+        } = {}) => {
+            let version = 1;
+            let current = spaceChart;
+            const upsertComposerChart = vi.fn(async (...args: unknown[]) => {
+                version += 1;
+                current = args[4] as typeof spaceChart;
+                return {
+                    action: 'update',
+                    composerChartUuid: 'composer-chart-uuid',
+                };
+            });
+            const update = vi.fn(async () => ({}));
+            const moveToSpace = vi.fn(async () => undefined);
+            const getDashboardsShowing = vi
+                .fn()
+                .mockResolvedValue(dashboardsShowing);
+            const service = makeService({
+                coderService: {
+                    getComposerChartForRead: vi.fn(async () => ({
+                        composerChart: current,
+                        composerChartUuid: 'composer-chart-uuid',
+                        spaceUuid: 'jaffle-uuid',
+                    })),
+                    getCurrentContentVersionBySlug: vi.fn(async () => ({
+                        contentUuid: 'composer-chart-uuid',
+                        versionUuid: `version-${version}`,
+                    })),
+                    upsertComposerChart,
+                    toStoredComposerChart: vi.fn(
+                        async (_: string, chart: unknown) => chart,
+                    ),
+                },
+                spaceModel: {
+                    hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(true),
+                    find: vi.fn(async ({ path }: { path: string }) =>
+                        spaces.filter((space) => space.path === path),
+                    ),
+                },
+                composerChartService: {
+                    isEnabled: vi.fn().mockResolvedValue(true),
+                    preflightWrite,
+                    preflightSpaceChartEdit,
+                    update,
+                    moveToSpace,
+                    getDashboardsShowing,
+                },
+                aiAgentContentValidation: new AiAgentContentValidation(),
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    spaceAccess,
+                }),
+            );
+            const renameElsewhere = () => {
+                current = { ...current, name: 'Renamed elsewhere' };
+            };
+            return {
+                runtime,
+                upsertComposerChart,
+                update,
+                moveToSpace,
+                preflightWrite,
+                renameElsewhere,
+            };
+        };
+
+        it('renames without a version, a pipeline check or SQL approval', async () => {
+            const {
+                runtime,
+                upsertComposerChart,
+                update,
+                moveToSpace,
+                preflightWrite,
+            } = makeSpaceEditService();
+            const approveSql = vi.fn();
+
+            const edited = await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: rename,
+                approveSql,
+            });
+
+            expect(update).toHaveBeenCalledExactlyOnceWith(
+                account,
+                projectUuid,
+                'composer-chart-uuid',
+                { name: 'Orders by state', description: 'By state' },
+            );
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(moveToSpace).not.toHaveBeenCalled();
+            expect(preflightWrite).not.toHaveBeenCalled();
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(edited).toMatchObject({
+                href: `/projects/${projectUuid}/composer-charts/composer-chart-uuid`,
+                versionUuids: { before: 'version-1', after: 'version-1' },
+            });
+        });
+
+        it('writes a pipeline change as a new version after approval, keeping the space owner', async () => {
+            const { runtime, upsertComposerChart, update } =
+                makeSpaceEditService();
+            const approveSql = vi.fn(async () => {
+                expect(upsertComposerChart).not.toHaveBeenCalled();
+            });
+
+            const edited = await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: changeSql,
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledExactlyOnceWith({
+                sql: '-- orders\nselect status from orders',
+                chartName: 'Orders by status',
+                sqlChanged: true,
+            });
+            expect(upsertComposerChart).toHaveBeenCalledExactlyOnceWith(
+                user,
+                account,
+                projectUuid,
+                'orders-by-status',
+                expect.objectContaining({ dashboardSlug: null }),
+                { authorization: 'space_access', spaceOwner: 'keep' },
+            );
+            expect(update).not.toHaveBeenCalled();
+            expect(edited).toMatchObject({
+                versionUuids: { before: 'version-1', after: 'version-2' },
+            });
+        });
+
+        it('runs the version write checks before asking for SQL approval', async () => {
+            const { runtime, upsertComposerChart } = makeSpaceEditService({
+                preflightWrite: vi
+                    .fn()
+                    .mockRejectedValue(new ParameterError('bad chart')),
+            });
+            const approveSql = vi.fn();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql,
+                }),
+            ).rejects.toThrow('bad chart');
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses a root replace that puts the chart on a dashboard', async () => {
+            const { runtime, update } = makeSpaceEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '',
+                            value: {
+                                ...spaceChart,
+                                name: 'Renamed',
+                                dashboardSlug: 'ops',
+                            },
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow('cannot change');
+            expect(update).not.toHaveBeenCalled();
+        });
+
+        it('checks the pipeline before saving a chart change with no new SQL', async () => {
+            const { runtime, upsertComposerChart } = makeSpaceEditService({
+                preflightWrite: vi
+                    .fn()
+                    .mockRejectedValue(new ForbiddenError('no composer')),
+            });
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/chart/chartConfig',
+                            value: { type: 'big_number' },
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('saves nothing when the new SQL is rejected, even with a rename and a move', async () => {
+            const { runtime, upsertComposerChart, update, moveToSpace } =
+                makeSpaceEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: [...changeSql, ...rename, ...moveToMarketing],
+                    approveSql: vi.fn().mockRejectedValue(new Error('no')),
+                }),
+            ).rejects.toThrow('no');
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(update).not.toHaveBeenCalled();
+            expect(moveToSpace).not.toHaveBeenCalled();
+        });
+
+        it('moves the chart when its spaceSlug changes, writing no version', async () => {
+            const { runtime, upsertComposerChart, moveToSpace, update } =
+                makeSpaceEditService();
+
+            await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: moveToMarketing,
+                approveSql: vi.fn(),
+            });
+
+            expect(moveToSpace).toHaveBeenCalledExactlyOnceWith(account, {
+                projectUuid,
+                itemUuid: 'composer-chart-uuid',
+                targetSpaceUuid: 'marketing-uuid',
+            });
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(update).not.toHaveBeenCalled();
+        });
+
+        it('checks write on the chart and the target space before asking for approval', async () => {
+            const { runtime, upsertComposerChart, moveToSpace } =
+                makeSpaceEditService({
+                    preflightSpaceChartEdit: vi
+                        .fn()
+                        .mockRejectedValue(
+                            new ForbiddenError(
+                                "You don't have permission to save composer charts here",
+                            ),
+                        ),
+                });
+            const approveSql = vi.fn();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: [...changeSql, ...moveToMarketing],
+                    approveSql,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(moveToSpace).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['does not exist', { spaces: [] }],
+            ['is outside the agent spaces', { spaceAccess: ['jaffle-uuid'] }],
+        ])('refuses a move to a space that %s', async (_, options) => {
+            const { runtime, moveToSpace } = makeSpaceEditService(options);
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: moveToMarketing,
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(moveToSpace).not.toHaveBeenCalled();
+        });
+
+        it('saves nothing when the chart was renamed while approval waited', async () => {
+            const { runtime, upsertComposerChart, renameElsewhere } =
+                makeSpaceEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql: vi.fn(async () => renameElsewhere()),
+                }),
+            ).rejects.toThrow('changed while this edit waited');
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses a move to a path two spaces share', async () => {
+            const { runtime, moveToSpace } = makeSpaceEditService({
+                spaces: [
+                    { uuid: 'marketing-uuid', path: 'marketing' },
+                    { uuid: 'other-marketing-uuid', path: 'marketing' },
+                ],
+            });
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: moveToMarketing,
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(moveToSpace).not.toHaveBeenCalled();
+        });
+
+        it('refuses putting a space-owned chart on a dashboard', async () => {
+            const { runtime, upsertComposerChart, update } =
+                makeSpaceEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/dashboardSlug',
+                            value: 'ops',
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+            expect(update).not.toHaveBeenCalled();
+        });
+
+        it('warns which dashboards show the chart', async () => {
+            const output = await executeEditContent(
+                {
+                    editContent: makeSpaceEditService({
+                        dashboardsShowing: [
+                            { uuid: 'ops-uuid', name: 'Ops' },
+                            { uuid: 'exec-uuid', name: 'Exec' },
+                        ],
+                    }).runtime.editContent,
+                    siteUrl: 'https://lightdash.example',
+                },
+                {
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: rename,
+                },
+                vi.fn(),
+            );
+
+            expect(output).toMatchObject({
+                metadata: {
+                    status: 'success',
+                    warnings: [
+                        'This chart shows on 2 dashboards: "Ops", "Exec". Those dashboards show the change too.',
+                    ],
+                },
+            });
         });
     });
 
