@@ -3004,7 +3004,7 @@ export class PromoteService extends BaseService {
         if (!dashboard.tiles.some(isDashboardComposerChartTile)) {
             return { composerCharts: [], spaces: [] };
         }
-        // Unchanged charts skip the write checks, but their tiles still move upstream
+        // Unchanged charts write nothing, but their tiles still move upstream, so the flag is checked
         if (
             !(await this.getComposerChartService().isEnabled({
                 userUuid: account.user.userUuid,

@@ -2932,7 +2932,7 @@ describe('Composer charts', () => {
                 `/api/v2/projects/${downstreamUuid}/composer-charts`,
                 composerSpaceChartBody(chartSpace.uuid),
             );
-            expect(chartResp.status).toBe(200);
+            expect(chartResp.status).toBe(201);
             const chart = chartResp.body.results;
             const dashboardResp = await admin.post<Body<Dashboard>>(
                 `/api/v1/projects/${downstreamUuid}/dashboards`,

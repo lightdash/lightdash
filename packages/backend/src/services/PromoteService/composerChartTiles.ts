@@ -9,6 +9,7 @@ import {
     type PromotedComposerChart,
     type PromotionChanges,
     type RegisteredAccount,
+    type UUID,
 } from '@lightdash/common';
 import { isEqual } from 'es-toolkit/compat';
 import { type ComposerChartModel } from '../../models/ComposerChartModel';
@@ -44,8 +45,8 @@ const getComposerChartUuids = (tiles: DashboardTile[]) => [
 export const getComposerChartChanges = async (
     composerChartModel: PromoteComposerChartModel,
     tiles: DashboardTile[],
-    upstream: { projectUuid: string; dashboardUuid: string | null },
-    getSpacePath: (spaceUuid: string) => Promise<string>,
+    upstream: { projectUuid: UUID; dashboardUuid: UUID | null },
+    getSpacePath: (spaceUuid: UUID) => Promise<string>,
 ): Promise<ComposerChartChange[]> => {
     const changes: ComposerChartChange[] = [];
     for (const chartUuid of getComposerChartUuids(tiles)) {
@@ -68,7 +69,6 @@ export const getComposerChartChanges = async (
             upstream.projectUuid,
             source.slug,
         );
-        // A space's chart never revives a trashed chart of a dashboard
         if (
             identity?.deleted &&
             promoted.spacePath !== null &&

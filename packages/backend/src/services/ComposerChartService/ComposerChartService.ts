@@ -557,7 +557,7 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.get(uuid);
     }
 
-    /** Content-as-code upload and promote; a live chart keeps its owner, which must be of the kind given. */
+    /** Content-as-code upload and promote; a live chart keeps its owner, and an existing one must be of the kind given. */
     async writeFromCode(
         account: RegisteredAccount,
         projectUuid: string,
@@ -572,15 +572,16 @@ export class ComposerChartService extends BaseService {
             data.slug,
         );
         const live = existing && !existing.deleted ? existing : null;
-        const liveOwner = live
-            ? (await this.composerChartModel.getOwner(live.uuid)).owner
-            : null;
-        if (liveOwner && liveOwner.type !== (data.owner?.type ?? 'dashboard')) {
+        // A revived chart also keeps its kind of owner
+        if (
+            existing &&
+            existing.owner.type !== (data.owner?.type ?? 'dashboard')
+        ) {
             throw new AlreadyExistsError(
-                `Composer chart "${data.slug}" already belongs to a ${liveOwner.type}`,
+                `Composer chart "${data.slug}" already belongs to a ${existing.owner.type}`,
             );
         }
-        const owner = liveOwner ?? data.owner;
+        const owner = live ? live.owner : data.owner;
         if (owner === null) {
             throw new ParameterError(
                 `Composer chart "${data.slug}" must belong to a dashboard or a space`,

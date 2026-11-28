@@ -760,23 +760,27 @@ describe('ComposerChartService.writeFromCode owner', () => {
         [
             'a dashboard chart asked into a space',
             { type: 'dashboard', dashboardUuid } as ComposerChartOwner,
+            false,
+            { type: 'space', spaceUuid } as ComposerChartOwner,
+        ],
+        [
+            "a dashboard's trashed chart revived into a space",
+            { type: 'dashboard', dashboardUuid } as ComposerChartOwner,
+            true,
             { type: 'space', spaceUuid } as ComposerChartOwner,
         ],
         [
             'a space chart with no owner given',
             { type: 'space', spaceUuid } as ComposerChartOwner,
+            false,
             null,
         ],
-    ])('refuses to write %s', async (_, liveOwner, owner) => {
+    ])('refuses to write %s', async (_, existingOwner, deleted, owner) => {
         const { service, composerChartModel } = setup();
         composerChartModel.findIdentityBySlug.mockResolvedValue({
             uuid: 'chart-uuid',
-            deleted: false,
-            owner: liveOwner,
-        });
-        composerChartModel.getOwner.mockResolvedValue({
-            projectUuid,
-            owner: liveOwner,
+            deleted,
+            owner: existingOwner,
         });
         await expect(
             service.writeFromCode(
