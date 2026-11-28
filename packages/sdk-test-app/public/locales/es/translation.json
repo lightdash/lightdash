@@ -150,6 +150,7 @@
         "tileMenu.viewUnderlyingData": "Ver datos subyacentes",
         "tileMenu.viewLineage": "Ver linaje",
         "tile.composerChart.notAvailable": "Este gráfico no está disponible aquí",
+        "tile.composerChart.saveToShow": "Guarda el tablero para ver este gráfico",
         "tile.composerChart.lineageTitle": "Linaje: {chart}",
         "tile.composerChart.lineageRunFailed": "La canalización no se ejecutó",
         "tile.composerChart.lineageSavedSql": "Consulta guardada, sin los filtros ni los parámetros de este panel",

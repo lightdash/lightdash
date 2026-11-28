@@ -150,6 +150,7 @@
         "tileMenu.viewUnderlyingData": "ძირითადი მონაცემების ნახვა",
         "tileMenu.viewLineage": "წარმომავლობის ნახვა",
         "tile.composerChart.notAvailable": "ეს დიაგრამა აქ ხელმისაწვდომი არ არის",
+        "tile.composerChart.saveToShow": "შეინახეთ დაფა ამ დიაგრამის სანახავად",
         "tile.composerChart.lineageTitle": "წარმომავლობა: {chart}",
         "tile.composerChart.lineageRunFailed": "მილსადენი არ გაეშვა",
         "tile.composerChart.lineageSavedSql": "შენახული მოთხოვნა, ამ დაფის ფილტრებისა და პარამეტრების გარეშე",
