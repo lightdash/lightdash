@@ -14,6 +14,7 @@ import {
     type CreateDashboard,
     type Dashboard,
     type DashboardComposerChartRunRequest,
+    type ExecuteComposerChartRequest,
     type ResultsCacheInvalidation,
     type ResultsCacheProjectSettings,
     type ResultsCacheStatus,
@@ -30,7 +31,10 @@ import {
 import {
     apiClientSend,
     createComposerDashboard,
+    createComposerSpaceChart,
+    deleteComposerSpace,
     type ComposerDashboard,
+    type ComposerSpaceChart,
 } from '../helpers/composerDashboard';
 import { pollUntil } from '../helpers/polling';
 
@@ -418,6 +422,7 @@ describe('Project results cache settings', () => {
         const flagUrl = `/api/v2/feature-flag/${FeatureFlags.ComposerCharts}`;
         let clearFlag = false;
         let composer: ComposerDashboard;
+        let spaceChart: ComposerSpaceChart | undefined;
 
         beforeAll(async () => {
             const flag = await admin.get<Body<{ enabled: boolean }>>(flagUrl);
@@ -426,6 +431,7 @@ describe('Project results cache settings', () => {
                 clearFlag = true;
             }
             composer = await createComposerDashboard(apiClientSend(admin));
+            spaceChart = await createComposerSpaceChart(apiClientSend(admin));
         });
 
         afterAll(async () => {
@@ -435,27 +441,16 @@ describe('Project results cache settings', () => {
                     failOnStatusCode: false,
                 },
             );
+            if (spaceChart) {
+                await deleteComposerSpace(
+                    apiClientSend(admin),
+                    spaceChart.space.uuid,
+                );
+            }
             if (clearFlag) await admin.delete(flagUrl);
         });
 
-        const runComposerTile = async (invalidateCache: boolean) => {
-            const resp = await admin.post<Body<ComposerChartRunResults>>(
-                `${queryUrl}/dashboard-composer-chart`,
-                {
-                    composerChartUuid: composer.chart.uuid,
-                    dashboardUuid: composer.dashboard.uuid,
-                    tileUuid: composer.dashboard.tiles[0].uuid,
-                    dashboardFilters: {
-                        dimensions: [],
-                        metrics: [],
-                        tableCalculations: [],
-                    },
-                    parameters: {},
-                    excludedParameterKeys: [],
-                    invalidateCache,
-                } satisfies DashboardComposerChartRunRequest,
-            );
-            const [{ queryUuid }] = resp.body.results.queries;
+        const cacheHitOf = async (queryUuid: string) => {
             await pollUntil<Body<{ status: string }>>(
                 admin,
                 `${queryUrl}/${queryUuid}`,
@@ -474,11 +469,49 @@ describe('Project results cache settings', () => {
             return run.cacheHit;
         };
 
+        const runComposerChart = async (invalidateCache: boolean) => {
+            const resp = await admin.post<Body<ComposerChartRunResults>>(
+                `${queryUrl}/composer-chart`,
+                {
+                    composerChartUuid: spaceChart!.chart.uuid,
+                    invalidateCache,
+                } satisfies ExecuteComposerChartRequest,
+            );
+            return cacheHitOf(resp.body.results.queries[0].queryUuid);
+        };
+
+        const runComposerTile = async (invalidateCache: boolean) => {
+            const resp = await admin.post<Body<ComposerChartRunResults>>(
+                `${queryUrl}/dashboard-composer-chart`,
+                {
+                    composerChartUuid: composer.chart.uuid,
+                    dashboardUuid: composer.dashboard.uuid,
+                    tileUuid: composer.dashboard.tiles[0].uuid,
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    parameters: {},
+                    excludedParameterKeys: [],
+                    invalidateCache,
+                } satisfies DashboardComposerChartRunRequest,
+            );
+            return cacheHitOf(resp.body.results.queries[0].queryUuid);
+        };
+
         it('runs a composer tile fresh on refresh, and from the cache otherwise', async () => {
             await runComposerTile(false);
             expect(await runComposerTile(false)).toBe(true);
             expect(await runComposerTile(true)).toBe(false);
             expect(await runComposerTile(false)).toBe(true);
+        });
+
+        it('runs a space-owned composer chart fresh on refresh, and from the cache otherwise', async () => {
+            await runComposerChart(false);
+            expect(await runComposerChart(false)).toBe(true);
+            expect(await runComposerChart(true)).toBe(false);
+            expect(await runComposerChart(false)).toBe(true);
         });
     });
 });
