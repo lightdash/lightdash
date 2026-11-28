@@ -356,6 +356,21 @@ describe('getSqlApprovalNodes', () => {
         ).toEqual([{ nodeId: 'raw', sql: 'select 1' }]);
     });
 
+    it('lists nothing for a composer chart edit, whose new SQL depends on the stored chart', () => {
+        expect(
+            getSqlApprovalNodes({
+                type: 'composer_chart',
+                patch: [
+                    {
+                        op: 'replace',
+                        path: '/pipeline/nodes/0/sql',
+                        value: 'select 1',
+                    },
+                ],
+            }),
+        ).toEqual([]);
+    });
+
     it('lists nothing for a call without SQL', () => {
         expect(getSqlApprovalNodes({ queries: [] })).toEqual([]);
         expect(getSqlApprovalNodes(null)).toEqual([]);

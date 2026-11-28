@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     getSqlApprovalNodes,
-    isComposerChartContentArgs,
     isSqlApprovalToolCall,
     type SqlApprovalNode,
     type SqlApprovalToolName,
@@ -125,12 +124,8 @@ export const findSameTurnSqlApproval = (
     const approved = decisions.filter(
         (decision) =>
             decision.decision === 'approved' &&
-            isNativeSqlApprovalToolCall(decision.toolName, decision.toolArgs) &&
-            // Its patch carries more SQL than its approval asked about.
-            !(
-                decision.toolName === 'editContent' &&
-                isComposerChartContentArgs(decision.toolArgs)
-            ),
+            // A composer chart edit lists no nodes, so its approval covers nothing later.
+            isNativeSqlApprovalToolCall(decision.toolName, decision.toolArgs),
     );
     const approvers = nodes.map(({ sql }) =>
         approved.find((decision) =>

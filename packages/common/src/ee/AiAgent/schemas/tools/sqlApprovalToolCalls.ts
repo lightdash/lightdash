@@ -241,16 +241,14 @@ const getComposerApprovalNodes = (nodes: unknown[]): SqlApprovalNode[] =>
             : [],
     );
 
-/** The SQL statements a call asks the user to approve, one per warehouse SQL node; empty when it carries none. */
+/**
+ * The SQL statements a call asks the user to approve, one per warehouse SQL node.
+ * Empty for a composer chart edit: its new SQL depends on the stored chart.
+ */
 export const getSqlApprovalNodes = (toolArgs: unknown): SqlApprovalNode[] => {
     if (!isRecord(toolArgs)) return [];
     if (isComposerChartContentArgs(toolArgs)) {
-        if (!isRecord(toolArgs.content)) {
-            return getComposerChartPatchSql(toolArgs.patch).map((sql) => ({
-                nodeId: null,
-                sql,
-            }));
-        }
+        if (!isRecord(toolArgs.content)) return [];
         return toolArgs.content.from === 'json' &&
             isRecord(toolArgs.content.pipeline) &&
             Array.isArray(toolArgs.content.pipeline.nodes)
