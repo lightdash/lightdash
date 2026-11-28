@@ -12,30 +12,22 @@ import {
     type ParameterValue,
     type ResourceViewComposerChartItem,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Group,
-    Menu,
-    Paper,
-    SegmentedControl,
-    Stack,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Box, Menu, Stack, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import * as Sentry from '@sentry/react';
 import {
-    IconChartHistogram,
     IconDots,
+    IconDownload,
     IconEdit,
     IconFolderSymlink,
-    IconHierarchy2,
     IconPhoto,
     IconRefresh,
     IconTableExport,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC, type RefObject } from 'react';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../components/common/ChartDownload/chartDownloadUtils';
+import CollapsableCard from '../../../components/common/CollapsableCard/CollapsableCard';
+import { COLLAPSABLE_CARD_ACTION_ICON_PROPS } from '../../../components/common/CollapsableCard/constants';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import ErrorState from '../../../components/common/ErrorState';
 import InlineErrorState from '../../../components/common/InlineErrorState';
@@ -54,6 +46,7 @@ import TransferItemsModal from '../../../components/common/TransferItemsModal/Tr
 import ExportDataModal from '../../../components/DashboardTiles/ExportDataModal';
 import ExportImageModal from '../../../components/DashboardTiles/ExportImageModal';
 import { type EChartsReact } from '../../../components/EChartsReactWrapper';
+import explorerClasses from '../../../components/Explorer/Explorer.module.css';
 import { TitleBreadCrumbs } from '../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { NO_CELL_LIMITED_SCOPES } from '../../../components/ExportResults/exportCellEstimate';
 import { AskAiAgentButton } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
@@ -61,7 +54,7 @@ import { useRefreshComposerChartOnAgentEdit } from '../../../ee/features/aiCopil
 import { useContentAction } from '../../../hooks/useContent';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
-import { Parameters } from '../../parameters';
+import { ParameterSelection } from '../../parameters';
 import { useCanWriteComposerChart } from '../hooks/useCanWriteComposerChart';
 import {
     COMPOSER_CHART_SENTRY_TAGS,
@@ -78,11 +71,6 @@ import { ComposerChartUpdateModal } from './ComposerChartUpdateModal';
 import { ComposerChartVisualization } from './ComposerChartVisualization';
 import { ComposerTileLineage } from './ComposerTileLineage';
 
-enum View {
-    CHART = 'chart',
-    LINEAGE = 'lineage',
-}
-
 const noop = () => {};
 
 const toErrorDetail = (message: string): ApiErrorDetail => ({
@@ -97,14 +85,17 @@ type Props = {
     chart: ComposerChartWithDetails;
 };
 
-/** A space-owned composer chart on its own page: chart or lineage, refresh, parameters and exports. */
+/** A space-owned composer chart on its own page: chart and lineage, refresh, parameters and exports. */
 export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
     const { uuid: composerChartUuid } = chart;
     useRefreshComposerChartOnAgentEdit({ projectUuid, composerChartUuid });
     const composerChartsEnabled =
         useServerFeatureFlag(FeatureFlags.ComposerCharts).data?.enabled ===
         true;
-    const [view, setView] = useState<View>(View.CHART);
+    // As on a saved chart: the chart starts open, parameters and lineage closed
+    const [isChartOpen, setIsChartOpen] = useState(true);
+    const [isParametersOpen, setIsParametersOpen] = useState(false);
+    const [isLineageOpen, setIsLineageOpen] = useState(false);
     const [picks, setPicks] = useState<ParametersValuesMap>({});
     const { runQuery, run, refresh } = useComposerChartPageRun({
         projectUuid,
@@ -151,6 +142,9 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
         [],
     );
     const handleClearParameters = useCallback(() => setPicks({}), []);
+    const hasParameters =
+        Object.keys(parametersQuery.data?.parameterDefinitions ?? {}).length >
+        0;
 
     const { user } = useApp();
     const canExportData = !!user.data?.ability?.can(
@@ -162,7 +156,7 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
     );
     const canExportImage =
         canExportData &&
-        view === View.CHART &&
+        isChartOpen &&
         isDrawn &&
         isRunCurrent &&
         !CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(draw.chartConfig.type);
@@ -206,40 +200,35 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
         [chart, composerChartUuid, projectUuid, user.data?.organizationUuid],
     );
 
-    const renderChart = (minimal: boolean) =>
-        isDrawn ? (
-            <Sentry.ErrorBoundary
-                beforeCapture={(scope) =>
-                    scope.setTags(COMPOSER_CHART_SENTRY_TAGS)
-                }
-                fallback={({ error }) => (
-                    <ErrorState
-                        error={toErrorDetail(
-                            error instanceof Error
-                                ? error.message
-                                : String(error),
-                        )}
-                    />
-                )}
-            >
-                <ComposerChartVisualization
-                    key={chart.versionUuid}
-                    projectUuid={projectUuid}
-                    composerChartUuid={composerChartUuid}
-                    dashboardUuid={null}
-                    tileUuid={null}
-                    isDashboard={false}
-                    isTitleHidden
-                    minimal={minimal}
-                    draw={draw}
-                    results={results}
-                    rows={rows}
-                    onScreenshotReady={noop}
-                    onScreenshotError={noop}
-                    setEchartsRef={minimal ? undefined : setEchartRef}
+    const chartView = isDrawn ? (
+        <Sentry.ErrorBoundary
+            beforeCapture={(scope) => scope.setTags(COMPOSER_CHART_SENTRY_TAGS)}
+            fallback={({ error }) => (
+                <ErrorState
+                    error={toErrorDetail(
+                        error instanceof Error ? error.message : String(error),
+                    )}
                 />
-            </Sentry.ErrorBoundary>
-        ) : null;
+            )}
+        >
+            <ComposerChartVisualization
+                key={chart.versionUuid}
+                projectUuid={projectUuid}
+                composerChartUuid={composerChartUuid}
+                dashboardUuid={null}
+                tileUuid={null}
+                isDashboard={false}
+                isTitleHidden
+                minimal={false}
+                draw={draw}
+                results={results}
+                rows={rows}
+                onScreenshotReady={noop}
+                onScreenshotError={noop}
+                setEchartsRef={setEchartRef}
+            />
+        </Sentry.ErrorBoundary>
+    ) : null;
 
     return (
         <Page
@@ -293,7 +282,7 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                 <MantineIcon icon={IconRefresh} />
                             </ActionIcon>
                         </Tooltip>
-                        {(canExportData || canWrite) && (
+                        {canWrite && (
                             <Menu position="bottom-end" withArrow>
                                 <Menu.Target>
                                     <Tooltip
@@ -310,59 +299,24 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                     </Tooltip>
                                 </Menu.Target>
                                 <Menu.Dropdown>
-                                    {canExportData && (
-                                        <>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconTableExport}
-                                                    />
-                                                }
-                                                disabled={!exportQueryUuid}
-                                                onClick={openExport}
-                                            >
-                                                Download data
-                                            </Menu.Item>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconPhoto}
-                                                    />
-                                                }
-                                                disabled={!canExportImage}
-                                                onClick={openImageExport}
-                                            >
-                                                Export image
-                                            </Menu.Item>
-                                        </>
-                                    )}
-                                    {canWrite && canExportData && (
-                                        <Menu.Divider />
-                                    )}
-                                    {canWrite && (
-                                        <>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconEdit}
-                                                    />
-                                                }
-                                                onClick={openRename}
-                                            >
-                                                Rename
-                                            </Menu.Item>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconFolderSymlink}
-                                                    />
-                                                }
-                                                onClick={openMove}
-                                            >
-                                                Move
-                                            </Menu.Item>
-                                        </>
-                                    )}
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconEdit} />
+                                        }
+                                        onClick={openRename}
+                                    >
+                                        Rename
+                                    </Menu.Item>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconFolderSymlink}
+                                            />
+                                        }
+                                        onClick={openMove}
+                                    >
+                                        Move
+                                    </Menu.Item>
                                 </Menu.Dropdown>
                             </Menu>
                         )}
@@ -370,96 +324,113 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                 </PageHeader>
             }
         >
-            <Stack p="lg" flex={1} miw={0} className={styles.root}>
-                <Paper className={styles.pane}>
-                    <Box className={styles.paneHeader}>
-                        <SegmentedControl
-                            size="sm"
-                            value={view}
-                            onChange={(value) => setView(value as View)}
-                            data={[
-                                {
-                                    value: View.CHART,
-                                    label: (
-                                        <Group gap="xs" wrap="nowrap">
-                                            <MantineIcon
-                                                icon={IconChartHistogram}
-                                            />
-                                            Chart
-                                        </Group>
-                                    ),
-                                },
-                                {
-                                    value: View.LINEAGE,
-                                    label: (
-                                        <Group gap="xs" wrap="nowrap">
-                                            <MantineIcon
-                                                icon={IconHierarchy2}
-                                            />
-                                            Lineage
-                                        </Group>
-                                    ),
-                                },
-                            ]}
-                        />
-                        <Group gap="xs" data-testid="composer-chart-parameters">
-                            {parametersQuery.isError && (
+            <Stack className={explorerClasses.stack}>
+                {(parametersQuery.isError || hasParameters) && (
+                    <CollapsableCard
+                        title="Parameters"
+                        isOpen={isParametersOpen}
+                        onToggle={setIsParametersOpen}
+                    >
+                        <Box m="md" data-testid="composer-chart-parameters">
+                            {parametersQuery.isError ? (
                                 <InlineErrorState
-                                    p="xs"
                                     message="Parameters could not be loaded"
                                     onRetry={() => parametersQuery.refetch()}
                                 />
-                            )}
-                            <Parameters
-                                isEditMode={false}
-                                parameters={
-                                    parametersQuery.data?.parameterDefinitions
-                                }
-                                parameterValues={parameterValues}
-                                onParameterChange={handleParameterChange}
-                                onClearAll={handleClearParameters}
-                                // Controls wait for the first run, which says the values in use
-                                isLoading={
-                                    parametersQuery.isInitialLoading ||
-                                    (!run && runQuery.isLoading)
-                                }
-                                isError={parametersQuery.isError}
-                            />
-                        </Group>
-                    </Box>
-                    <Box
-                        className={styles.paneBody}
-                        data-padded={view === View.CHART}
-                    >
-                        {view === View.CHART &&
-                            (errorMessage !== null ? (
-                                <ErrorState
-                                    error={
-                                        runError ?? toErrorDetail(errorMessage)
-                                    }
-                                />
-                            ) : isDrawn ? (
-                                <Box className={styles.chart}>
-                                    {renderChart(false)}
-                                </Box>
                             ) : (
-                                <EmptyStateLoader title="Loading chart" />
-                            ))}
-                        {view === View.LINEAGE && (
-                            <ComposerRunParametersContext.Provider
-                                value={run?.usedParameterValuesByNodeId ?? {}}
-                            >
-                                <ComposerTileLineage
+                                <ParameterSelection
+                                    parameters={
+                                        parametersQuery.data
+                                            ?.parameterDefinitions
+                                    }
+                                    parameterValues={parameterValues}
+                                    onParameterChange={handleParameterChange}
+                                    // Clear all removes picks; with none, it would change nothing
+                                    showClearAll={Object.keys(picks).length > 0}
+                                    onClearAll={handleClearParameters}
+                                    cols={2}
                                     projectUuid={projectUuid}
-                                    pipeline={chart.pipeline}
-                                    run={run}
-                                    runError={runError?.message ?? null}
-                                    chart={renderChart(true)}
+                                    // Controls wait for the first run, which says the values in use
+                                    isLoading={!run && runQuery.isLoading}
                                 />
-                            </ComposerRunParametersContext.Provider>
-                        )}
+                            )}
+                        </Box>
+                    </CollapsableCard>
+                )}
+                <CollapsableCard
+                    title="Chart"
+                    isVisualizationCard
+                    isOpen={isChartOpen}
+                    onToggle={setIsChartOpen}
+                    rightHeaderElement={
+                        canExportData && (
+                            <Menu position="bottom-end" withArrow>
+                                <Menu.Target>
+                                    <Tooltip label="Export">
+                                        <ActionIcon
+                                            {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
+                                            aria-label="Export"
+                                        >
+                                            <MantineIcon icon={IconDownload} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconTableExport}
+                                            />
+                                        }
+                                        disabled={!exportQueryUuid}
+                                        onClick={openExport}
+                                    >
+                                        Download data
+                                    </Menu.Item>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconPhoto} />
+                                        }
+                                        disabled={!canExportImage}
+                                        onClick={openImageExport}
+                                    >
+                                        Export image
+                                    </Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                        )
+                    }
+                >
+                    {errorMessage !== null ? (
+                        <ErrorState
+                            error={runError ?? toErrorDetail(errorMessage)}
+                        />
+                    ) : isDrawn ? (
+                        <Box className={styles.chart}>{chartView}</Box>
+                    ) : (
+                        <EmptyStateLoader title="Loading chart" />
+                    )}
+                </CollapsableCard>
+                <CollapsableCard
+                    title="Lineage"
+                    isOpen={isLineageOpen}
+                    onToggle={setIsLineageOpen}
+                >
+                    <Box className={styles.lineage}>
+                        <ComposerRunParametersContext.Provider
+                            value={run?.usedParameterValuesByNodeId ?? {}}
+                        >
+                            <ComposerTileLineage
+                                projectUuid={projectUuid}
+                                pipeline={chart.pipeline}
+                                run={run}
+                                runError={runError?.message ?? null}
+                                // The Chart card draws the chart; Lineage shows only the pipeline
+                                chart={null}
+                            />
+                        </ComposerRunParametersContext.Provider>
                     </Box>
-                </Paper>
+                </CollapsableCard>
             </Stack>
             {exportQueryUuid && run && (
                 <ExportDataModal
