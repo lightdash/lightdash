@@ -107,14 +107,16 @@ const composerChartOwnerShape = {
         .min(1)
         .nullable()
         .describe(
-            'The existing dashboard that owns the chart and gets its tile. Pass null to save the chart into spaceSlug.',
+            'The existing dashboard that owns the chart and gets its tile. Leave it out or pass null to save the chart into spaceSlug.',
         ),
     spaceSlug: z
         .string()
         .min(1)
         .nullable()
         .optional()
-        .describe('The space that owns the chart when dashboardSlug is null.'),
+        .describe(
+            'The space that owns the chart when there is no dashboardSlug.',
+        ),
     name: z.string().min(1),
     description: z.string().nullable(),
 };
