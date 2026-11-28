@@ -431,6 +431,10 @@ export class ComposerChartModel {
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            // One null in a NOT IN list makes it match nothing
+            .whereNotNull(
+                `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
+            )
             .select(
                 `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
             );

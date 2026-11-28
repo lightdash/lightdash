@@ -243,28 +243,6 @@ describe('composer charts migration on the real schema', () => {
         });
     });
 
-    it('requires a chart on every composer tile', async () => {
-        await inRolledBackTransaction(async (trx) => {
-            const tileUuid = randomUUID();
-            await trx(DASHBOARD_TILES).insert({
-                dashboard_version_id: fixture.dashboardVersionId,
-                dashboard_tile_uuid: tileUuid,
-                type: 'composer_chart',
-                x_offset: 0,
-                y_offset: 0,
-                height: 3,
-                width: 6,
-            });
-            await expectRefused(trx, (savepoint) =>
-                savepoint(DASHBOARD_TILE_COMPOSER_CHARTS).insert({
-                    dashboard_version_id: fixture.dashboardVersionId,
-                    dashboard_tile_uuid: tileUuid,
-                    composer_chart_uuid: null,
-                }),
-            );
-        });
-    });
-
     it('down removes only what the migration added', async () => {
         await inRolledBackTransaction(async (trx) => {
             const classicTileUuid = randomUUID();

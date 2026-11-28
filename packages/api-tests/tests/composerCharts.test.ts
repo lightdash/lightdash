@@ -572,8 +572,12 @@ describe('Composer charts', () => {
             expect((await getChart(untiled.uuid)).status).toBe(404);
         });
 
-        it('deletes the chart with its dashboard', async () => {
+        it('deletes the chart with its dashboard, when two versions show it', async () => {
             const { dashboard, chart } = await createDashboardWithSqlChart();
+            // Each version's tile row is cascaded while the chart's delete sets it null
+            expect((await saveTiles(dashboard, dashboard.tiles)).status).toBe(
+                200,
+            );
 
             const deleted = await admin.delete(
                 `/api/v1/dashboards/${dashboard.uuid}`,
@@ -581,6 +585,13 @@ describe('Composer charts', () => {
             expect(deleted.status).toBe(200);
 
             expect((await getChart(chart.uuid)).status).toBe(404);
+            const gone = await admin.get(
+                `/api/v1/dashboards/${dashboard.uuid}`,
+                {
+                    failOnStatusCode: false,
+                },
+            );
+            expect(gone.status).toBe(404);
         });
     });
 

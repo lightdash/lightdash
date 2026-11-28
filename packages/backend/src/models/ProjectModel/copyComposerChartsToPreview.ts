@@ -91,7 +91,7 @@ export const copyComposerChartsToPreview = async (
                 tile.dashboard_version_id,
             )!,
             composer_chart_uuid: previewUuidBySource.get(
-                tile.composer_chart_uuid,
+                tile.composer_chart_uuid!,
             )!,
         })),
     );
