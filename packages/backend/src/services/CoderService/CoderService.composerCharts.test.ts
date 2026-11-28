@@ -318,7 +318,7 @@ describe('CoderService composer chart upsert for the agent', () => {
         expect(writeFromCode).toHaveBeenCalledOnce();
     });
 
-    it('refuses a file taking a dashboard chart into a space, naming the tile menu', async () => {
+    it('refuses a file taking a dashboard chart into a space', async () => {
         const { service, writeFromCode } = makeUpsertService();
         const { dashboardSlug: _, ...file } = editedFile();
         await expect(
@@ -330,7 +330,9 @@ describe('CoderService composer chart upsert for the agent', () => {
                 file,
                 { authorization: 'space_access' },
             ),
-        ).rejects.toThrow(/belongs to a dashboard.*tile menu/);
+        ).rejects.toThrow(
+            /belongs to a dashboard.*cannot move a chart from a dashboard to a space/,
+        );
         expect(writeFromCode).not.toHaveBeenCalled();
     });
 });

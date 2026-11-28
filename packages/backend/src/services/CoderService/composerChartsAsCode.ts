@@ -135,7 +135,7 @@ export const assertComposerChartOwnerTypeKept = (
         case 'dashboard':
             if (fileDashboardSlug !== null) return;
             throw new ComposerChartOwnerChangeError(
-                `Composer chart "${slug}" belongs to a dashboard. You cannot move it to a space by uploading a file without dashboardSlug. Use "Move to space" in its tile menu.`,
+                `Composer chart "${slug}" belongs to a dashboard. An upload cannot move a chart from a dashboard to a space, so the file must keep its dashboardSlug.`,
             );
         case 'space':
             if (fileDashboardSlug === null) return;

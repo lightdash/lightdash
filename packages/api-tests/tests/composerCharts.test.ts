@@ -2717,7 +2717,9 @@ describe('Composer charts', () => {
                 expect(intoSpace.body.error.message).toContain(
                     `Composer chart "${dashboardChart.slug}" belongs to a dashboard`,
                 );
-                expect(intoSpace.body.error.message).toContain('tile menu');
+                expect(intoSpace.body.error.message).toContain(
+                    'cannot move a chart from a dashboard to a space',
+                );
 
                 const { chart: spaceChart } = await createSpaceChart();
                 const spaceFile = await download(spaceChart.slug);
