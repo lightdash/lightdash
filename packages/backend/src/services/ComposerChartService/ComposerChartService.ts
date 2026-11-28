@@ -20,6 +20,7 @@ import {
     isComposerChartTileRequest,
     isDashboardComposerChartTile,
     NotFoundError,
+    NotSupportedError,
     ParameterError,
     parseComposerChartInput,
     parseComposerPipeline,
