@@ -2045,6 +2045,7 @@ export class ServiceRepository
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     getQuerySourceService: () => this.getQuerySourceService(),
                     getAsyncQueryService: () => this.getAsyncQueryService(),
+                    lightdashConfig: this.context.lightdashConfig,
                 }),
         );
     }
@@ -2123,6 +2124,7 @@ export class ServiceRepository
                         ? this.getAppGenerateService<AppGenerateService>()
                         : undefined,
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    composerChartService: this.getComposerChartService(),
                 }),
         );
     }

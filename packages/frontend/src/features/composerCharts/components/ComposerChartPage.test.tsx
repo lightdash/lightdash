@@ -21,6 +21,9 @@ vi.mock(
     '../../../ee/features/aiCopilot/hooks/useRefreshComposerChartOnAgentEdit',
     () => ({ useRefreshComposerChartOnAgentEdit: () => {} }),
 );
+vi.mock('../hooks/useCanWriteComposerChart', () => ({
+    useCanWriteComposerChart: () => false,
+}));
 vi.mock('../hooks/useComposerChartPage', () => ({
     useComposerChartPageRun: () => ({
         runQuery: {

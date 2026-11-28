@@ -112,11 +112,11 @@ export const assertNotComposerChartFile = (slug: string, body: unknown) => {
     }
 };
 
-/** Upload and agent edits refuse a composer chart a space owns until they can write one. */
+/** Upload refuses a composer chart a space owns until it can write one. */
 export class SpaceOwnedComposerChartUploadError extends NotSupportedError {
     constructor(slug: string) {
         super(
-            `Composer chart "${slug}" belongs to a space, not a dashboard. For now, only composer charts that belong to a dashboard can be uploaded or edited.`,
+            `Composer chart "${slug}" belongs to a space, not a dashboard. For now, only composer charts that belong to a dashboard can be uploaded.`,
         );
     }
 }

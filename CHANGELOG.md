@@ -1,3 +1,38 @@
+# [3.446.0](https://github.com/lightdash/lightdash/compare/3.445.0...3.446.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** agent edits a space-owned composer chart ([#33612](https://github.com/lightdash/lightdash/issues/33612)) ([7d56a69](https://github.com/lightdash/lightdash/commit/7d56a69b4d61dd0c3beb014be729e7a4600db21f))
+
+# [3.445.0](https://github.com/lightdash/lightdash/compare/3.444.0...3.445.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** restore, permanently delete and space cascade for space-owned composer charts ([#33610](https://github.com/lightdash/lightdash/issues/33610)) ([2b7e63a](https://github.com/lightdash/lightdash/commit/2b7e63a3c1514c181f80d09cf312132de5c6d793))
+
+# [3.444.0](https://github.com/lightdash/lightdash/compare/3.443.0...3.444.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** delete a space-owned composer chart, naming the dashboards that show it ([#33609](https://github.com/lightdash/lightdash/issues/33609)) ([49e49cf](https://github.com/lightdash/lightdash/commit/49e49cf7785c89d6cbdcf0aeae83247f5f9edd5b))
+
+# [3.443.0](https://github.com/lightdash/lightdash/compare/3.442.0...3.443.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** rename and move a space-owned composer chart ([#33607](https://github.com/lightdash/lightdash/issues/33607)) ([f8ca6a2](https://github.com/lightdash/lightdash/commit/f8ca6a2290410927fb688d8d8cff64340dba1156))
+
+# [3.442.0](https://github.com/lightdash/lightdash/compare/3.441.0...3.442.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** the agent reads, runs, lists and finds space-owned composer charts; Ask AI on page and row ([#33606](https://github.com/lightdash/lightdash/issues/33606)) ([26a3a91](https://github.com/lightdash/lightdash/commit/26a3a91fdde9204b315aa53a731c443af1c18739))
+
 # [3.441.0](https://github.com/lightdash/lightdash/compare/3.440.0...3.441.0) (2026-11-28)
 
 

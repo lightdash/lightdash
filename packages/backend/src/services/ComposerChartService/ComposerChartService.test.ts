@@ -13,6 +13,7 @@ import {
     MergeJoinType,
     MetricType,
     NotFoundError,
+    NotSupportedError,
     ParameterError,
     QueryExecutionContext,
     QuerySourceType,
@@ -260,7 +261,7 @@ const savedDashboardFilters: DashboardFilters = {
     tableCalculations: [],
 };
 
-const setup = ({ flagEnabled = true } = {}) => {
+const setup = ({ flagEnabled = true, softDeleteEnabled = false } = {}) => {
     const querySourceService = {
         submitComposerRun: vi.fn(
             async ({
@@ -410,6 +411,9 @@ const setup = ({ flagEnabled = true } = {}) => {
         } as unknown as QueryHistoryModel,
         getQuerySourceService: () => querySourceService,
         getAsyncQueryService: () => asyncQueryService,
+        lightdashConfig: {
+            softDelete: { enabled: softDeleteEnabled, retentionDays: 30 },
+        },
     });
     return {
         service,
@@ -679,6 +683,99 @@ describe('ComposerChartService.create owner', () => {
             ),
         ).rejects.toThrow(FeatureNotEnabledError);
         expect(composerChartModel.create).not.toHaveBeenCalled();
+    });
+});
+
+describe('ComposerChartService.writeFromCode owner', () => {
+    const spaceUuid = 'chart-space-uuid';
+    const setupLive = (owner: ComposerChartOwner) => {
+        const deps = setup();
+        const writeFromCode = vi.fn(async () => 'chart-uuid');
+        Object.assign(deps.composerChartModel, {
+            findIdentityBySlug: vi.fn(async () => ({
+                uuid: 'chart-uuid',
+                deleted: false,
+                owner,
+            })),
+            getOwner: vi.fn(async () => ({ projectUuid, owner })),
+            writeFromCode,
+        });
+        return { ...deps, writeFromCode };
+    };
+    const write = (
+        service: ComposerChartService,
+        spaceOwner: 'refuse' | 'keep',
+        ability = abilityWithout(null),
+    ) =>
+        service.writeFromCode(sessionAccount(ability), projectUuid, {
+            ...createBody(PIPELINES.sql),
+            slug: 'orders',
+            dashboardUuid: null,
+            spaceOwner,
+        });
+
+    test('writes a version of a chart its space owns for the agent edit, checked on the space', async () => {
+        const { service, writeFromCode, spacePermissionService } = setupLive({
+            type: 'space',
+            spaceUuid,
+        });
+        await write(service, 'keep');
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            defaultSessionUser.userUuid,
+            { type: 'space', spaceUuid },
+        );
+        expect(writeFromCode).toHaveBeenCalledWith(
+            expect.objectContaining({
+                owner: { type: 'space', spaceUuid },
+            }),
+        );
+    });
+
+    test('refuses a chart its space owns for an upload', async () => {
+        const { service, writeFromCode } = setupLive({
+            type: 'space',
+            spaceUuid,
+        });
+        await expect(write(service, 'refuse')).rejects.toThrow(
+            NotSupportedError,
+        );
+        expect(writeFromCode).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        ['manage:ComposerChart', abilityWithout('ComposerChart')],
+        [
+            'write on its space',
+            new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'view' as const },
+                ...AUTHOR_SUBJECTS.map((name) => ({
+                    subject: name,
+                    action: 'manage' as const,
+                })),
+            ]),
+        ],
+    ])('refuses the agent edit without %s', async (_, ability) => {
+        const { service, writeFromCode } = setupLive({
+            type: 'space',
+            spaceUuid,
+        });
+        await expect(write(service, 'keep', ability)).rejects.toThrow(
+            ForbiddenError,
+        );
+        expect(writeFromCode).not.toHaveBeenCalled();
+    });
+
+    test('keeps a dashboard owner either way', async () => {
+        const { service, writeFromCode } = setupLive({
+            type: 'dashboard',
+            dashboardUuid,
+        });
+        await write(service, 'keep');
+        expect(writeFromCode).toHaveBeenCalledWith(
+            expect.objectContaining({
+                owner: { type: 'dashboard', dashboardUuid },
+            }),
+        );
     });
 });
 
@@ -1892,5 +1989,477 @@ describe('ComposerChartService.assertCanViewRunSource', () => {
                 tileUuid: null,
             }),
         ).resolves.toBeUndefined();
+    });
+});
+
+describe('ComposerChartService lifecycle writes', () => {
+    const sourceSpaceUuid = 'source-space-uuid';
+    const targetSpaceUuid = 'target-space-uuid';
+    const spaceOwner: ComposerChartOwner = {
+        type: 'space',
+        spaceUuid: sourceSpaceUuid,
+    };
+
+    // Write follows `inheritsFromOrgOrProject`, so each space can grant or refuse it
+    const setupWrite = ({
+        owner = spaceOwner,
+        writableSpaces = [sourceSpaceUuid, targetSpaceUuid],
+        spaceProjects = {},
+        flagEnabled = true,
+        softDeleteEnabled = false,
+    }: {
+        owner?: ComposerChartOwner;
+        writableSpaces?: readonly string[];
+        spaceProjects?: Record<string, string>;
+        flagEnabled?: boolean;
+        softDeleteEnabled?: boolean;
+    } = {}) => {
+        const deps = setup({ flagEnabled, softDeleteEnabled });
+        const update = vi.fn(async () => ({ uuid: 'chart-uuid' }));
+        const moveToSpace = vi.fn(async () => undefined);
+        const deleteFromSpace = vi.fn(async () => undefined);
+        Object.assign(deps.composerChartModel, {
+            getOwner: vi.fn(async () => ({ projectUuid, owner })),
+            update,
+            moveToSpace,
+            deleteFromSpace,
+        });
+        const resolveAccess = vi.fn(
+            async (_: string, target: { spaceUuid: string }) => ({
+                organizationUuid,
+                projectUuid: spaceProjects[target.spaceUuid] ?? projectUuid,
+                inheritsFromOrgOrProject: writableSpaces.includes(
+                    target.spaceUuid,
+                ),
+                access: [],
+                admins: [],
+            }),
+        );
+        Object.assign(deps.spacePermissionService, { resolveAccess });
+        const account = sessionAccount(
+            new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'view' as const },
+                {
+                    subject: 'SavedChart',
+                    action: 'manage' as const,
+                    conditions: { inheritsFromOrgOrProject: true },
+                },
+            ]),
+        );
+        return {
+            ...deps,
+            update,
+            moveToSpace,
+            deleteFromSpace,
+            account,
+            resolveAccess,
+        };
+    };
+
+    describe('delete', () => {
+        test.each([
+            [
+                'soft, by the caller, with soft delete on',
+                true,
+                defaultSessionUser.userUuid,
+            ],
+            ['permanently with soft delete off', false, null],
+        ])(
+            'deletes a chart its space owns %s, with the flag off',
+            async (_, softDeleteEnabled, deletedBy) => {
+                const { service, account, deleteFromSpace } = setupWrite({
+                    softDeleteEnabled,
+                    flagEnabled: false,
+                });
+                await service.delete(account, projectUuid, 'chart-uuid');
+                expect(deleteFromSpace).toHaveBeenCalledWith(
+                    'chart-uuid',
+                    sourceSpaceUuid,
+                    deletedBy,
+                );
+            },
+        );
+
+        test('refuses a user who cannot write charts in the space', async () => {
+            const { service, account, deleteFromSpace } = setupWrite({
+                writableSpaces: [],
+            });
+            await expect(
+                service.delete(account, projectUuid, 'chart-uuid'),
+            ).rejects.toThrow(ForbiddenError);
+            expect(deleteFromSpace).not.toHaveBeenCalled();
+        });
+
+        test('refuses a chart a dashboard owns', async () => {
+            const { service, account, deleteFromSpace } = setupWrite({
+                owner: { type: 'dashboard', dashboardUuid },
+                writableSpaces: ['space-uuid'],
+            });
+            await expect(
+                service.delete(account, projectUuid, 'chart-uuid'),
+            ).rejects.toThrow(ParameterError);
+            expect(deleteFromSpace).not.toHaveBeenCalled();
+        });
+
+        test('misses a chart in another project', async () => {
+            const { service, account, deleteFromSpace } = setupWrite();
+            await expect(
+                service.delete(account, 'another-project', 'chart-uuid'),
+            ).rejects.toThrow(NotFoundError);
+            expect(deleteFromSpace).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getDashboardsShowing', () => {
+        test('lists the dashboards showing the chart that the caller can view', async () => {
+            const deps = setupWrite();
+            const findDashboardsShowing = vi.fn(async () => [
+                {
+                    uuid: 'visible',
+                    name: 'Visible',
+                    spaceUuid: sourceSpaceUuid,
+                },
+                {
+                    uuid: 'hidden',
+                    name: 'Hidden',
+                    spaceUuid: 'private-space',
+                },
+            ]);
+            const resolveAccessBatch = vi.fn(
+                async (
+                    _: string,
+                    targets: { dashboardUuid: string; spaceUuid: string }[],
+                ) =>
+                    targets.map((target) => ({
+                        target,
+                        context:
+                            target.spaceUuid === 'private-space'
+                                ? {
+                                      organizationUuid,
+                                      projectUuid,
+                                      inheritsFromOrgOrProject: false,
+                                      access: [],
+                                      admins: [],
+                                  }
+                                : {
+                                      organizationUuid,
+                                      projectUuid,
+                                      inheritsFromOrgOrProject: true,
+                                      access: [],
+                                      admins: [],
+                                  },
+                    })),
+            );
+            Object.assign(deps.composerChartModel, { findDashboardsShowing });
+            Object.assign(deps.spacePermissionService, { resolveAccessBatch });
+            const account = sessionAccount(
+                new Ability<PossibleAbilities>([
+                    { subject: 'SavedChart', action: 'view' as const },
+                    {
+                        subject: 'Dashboard',
+                        action: 'view' as const,
+                        conditions: { inheritsFromOrgOrProject: true },
+                    },
+                ]),
+            );
+
+            await expect(
+                deps.service.getDashboardsShowing(
+                    account,
+                    projectUuid,
+                    'chart-uuid',
+                ),
+            ).resolves.toEqual([{ uuid: 'visible', name: 'Visible' }]);
+        });
+
+        test('refuses a caller who cannot view the chart', async () => {
+            const deps = setupWrite();
+            const findDashboardsShowing = vi.fn(async () => []);
+            Object.assign(deps.composerChartModel, { findDashboardsShowing });
+            await expect(
+                deps.service.getDashboardsShowing(
+                    sessionAccount(new Ability<PossibleAbilities>([])),
+                    projectUuid,
+                    'chart-uuid',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(findDashboardsShowing).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('update', () => {
+        test('renames a chart its space owns, checking write on that space', async () => {
+            const { service, account, update } = setupWrite();
+            await service.update(account, projectUuid, 'chart-uuid', {
+                name: ' Renamed ',
+                description: null,
+            });
+            expect(update).toHaveBeenCalledWith('chart-uuid', sourceSpaceUuid, {
+                name: 'Renamed',
+                description: null,
+            });
+        });
+
+        test('renames with the composer-charts flag off', async () => {
+            const { service, account, update } = setupWrite({
+                flagEnabled: false,
+            });
+            await service.update(account, projectUuid, 'chart-uuid', {
+                description: 'Why',
+            });
+            expect(update).toHaveBeenCalledWith('chart-uuid', sourceSpaceUuid, {
+                description: 'Why',
+            });
+        });
+
+        test('refuses a user who can view charts in the space but not write them', async () => {
+            const { service, account, update } = setupWrite({
+                writableSpaces: [],
+            });
+            await expect(
+                service.update(account, projectUuid, 'chart-uuid', {
+                    name: 'Renamed',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(update).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            [
+                'a chart a dashboard owns',
+                {
+                    owner: { type: 'dashboard', dashboardUuid },
+                    writableSpaces: ['space-uuid'],
+                },
+                { name: 'Renamed' },
+            ],
+            ['an empty name', {}, { name: '  ' }],
+        ] as const)('refuses %s', async (_, options, body) => {
+            const { service, account, update } = setupWrite(options);
+            await expect(
+                service.update(account, projectUuid, 'chart-uuid', body),
+            ).rejects.toThrow(ParameterError);
+            expect(update).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('preflightSpaceChartEdit', () => {
+        test.each([
+            ['its own space', [targetSpaceUuid], null],
+            ['its own space, moving it', [targetSpaceUuid], targetSpaceUuid],
+            ['the target space', [sourceSpaceUuid], targetSpaceUuid],
+        ])(
+            'refuses a user who cannot write %s',
+            async (_, writableSpaces, target) => {
+                const { service, account } = setupWrite({ writableSpaces });
+                await expect(
+                    service.preflightSpaceChartEdit(
+                        account,
+                        projectUuid,
+                        'chart-uuid',
+                        { targetSpaceUuid: target },
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+            },
+        );
+
+        test('passes with write on both spaces, writing nothing', async () => {
+            const { service, account, update, moveToSpace } = setupWrite();
+            await service.preflightSpaceChartEdit(
+                account,
+                projectUuid,
+                'chart-uuid',
+                { targetSpaceUuid },
+            );
+            expect(update).not.toHaveBeenCalled();
+            expect(moveToSpace).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('moveToSpace', () => {
+        const move = (
+            service: ComposerChartService,
+            account: ReturnType<typeof sessionAccount>,
+            target: string | null = targetSpaceUuid,
+        ) =>
+            service.moveToSpace(
+                account,
+                {
+                    projectUuid,
+                    itemUuid: 'chart-uuid',
+                    targetSpaceUuid: target,
+                },
+                { tx: 'tx' as never },
+            );
+
+        test('moves a chart to another space in the caller transaction, checking write on both', async () => {
+            const { service, account, moveToSpace, resolveAccess } = setupWrite(
+                { flagEnabled: false },
+            );
+            await move(service, account);
+            expect(moveToSpace).toHaveBeenCalledWith(
+                {
+                    projectUuid,
+                    composerChartUuid: 'chart-uuid',
+                    sourceSpaceUuid,
+                    targetSpaceUuid,
+                },
+                { tx: 'tx' },
+            );
+            expect(resolveAccess).toHaveBeenCalledWith(
+                defaultSessionUser.userUuid,
+                { type: 'space', spaceUuid: sourceSpaceUuid },
+            );
+            expect(resolveAccess).toHaveBeenCalledWith(
+                defaultSessionUser.userUuid,
+                { type: 'space', spaceUuid: targetSpaceUuid },
+            );
+        });
+
+        test.each([
+            ['its own space', [targetSpaceUuid]],
+            ['the target space', [sourceSpaceUuid]],
+        ])('refuses a user who cannot write %s', async (_, writableSpaces) => {
+            const { service, account, moveToSpace } = setupWrite({
+                writableSpaces,
+            });
+            await expect(move(service, account)).rejects.toThrow(
+                ForbiddenError,
+            );
+            expect(moveToSpace).not.toHaveBeenCalled();
+        });
+
+        test('refuses a target space in another project', async () => {
+            const { service, account, moveToSpace } = setupWrite({
+                spaceProjects: { [targetSpaceUuid]: 'another-project' },
+            });
+            await expect(move(service, account)).rejects.toThrow(NotFoundError);
+            expect(moveToSpace).not.toHaveBeenCalled();
+        });
+
+        // The dashboard's space is writable, so only the owner refuses
+        test.each([
+            [
+                'a chart a dashboard owns',
+                { type: 'dashboard', dashboardUuid },
+                targetSpaceUuid,
+            ],
+            ['no target space', spaceOwner, null],
+        ] as const)('refuses %s', async (_, owner, target) => {
+            const { service, account, moveToSpace } = setupWrite({
+                owner,
+                writableSpaces: [
+                    'space-uuid',
+                    sourceSpaceUuid,
+                    targetSpaceUuid,
+                ],
+            });
+            await expect(move(service, account, target)).rejects.toThrow(
+                ParameterError,
+            );
+            expect(moveToSpace).not.toHaveBeenCalled();
+        });
+    });
+});
+
+describe('ComposerChartService restore and permanent delete', () => {
+    const spaceUuid = 'space-uuid';
+    const otherUserUuid = 'other-user-uuid';
+    const deletedAt = new Date('2026-11-28T10:00:00.000Z');
+
+    const setupDeleted = ({
+        owner = { type: 'space', spaceUuid } as ComposerChartOwner,
+        deletedByUserUuid = defaultSessionUser.userUuid,
+        canManageDeletedContent = false,
+    }: {
+        owner?: ComposerChartOwner;
+        deletedByUserUuid?: string | null;
+        canManageDeletedContent?: boolean;
+    } = {}) => {
+        const deps = setup({ flagEnabled: false, softDeleteEnabled: true });
+        const restoreToSpace = vi.fn(async () => undefined);
+        const permanentlyDeleteFromSpace = vi.fn(async () => undefined);
+        Object.assign(deps.composerChartModel, {
+            getDeleted: vi.fn(async () => ({
+                projectUuid,
+                organizationUuid,
+                owner,
+                deletion: { deletedAt, deletedByUserUuid },
+            })),
+            restoreToSpace,
+            permanentlyDeleteFromSpace,
+        });
+        const account = sessionAccount(
+            new Ability<PossibleAbilities>(
+                canManageDeletedContent
+                    ? [
+                          {
+                              subject: 'DeletedContent',
+                              action: 'manage' as const,
+                          },
+                      ]
+                    : [],
+            ),
+        );
+        return {
+            ...deps,
+            account,
+            calls: {
+                restore: restoreToSpace,
+                permanentDelete: permanentlyDeleteFromSpace,
+            },
+        };
+    };
+
+    describe.each(['restore', 'permanentDelete'] as const)('%s', (method) => {
+        test.each([
+            ['the user who deleted it', defaultSessionUser.userUuid, false],
+            ['a user who can manage deleted content', otherUserUuid, true],
+        ])(
+            'is allowed for %s, with the flag off',
+            async (_, deletedByUserUuid, canManageDeletedContent) => {
+                const { service, account, calls } = setupDeleted({
+                    deletedByUserUuid,
+                    canManageDeletedContent,
+                });
+                await service[method](account, projectUuid, 'chart-uuid');
+                expect(calls[method]).toHaveBeenCalledWith(
+                    'chart-uuid',
+                    spaceUuid,
+                    { deletedAt, deletedByUserUuid },
+                );
+            },
+        );
+
+        test('refuses anyone else', async () => {
+            const { service, account, calls } = setupDeleted({
+                deletedByUserUuid: otherUserUuid,
+            });
+            await expect(
+                service[method](account, projectUuid, 'chart-uuid'),
+            ).rejects.toThrow(ForbiddenError);
+            expect(calls[method]).not.toHaveBeenCalled();
+        });
+
+        test('refuses a chart a dashboard owns', async () => {
+            const { service, account, calls } = setupDeleted({
+                owner: { type: 'dashboard', dashboardUuid },
+                canManageDeletedContent: true,
+            });
+            await expect(
+                service[method](account, projectUuid, 'chart-uuid'),
+            ).rejects.toThrow(ParameterError);
+            expect(calls[method]).not.toHaveBeenCalled();
+        });
+
+        test('misses a chart in another project', async () => {
+            const { service, account, calls } = setupDeleted({
+                canManageDeletedContent: true,
+            });
+            await expect(
+                service[method](account, 'another-project', 'chart-uuid'),
+            ).rejects.toThrow(NotFoundError);
+            expect(calls[method]).not.toHaveBeenCalled();
+        });
     });
 });

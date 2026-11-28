@@ -359,4 +359,61 @@ describe('CoderService composer chart upsert for the agent', () => {
             expect(writeFromCode).not.toHaveBeenCalled();
         },
     );
+
+    it("writes the agent's edit of a live chart its space owns, keeping that owner", async () => {
+        const { service, writeFromCode } = makeUpsertService({
+            owner: { type: 'space', spaceUuid: 'marketing-uuid' },
+        });
+        await service.upsertComposerChart(
+            user,
+            account,
+            PROJECT_UUID,
+            'visible',
+            { ...withoutDashboard(), name: 'Renamed', dashboardSlug: null },
+            { authorization: 'space_access', spaceOwner: 'keep' },
+        );
+        expect(writeFromCode).toHaveBeenCalledWith(
+            account,
+            PROJECT_UUID,
+            expect.objectContaining({
+                slug: 'visible',
+                dashboardUuid: null,
+                spaceOwner: 'keep',
+            }),
+        );
+    });
+
+    it.each([
+        [
+            'a deleted chart its space owns',
+            {
+                owner: { type: 'space', spaceUuid: 'marketing-uuid' },
+                deleted: true,
+            },
+            { ...withoutDashboard(), dashboardSlug: null },
+        ],
+        [
+            'a file putting a chart its space owns on a dashboard',
+            { owner: { type: 'space', spaceUuid: 'marketing-uuid' } },
+            { ...editedFile(), name: 'Renamed' },
+        ],
+        [
+            'a file taking a dashboard chart into a space',
+            {},
+            { ...withoutDashboard(), name: 'Renamed', dashboardSlug: null },
+        ],
+    ])("refuses %s, even for the agent's edit", async (_, options, file) => {
+        const { service, writeFromCode } = makeUpsertService(options);
+        await expect(
+            service.upsertComposerChart(
+                user,
+                account,
+                PROJECT_UUID,
+                'visible',
+                file,
+                { authorization: 'space_access', spaceOwner: 'keep' },
+            ),
+        ).rejects.toThrow(SpaceOwnedComposerChartUploadError);
+        expect(writeFromCode).not.toHaveBeenCalled();
+    });
 });

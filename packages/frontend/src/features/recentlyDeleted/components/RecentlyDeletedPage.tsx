@@ -260,6 +260,12 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                         }
                                     />
                                 );
+                            case ContentType.COMPOSER_CHART:
+                                return (
+                                    <ChartIcon
+                                        chartKind={row.original.chartKind}
+                                    />
+                                );
                             case ContentType.DASHBOARD:
                                 return (
                                     <IconBox
@@ -424,6 +430,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                         break;
                                     case ContentType.DASHBOARD:
                                     case ContentType.DOCUMENT:
+                                    case ContentType.COMPOSER_CHART:
                                         restoreContent({
                                             uuid: item.uuid,
                                             contentType: item.contentType,
@@ -463,6 +470,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                         break;
                                     case ContentType.DASHBOARD:
                                     case ContentType.DOCUMENT:
+                                    case ContentType.COMPOSER_CHART:
                                         permanentlyDelete({
                                             uuid: item.uuid,
                                             contentType: item.contentType,

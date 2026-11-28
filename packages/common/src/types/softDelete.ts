@@ -54,6 +54,15 @@ export type DeletedChartContentSummary =
     | DeletedDbtChartContentSummary
     | DeletedSqlChartContentSummary;
 
+/** A space-owned composer chart; one a dashboard owns is never listed. */
+export type DeletedComposerChartContentSummary = Omit<
+    DeletedChartBase,
+    'contentType' | 'chartKind'
+> & {
+    contentType: ContentType.COMPOSER_CHART;
+    chartKind: ChartKind;
+};
+
 export type DeletedDashboardContentSummary = {
     uuid: string;
     name: string;
@@ -117,6 +126,7 @@ export type DeletedDataAppContentSummary = {
 
 export type DeletedContentSummary =
     | DeletedChartContentSummary
+    | DeletedComposerChartContentSummary
     | DeletedDashboardContentSummary
     | DeletedDocumentContentSummary
     | DeletedSpaceContentSummary
@@ -128,6 +138,7 @@ export type DeletedContentSummary =
 export type DeletedContentWithDescendants =
     | WithDescendantCounts<DeletedDbtChartContentSummary, 'scheduler'>
     | WithDescendantCounts<DeletedSqlChartContentSummary, never>
+    | WithDescendantCounts<DeletedComposerChartContentSummary, never>
     | WithDescendantCounts<
           DeletedDashboardContentSummary,
           'chart' | 'scheduler'
