@@ -168,6 +168,17 @@ export const invalidateContent = async (
     ]);
 };
 
+/** Only after composer actions: a deleted dashboard's open tiles would refetch into a 404. */
+const invalidateComposerCharts = async (
+    queryClient: QueryClient,
+    projectUuid: string,
+    items: { contentType: ContentType }[],
+) => {
+    if (items.some((i) => i.contentType === ContentType.COMPOSER_CHART)) {
+        await queryClient.invalidateQueries(['composerChart', projectUuid]);
+    }
+};
+
 export const useContentAction = (
     projectUuid: string | undefined,
     options?: UseMutationOptions<
@@ -201,13 +212,9 @@ export const useContentAction = (
             }
 
             await invalidateContent(queryClient, projectUuid);
-            // Only for composer items: a deleted dashboard's open tiles would refetch into a 404.
-            if (variables.item.contentType === ContentType.COMPOSER_CHART) {
-                await queryClient.invalidateQueries([
-                    'composerChart',
-                    projectUuid,
-                ]);
-            }
+            await invalidateComposerCharts(queryClient, projectUuid, [
+                variables.item,
+            ]);
 
             options?.onSuccess?.(data, variables, context);
 
@@ -298,6 +305,11 @@ export const useContentBulkAction = (
             }
 
             await invalidateContent(queryClient, projectUuid);
+            await invalidateComposerCharts(
+                queryClient,
+                projectUuid,
+                variables.content,
+            );
 
             options?.onSuccess?.(data, variables, context);
 
