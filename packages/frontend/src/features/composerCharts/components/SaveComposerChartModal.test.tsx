@@ -140,6 +140,25 @@ describe('SaveComposerChartModal to a space', () => {
         );
     });
 
+    it('does not save on Enter back on the name step', async () => {
+        const onSaved = renderModal();
+        await waitFor(() =>
+            expect(screen.getByRole('radio', { name: 'Space' })).toBeEnabled(),
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+        await screen.findByText('Team');
+        fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+        fireEvent.submit(screen.getByRole('textbox', { name: /Chart name/ }));
+
+        expect(
+            await screen.findByRole('button', { name: 'Next' }),
+        ).toBeVisible();
+        expect(onSaved).not.toHaveBeenCalled();
+        expect(
+            bodyOf('/projects/project/composer-charts', 'POST'),
+        ).toBeUndefined();
+    });
+
     it('creates a new space nested under the selected one and private', async () => {
         renderModal();
         await waitFor(() =>

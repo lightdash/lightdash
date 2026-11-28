@@ -234,6 +234,7 @@ export const SaveComposerChartModal: FC<Props> = ({
             pipeline,
             chart,
         });
+        void queryClient.invalidateQueries(['content']);
         showToastSuccess({
             title: `Chart saved to "${spaceName}"`,
             autoClose: 10000,
@@ -426,7 +427,12 @@ export const SaveComposerChartModal: FC<Props> = ({
         >
             <form
                 id="save-composer-chart"
-                onSubmit={form.onSubmit((values) => void save(values))}
+                onSubmit={form.onSubmit((values) => {
+                    // Enter in the name field must not save before a destination is picked
+                    if (isSelectingDestination && isReadyToSave && !isSaving) {
+                        void save(values);
+                    }
+                })}
             >
                 {isSelectingDestination ? (
                     destination === SaveDestination.Space ? (
