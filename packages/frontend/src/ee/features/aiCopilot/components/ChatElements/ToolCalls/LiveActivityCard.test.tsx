@@ -2,7 +2,8 @@ import { QuerySourceType } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mockedLightdashApi } from '../../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { store } from '../../../store';
 import {
@@ -42,6 +43,8 @@ const buildComposerToolGroups = (
 ];
 
 const composerToolGroups = buildComposerToolGroups('runComposerQueries');
+
+vi.mock('../../../../../../api');
 
 describe.each(['query', 'runComposerQueries'] as const)(
     'LiveActivityCard composer queries (%s)',
@@ -374,6 +377,137 @@ describe('LiveActivityCard runSql', () => {
             <LiveActivityCard isLive={false} toolGroups={sqlToolGroups} />,
         );
         expect(screen.getByRole('button', { expanded: false })).toBeVisible();
+    });
+});
+
+describe('LiveActivityCard approval behind a later call', () => {
+    const thread = {
+        projectUuid: 'project',
+        agentUuid: 'agent',
+        threadUuid: 'thread',
+    };
+    const sqlGroup = (id: string, sql: string): LiveActivityToolGroup => ({
+        keyId: id,
+        toolName: 'runSql',
+        calls: [{ toolCallId: id, toolName: 'runSql', toolArgs: { sql } }],
+    });
+    const chartRun: LiveActivityToolGroup = {
+        keyId: 'chart-run',
+        toolName: 'runSavedChart',
+        calls: [
+            {
+                toolCallId: 'chart-run',
+                toolName: 'runSavedChart',
+                toolArgs: { chartUuid: 'chart' },
+            },
+        ],
+    };
+
+    afterEach(() => {
+        window.sessionStorage.clear();
+        mockedLightdashApi.mockReset();
+    });
+
+    it('keeps the approval of a call followed by another call in the same step', () => {
+        renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={[sqlGroup('gated', 'select 1'), chartRun]}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: ['gated'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+
+        expect(screen.getByText('awaiting approval')).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Reject' })).toBeVisible();
+    });
+
+    it('sends each decision for two approvals pending in one step', async () => {
+        mockedLightdashApi.mockResolvedValue(undefined);
+        renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={[
+                        sqlGroup('first', 'select 1'),
+                        chartRun,
+                        sqlGroup('second', 'select 2'),
+                    ]}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: ['first', 'second'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+
+        const approveButtons = screen.getAllByRole('button', {
+            name: 'Approve',
+        });
+        expect(approveButtons).toHaveLength(2);
+        await userEvent.click(approveButtons[0]);
+        await userEvent.click(
+            screen.getAllByRole('button', { name: 'Reject' })[1],
+        );
+
+        await waitFor(() =>
+            expect(mockedLightdashApi).toHaveBeenCalledTimes(2),
+        );
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/project/aiAgents/agent/threads/thread/tool-calls/first/sql-approval',
+                body: JSON.stringify({ decision: 'approved' }),
+            }),
+        );
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/project/aiAgents/agent/threads/thread/tool-calls/second/sql-approval',
+                body: JSON.stringify({ decision: 'rejected' }),
+            }),
+        );
+    });
+
+    it('collapses once both calls are decided and the turn ends', () => {
+        const toolGroups = [sqlGroup('gated', 'select 1'), chartRun];
+        const { rerender } = renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={toolGroups}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: ['gated'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+
+        rerender(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive={false}
+                    toolGroups={toolGroups}
+                    approval={{
+                        ...thread,
+                        pendingToolCallIds: [],
+                        decidedToolCallIds: ['gated'],
+                    }}
+                />
+            </Provider>,
+        );
+
+        expect(screen.getByRole('button', { expanded: false })).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'Approve' }),
+        ).not.toBeInTheDocument();
     });
 });
 

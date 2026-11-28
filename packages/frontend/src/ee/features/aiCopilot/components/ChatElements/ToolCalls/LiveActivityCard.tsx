@@ -757,21 +757,32 @@ export const LiveActivityCard: FC<Props> = ({
     // row, so every tool group (including the last) belongs in the expandable
     // body so its description (e.g. SQL) stays reachable.
     const showSummaryHeader = !isActive;
-    const latest = showSummaryHeader ? null : toolGroups[toolGroups.length - 1];
-    const latestAwaitingApproval =
-        latest?.calls.some((call) =>
+    const isGroupAwaitingApproval = (group: LiveActivityToolGroup) =>
+        group.calls.some((call) =>
             pendingApprovalIds.includes(call.toolCallId),
-        ) ?? false;
+        );
+    // A call fired alongside a gated one can land after it; the gated one still leads.
+    const latest = showSummaryHeader
+        ? null
+        : (toolGroups.findLast(isGroupAwaitingApproval) ??
+          toolGroups[toolGroups.length - 1]);
+    const latestAwaitingApproval =
+        latest !== null && isGroupAwaitingApproval(latest);
     const totalCalls = toolGroups.reduce(
         (sum, group) => sum + group.calls.length,
         0,
     );
-    const olderGroups = latest ? toolGroups.slice(0, -1) : toolGroups;
+    const olderGroups = latest
+        ? toolGroups.filter((group) => group !== latest)
+        : toolGroups;
+    const hasOlderAwaitingApproval = olderGroups.some(isGroupAwaitingApproval);
     const olderCount = latest ? totalCalls - latest.calls.length : totalCalls;
     const hasExpandableBody = olderCount > 0 || hasReasoning;
     // Auto-expand while approval is pending so the user sees it immediately.
     const expanded =
-        latestAwaitingApproval || (userExpanded ?? defaultExpanded);
+        latestAwaitingApproval ||
+        hasOlderAwaitingApproval ||
+        (userExpanded ?? defaultExpanded);
 
     const latestNeedsExpandedBody =
         latest?.toolName === 'runSql' ||
@@ -811,6 +822,73 @@ export const LiveActivityCard: FC<Props> = ({
         return stepLabels.finished;
     };
     const headerMeta = getHeaderMeta();
+
+    const renderCallDescriptions = (group: LiveActivityToolGroup) => {
+        if (!isToolName(group.toolName)) return null;
+        const renderableCalls = group.calls
+            .map((tc) => {
+                const callBuiltInToolName = isToolName(tc.toolName)
+                    ? tc.toolName
+                    : null;
+                if (!callBuiltInToolName) return null;
+                const hasNoDescription =
+                    TOOLS_WITHOUT_LATEST_DESCRIPTION.has(callBuiltInToolName);
+                const trace =
+                    callBuiltInToolName === 'discoverFields'
+                        ? (getDiscoverFieldsTraceFromCall(tc) ??
+                          getDiscoverFieldsTrace(
+                              toolResults?.find(
+                                  (r) => r.toolCallId === tc.toolCallId,
+                              ),
+                              toolCalls,
+                          ))
+                        : null;
+                // Skip the wrapper entirely when there's nothing to show,
+                // otherwise expanding the card animates an empty box open/closed.
+                if (hasNoDescription && !trace) return null;
+                const awaitingApproval = pendingApprovalIds.includes(
+                    tc.toolCallId,
+                );
+                return (
+                    <Box
+                        key={tc.toolCallId}
+                        className={styles.latestDescription}
+                    >
+                        {!hasNoDescription && (
+                            <ToolCallDescription
+                                toolName={callBuiltInToolName}
+                                toolCall={tc}
+                                toolResult={toolResults?.find(
+                                    (result) =>
+                                        result.toolCallId === tc.toolCallId,
+                                )}
+                                composerNodeStatuses={
+                                    isActive
+                                        ? getComposerNodeStatuses(
+                                              tc,
+                                              stepProgressMessages,
+                                              awaitingApproval,
+                                          )
+                                        : undefined
+                                }
+                                approval={
+                                    awaitingApproval && approval
+                                        ? {
+                                              ...approval,
+                                              toolCallId: tc.toolCallId,
+                                          }
+                                        : undefined
+                                }
+                            />
+                        )}
+                        {trace && <DiscoverFieldsTrace trace={trace} />}
+                    </Box>
+                );
+            })
+            .filter((node) => node !== null);
+        if (renderableCalls.length === 0) return null;
+        return <Stack gap={4}>{renderableCalls}</Stack>;
+    };
 
     return (
         <Box
@@ -925,162 +1003,91 @@ export const LiveActivityCard: FC<Props> = ({
                             isLive={reasoning.isLive}
                         />
                     )}
-                    {olderGroups.length > 0 && earlierOpen && (
-                        <Stack gap={2}>
-                            {olderGroups.map((group) => {
-                                const groupTrace =
-                                    group.toolName === 'discoverFields'
-                                        ? group.calls
-                                              .map(
-                                                  (tc) =>
-                                                      getDiscoverFieldsTraceFromCall(
-                                                          tc,
-                                                      ) ??
-                                                      getDiscoverFieldsTrace(
-                                                          toolResults?.find(
-                                                              (r) =>
-                                                                  r.toolCallId ===
-                                                                  tc.toolCallId,
+                    {olderGroups.length > 0 &&
+                        (earlierOpen || hasOlderAwaitingApproval) && (
+                            <Stack gap={2}>
+                                {olderGroups.map((group) => {
+                                    if (isGroupAwaitingApproval(group)) {
+                                        return (
+                                            <Box key={group.keyId}>
+                                                {renderCallDescriptions(group)}
+                                            </Box>
+                                        );
+                                    }
+                                    if (!earlierOpen) return null;
+                                    const groupTrace =
+                                        group.toolName === 'discoverFields'
+                                            ? group.calls
+                                                  .map(
+                                                      (tc) =>
+                                                          getDiscoverFieldsTraceFromCall(
+                                                              tc,
+                                                          ) ??
+                                                          getDiscoverFieldsTrace(
+                                                              toolResults?.find(
+                                                                  (r) =>
+                                                                      r.toolCallId ===
+                                                                      tc.toolCallId,
+                                                              ),
+                                                              toolCalls,
                                                           ),
-                                                          toolCalls,
-                                                      ),
-                                              )
-                                              .find((t) => t && t.length > 0)
-                                        : null;
-                                // Adapt the writeback tool's persisted, generic
-                                // step actions into grouped step rows. The
-                                // adaptation lives here (the orchestrator),
-                                // never in the generic row/step components.
-                                const groupSteps = isDbtWriteToolName(
-                                    group.toolName,
-                                )
-                                    ? group.calls.flatMap((tc) => {
-                                          const meta = toolResults?.find(
-                                              (r) =>
-                                                  r.toolCallId ===
-                                                  tc.toolCallId,
-                                          )?.metadata as
-                                              | {
-                                                    steps?: AiWritebackStep[];
-                                                }
-                                              | undefined;
-                                          return meta?.steps ?? [];
-                                      })
-                                    : [];
-                                return (
-                                    <Box key={group.keyId}>
-                                        <ToolCallRow
-                                            toolName={group.toolName}
-                                            toolCalls={group.calls}
-                                            display={group.display}
-                                            status="done"
-                                            toolResults={toolResults}
-                                            mcpServers={mcpServers}
-                                            extraBody={(() => {
-                                                if (groupSteps.length > 0) {
-                                                    return (
-                                                        <AgentStepGroups
-                                                            steps={groupSteps}
-                                                        />
-                                                    );
-                                                }
-                                                return groupTrace ? (
-                                                    <DiscoverFieldsTrace
-                                                        trace={groupTrace}
-                                                    />
-                                                ) : undefined;
-                                            })()}
-                                        />
-                                    </Box>
-                                );
-                            })}
-                        </Stack>
-                    )}
-                    {(() => {
-                        if (!latest) return null;
-                        const latestBuiltInToolName = isToolName(
-                            latest.toolName,
-                        )
-                            ? latest.toolName
-                            : null;
-                        if (!latestBuiltInToolName) return null;
-
-                        const renderableCalls = latest.calls
-                            .map((tc) => {
-                                const callBuiltInToolName = isToolName(
-                                    tc.toolName,
-                                )
-                                    ? tc.toolName
-                                    : null;
-                                if (!callBuiltInToolName) return null;
-                                const hasNoDescription =
-                                    TOOLS_WITHOUT_LATEST_DESCRIPTION.has(
-                                        callBuiltInToolName,
-                                    );
-                                const trace =
-                                    callBuiltInToolName === 'discoverFields'
-                                        ? (getDiscoverFieldsTraceFromCall(tc) ??
-                                          getDiscoverFieldsTrace(
-                                              toolResults?.find(
+                                                  )
+                                                  .find(
+                                                      (t) => t && t.length > 0,
+                                                  )
+                                            : null;
+                                    // Adapt the writeback tool's persisted, generic
+                                    // step actions into grouped step rows. The
+                                    // adaptation lives here (the orchestrator),
+                                    // never in the generic row/step components.
+                                    const groupSteps = isDbtWriteToolName(
+                                        group.toolName,
+                                    )
+                                        ? group.calls.flatMap((tc) => {
+                                              const meta = toolResults?.find(
                                                   (r) =>
                                                       r.toolCallId ===
                                                       tc.toolCallId,
-                                              ),
-                                              toolCalls,
-                                          ))
-                                        : null;
-                                // Skip the wrapper entirely when there's
-                                // nothing to show, otherwise expanding the
-                                // card animates an empty box open/closed.
-                                if (hasNoDescription && !trace) return null;
-                                const awaitingApproval =
-                                    pendingApprovalIds.includes(tc.toolCallId);
-                                return (
-                                    <Box
-                                        key={tc.toolCallId}
-                                        className={styles.latestDescription}
-                                    >
-                                        {!hasNoDescription && (
-                                            <ToolCallDescription
-                                                toolName={callBuiltInToolName}
-                                                toolCall={tc}
-                                                toolResult={toolResults?.find(
-                                                    (result) =>
-                                                        result.toolCallId ===
-                                                        tc.toolCallId,
-                                                )}
-                                                composerNodeStatuses={
-                                                    isActive
-                                                        ? getComposerNodeStatuses(
-                                                              tc,
-                                                              stepProgressMessages,
-                                                              awaitingApproval,
-                                                          )
-                                                        : undefined
-                                                }
-                                                approval={
-                                                    awaitingApproval && approval
-                                                        ? {
-                                                              ...approval,
-                                                              toolCallId:
-                                                                  tc.toolCallId,
-                                                          }
-                                                        : undefined
-                                                }
+                                              )?.metadata as
+                                                  | {
+                                                        steps?: AiWritebackStep[];
+                                                    }
+                                                  | undefined;
+                                              return meta?.steps ?? [];
+                                          })
+                                        : [];
+                                    return (
+                                        <Box key={group.keyId}>
+                                            <ToolCallRow
+                                                toolName={group.toolName}
+                                                toolCalls={group.calls}
+                                                display={group.display}
+                                                status="done"
+                                                toolResults={toolResults}
+                                                mcpServers={mcpServers}
+                                                extraBody={(() => {
+                                                    if (groupSteps.length > 0) {
+                                                        return (
+                                                            <AgentStepGroups
+                                                                steps={
+                                                                    groupSteps
+                                                                }
+                                                            />
+                                                        );
+                                                    }
+                                                    return groupTrace ? (
+                                                        <DiscoverFieldsTrace
+                                                            trace={groupTrace}
+                                                        />
+                                                    ) : undefined;
+                                                })()}
                                             />
-                                        )}
-                                        {trace && (
-                                            <DiscoverFieldsTrace
-                                                trace={trace}
-                                            />
-                                        )}
-                                    </Box>
-                                );
-                            })
-                            .filter((node) => node !== null);
-                        if (renderableCalls.length === 0) return null;
-                        return <Stack gap={4}>{renderableCalls}</Stack>;
-                    })()}
+                                        </Box>
+                                    );
+                                })}
+                            </Stack>
+                        )}
+                    {latest && renderCallDescriptions(latest)}
                     {extra}
                 </Stack>
             </Collapse>
