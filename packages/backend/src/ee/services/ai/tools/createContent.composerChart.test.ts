@@ -145,6 +145,9 @@ describe('createContent composer_chart', () => {
         });
 
         expect(output.metadata.status).toBe('error');
+        expect(toolCreateContentOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
         expect(save).not.toHaveBeenCalled();
     });
 });
