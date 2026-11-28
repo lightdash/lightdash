@@ -222,7 +222,7 @@ export const SaveComposerChartModal: FC<Props> = ({
                   inheritParentPermissions: false,
               })
             : undefined;
-        // A retry after a failed chart save lands in the space just made.
+        // If saving the chart fails, a retry saves it to the space that was created.
         if (newSpace) spaceManagement.setSelectedSpaceUuid(newSpace.uuid);
         const spaceUuid = newSpace?.uuid ?? spaceManagement.selectedSpaceUuid;
         if (!spaceUuid) throw new Error('Pick a space');
