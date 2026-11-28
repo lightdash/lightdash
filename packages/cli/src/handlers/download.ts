@@ -965,7 +965,8 @@ const extractComposerChartSlugsFromDashboards = (
 ): string[] =>
     dashboards.flatMap((dashboard) =>
         dashboard.tiles.flatMap((tile) =>
-            tile.type === DashboardTileTypes.COMPOSER_CHART
+            tile.type === DashboardTileTypes.COMPOSER_CHART &&
+            tile.properties.chartSlug !== null
                 ? [tile.properties.chartSlug]
                 : [],
         ),
