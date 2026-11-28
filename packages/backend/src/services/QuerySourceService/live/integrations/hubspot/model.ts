@@ -4,6 +4,7 @@ import {
     FilterOperator,
     getHubspotPropertiesPath,
     HUBSPOT_OBJECTS,
+    HUBSPOT_SCHEMAS_PATH,
     MetricType,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -13,6 +14,7 @@ import {
     dimension,
     metric,
     pickLiveFields,
+    toLiveModelName,
     withFieldsOffByDefault,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -20,6 +22,7 @@ import {
     type LiveRuntime,
 } from '../../sdk';
 import {
+    HUBSPOT_CUSTOM_OBJECT_ID,
     HUBSPOT_LABEL_SUFFIX,
     HUBSPOT_MAX_FILTERS,
     HUBSPOT_MAX_ROWS,
@@ -727,12 +730,140 @@ export const withHubspotPropertyFields = <D extends LiveExploreDefinition>(
     };
 };
 
+const schemasSchema = z.object({
+    results: z.array(
+        z.object({
+            objectTypeId: z.string(),
+            name: z.string(),
+            labels: z
+                .object({ plural: z.string().nullable().optional() })
+                .optional(),
+            archived: z.boolean().optional(),
+            properties: z.array(z.unknown()).optional(),
+        }),
+    ),
+});
+
+/** A custom object as a Refresh stores it: its id, names and properties. */
+const customObjectSchema = z.object({
+    objectTypeId: z.string().regex(HUBSPOT_CUSTOM_OBJECT_ID),
+    name: z.string(),
+    label: z.string(),
+    properties: propertiesSchema.optional().catch(undefined),
+});
+
+type HubspotCustomObject = z.infer<typeof customObjectSchema>;
+
+/**
+ * The account's custom objects, each with its properties: one call. A token
+ * without the custom object scopes, or an account without Enterprise, reads
+ * none, so only the standard objects are offered.
+ */
+const scanHubspotCustomObjects = async (runtime: LiveRuntime) => {
+    try {
+        const { results } = await runtime.fetch(
+            { method: 'GET', path: HUBSPOT_SCHEMAS_PATH, body: undefined },
+            schemasSchema,
+        );
+        return results
+            .filter(({ archived }) => !archived)
+            .map(({ objectTypeId, name, labels, properties }) => ({
+                objectTypeId,
+                name,
+                label: labels?.plural?.trim() || name,
+                properties: { results: properties ?? [] },
+            }));
+    } catch (error) {
+        if (isUnreadableObjectError(error)) {
+            return [];
+        }
+        throw error;
+    }
+};
+
+/**
+ * A custom object's explore, named from the object's internal name, which
+ * HubSpot never changes: the record's ID and dates, a Count, and a field
+ * per property, dropdowns with their labels. It starts off, so an admin
+ * turns on the objects people need.
+ */
+export const toHubspotCustomObjectExplore = ({
+    objectTypeId,
+    name,
+    label,
+    properties,
+}: HubspotCustomObject): LiveExploreDefinition => {
+    const definition: LiveExploreDefinition = {
+        name: toLiveModelName(name),
+        apiName: objectTypeId,
+        onByDefault: false,
+        label,
+        description: `${label}, a HubSpot custom object, one row per record, with their properties.`,
+        aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows. Owner properties show owner IDs. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word.`,
+        maxDimensions: null,
+        maxMetrics: null,
+        dateRange: null,
+        incompatible: [
+            {
+                fields: ['count'],
+                with: ['record_id', 'created_at', 'updated_at'],
+                reason: "HubSpot search returns one total, so Count can't be split by a field. Filter by the field instead, or list records without Count.",
+                selectedOnly: true,
+            },
+        ],
+        dimensions: [
+            dimension({
+                name: 'record_id',
+                apiName: 'id',
+                label: 'Record ID',
+                type: DimensionType.STRING,
+                filterOperators: HUBSPOT_CHOICE_FILTERS,
+                description: "HubSpot's ID for the record.",
+            }),
+            dimension({
+                name: 'created_at',
+                apiName: 'createdAt',
+                label: 'Create Date',
+                type: DimensionType.TIMESTAMP,
+                filterOperators: HUBSPOT_DATE_FILTERS,
+                description: 'When the record was created, in UTC.',
+            }),
+            dimension({
+                name: 'updated_at',
+                apiName: 'updatedAt',
+                label: 'Last Modified Date',
+                type: DimensionType.TIMESTAMP,
+                filterOperators: HUBSPOT_DATE_FILTERS,
+                description: 'When the record last changed, in UTC.',
+            }),
+        ],
+        metrics: [
+            metric({
+                name: 'count',
+                apiName: 'total',
+                label: 'Count',
+                type: MetricType.NUMBER,
+                filterOperators: [],
+                description: `Number of ${label} records that match the filters.`,
+                aiHint: "HubSpot's search total: cannot be split by any field. Query it alone with filters, or list records without it.",
+                // HubSpot search's total counts the matching records
+                aggregation: ADDITIVE,
+            }),
+        ],
+    };
+    return withFieldsOffByDefault(
+        definition,
+        withHubspotPropertyFields(definition, properties),
+        isHubspotSystemField,
+    );
+};
+
 /**
  * Reads each object's properties, which become its explore's fields: one
  * call per object. An object the token can't read is left out, so the others
- * still build and querying it says which scope is missing. Any other
- * failure, such as a timeout or rate limit, fails the scan and keeps the
- * last one.
+ * still build and querying it says which scope is missing. Then reads the
+ * custom objects. Any other failure, such as a timeout or rate limit, fails
+ * the scan and keeps the last one.
  */
 export const scanHubspotProperties = async ({
     runtime,
@@ -758,7 +889,9 @@ export const scanHubspotProperties = async ({
     if (failure !== undefined || rejected.length === lists.length) {
         throw failure ?? rejected[0];
     }
+    const customObjects = await scanHubspotCustomObjects(runtime);
     return {
+        customObjects,
         properties: Object.fromEntries(
             HUBSPOT_OBJECTS.flatMap((object, index) => {
                 const list = lists[index];
@@ -780,8 +913,12 @@ export const hubspotModel: LiveModel<ApiConnectorType.HUBSPOT> =
                 z.string(),
                 propertiesSchema.optional().catch(undefined),
             ),
+            // None without the custom object scopes
+            customObjects: z
+                .array(customObjectSchema.optional().catch(undefined))
+                .optional(),
         }),
-        extend: ({ properties }) => ({
+        extend: ({ properties, customObjects }) => ({
             fields: Object.fromEntries(
                 HUBSPOT_EXPLORES.map((definition) => [
                     definition.name,
@@ -799,6 +936,10 @@ export const hubspotModel: LiveModel<ApiConnectorType.HUBSPOT> =
                         ),
                     ),
                 ]),
+            ),
+            // Then one explore per custom object
+            explores: (customObjects ?? []).flatMap((object) =>
+                object ? [toHubspotCustomObjectExplore(object)] : [],
             ),
         }),
     });

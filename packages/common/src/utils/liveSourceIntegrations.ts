@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
     getHubspotReadScopes,
+    HUBSPOT_CUSTOM_OBJECT_SCOPES,
     HUBSPOT_OBJECTS,
     isSentrySlug,
     isSupabaseTableName,
@@ -38,6 +39,8 @@ type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
     setup: LiveSourceSetupKind;
     /** Exact scope or permission names a key needs, for sources added with one. */
     scopes?: readonly string[];
+    /** Scopes a key can add for more, and what they unlock. */
+    optionalScopes?: { scopes: readonly string[]; unlocks: string };
     /** The settings a source stores; checked against the API type. */
     settings: z.ZodType<ApiSourceOf<C>>;
     /** What one source reads, shown wherever it is listed. */
@@ -219,6 +222,10 @@ export const LIVE_INTEGRATION_CATALOG: {
             'Deals, contacts, companies, tickets and leads from your CRM',
         setup: 'token',
         scopes: HUBSPOT_OBJECTS.flatMap(getHubspotReadScopes),
+        optionalScopes: {
+            scopes: HUBSPOT_CUSTOM_OBJECT_SCOPES,
+            unlocks: 'custom objects (Enterprise)',
+        },
         settings: z.object({
             connector: z.literal(ApiConnectorType.HUBSPOT),
         }),

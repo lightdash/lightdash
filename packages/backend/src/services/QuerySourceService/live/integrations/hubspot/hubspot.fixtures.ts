@@ -202,3 +202,59 @@ export const HUBSPOT_TICKET_PIPELINES = {
         },
     ],
 };
+
+/** The account's custom object schemas: one live, one archived. */
+export const HUBSPOT_CUSTOM_OBJECT_SCHEMAS = {
+    results: [
+        {
+            objectTypeId: '2-123456',
+            name: 'subscriptions',
+            fullyQualifiedName: 'p_subscriptions',
+            labels: { singular: 'Subscription', plural: 'Subscriptions' },
+            archived: false,
+            properties: [
+                {
+                    name: 'plan',
+                    label: 'Plan',
+                    type: 'enumeration',
+                    fieldType: 'select',
+                    description: 'The plan the customer pays for',
+                    options: [{ label: 'Pro', value: 'pro' }],
+                },
+                {
+                    name: 'seats',
+                    label: 'Seats',
+                    type: 'number',
+                    fieldType: 'number',
+                    description: '',
+                },
+                {
+                    name: 'hs_merged_object_ids',
+                    label: 'Merged record IDs',
+                    type: 'enumeration',
+                    fieldType: 'checkbox',
+                },
+                {
+                    name: 'hs_object_id',
+                    label: 'Record ID',
+                    type: 'number',
+                    fieldType: 'number',
+                },
+                {
+                    name: 'secret_note',
+                    label: 'Secret note',
+                    type: 'string',
+                    fieldType: 'text',
+                    hidden: true,
+                },
+            ],
+        },
+        {
+            objectTypeId: '2-999',
+            name: 'old_things',
+            labels: { singular: 'Old thing', plural: 'Old things' },
+            archived: true,
+            properties: [],
+        },
+    ],
+};

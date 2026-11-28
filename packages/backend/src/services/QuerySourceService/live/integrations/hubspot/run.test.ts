@@ -15,6 +15,7 @@ import { type LiveHttpResponse } from '../../types';
 import { HUBSPOT_MAX_ROWS, toHubspotError } from './api';
 import { summarizeHubspotTest } from './connection';
 import {
+    HUBSPOT_CUSTOM_OBJECT_SCHEMAS,
     HUBSPOT_DEAL_PIPELINES,
     HUBSPOT_DEAL_PROPERTIES,
     HUBSPOT_TICKET_PIPELINES,
@@ -339,6 +340,7 @@ describe('hubspotIntegration discover and test', () => {
             response({ results: [] }),
             response({ results: [] }),
             response({ results: [] }),
+            response({ results: [] }),
         );
 
         const explores = await source.discover();
@@ -352,7 +354,69 @@ describe('hubspotIntegration discover and test', () => {
             '/crm/v3/properties/companies',
             '/crm/v3/properties/tickets',
             '/crm/v3/properties/leads',
+            '/crm/v3/schemas',
         ]);
+    });
+
+    it('lists custom objects with their properties, leaving archived ones out', async () => {
+        const { source } = connect(
+            'deals',
+            ...Array.from({ length: 5 }, () => response({ results: [] })),
+            response(HUBSPOT_CUSTOM_OBJECT_SCHEMAS),
+        );
+
+        const scan = await source.scan();
+
+        expect(scan).toMatchObject({
+            customObjects: [
+                {
+                    objectTypeId: '2-123456',
+                    name: 'subscriptions',
+                    label: 'Subscriptions',
+                    properties: {
+                        results: expect.arrayContaining([
+                            expect.objectContaining({ name: 'plan' }),
+                        ]),
+                    },
+                },
+            ],
+        });
+        expect(
+            (scan as { customObjects: unknown[] }).customObjects,
+        ).toHaveLength(1);
+    });
+
+    it('scans without custom objects when the token lacks their scopes', async () => {
+        const { source } = connect(
+            'deals',
+            response(HUBSPOT_DEAL_PROPERTIES),
+            ...Array.from({ length: 4 }, () => response({ results: [] })),
+            response(
+                {
+                    status: 'error',
+                    message:
+                        "This app hasn't been granted all required scopes to make this call.",
+                    category: 'MISSING_SCOPES',
+                },
+                403,
+            ),
+        );
+
+        const scan = await source.scan();
+
+        expect(scan).toHaveProperty('customObjects', []);
+        expect(scan).toHaveProperty('properties.deals');
+    });
+
+    it('fails the scan when reading custom objects is rate limited, keeping the last one', async () => {
+        const { source } = connect(
+            'deals',
+            ...Array.from({ length: 5 }, () => response({ results: [] })),
+            response({ message: 'Too many requests' }, 429),
+        );
+        await expect(source.scan()).rejects.toBeInstanceOf(
+            TooManyRequestsError,
+        );
     });
 
     it('leaves out an object the token can’t read and still scans the others', async () => {
@@ -363,6 +427,7 @@ describe('hubspotIntegration discover and test', () => {
             response({ results: [] }),
             response({ results: [] }),
             response(MISSING_LEADS_SCOPE, 403),
+            response({ results: [] }),
         );
 
         const explores = await source.discover();

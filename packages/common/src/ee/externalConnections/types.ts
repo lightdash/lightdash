@@ -139,6 +139,15 @@ export const getHubspotReadScopes = (object: HubspotObject): string[] => {
     }
 };
 
+/**
+ * Read custom object schemas and records. Enterprise only, so optional:
+ * without them a source reads the standard objects.
+ */
+export const HUBSPOT_CUSTOM_OBJECT_SCOPES = [
+    'crm.schemas.custom.read',
+    'crm.objects.custom.read',
+] as const;
+
 /** The private app's token picks the HubSpot account, so nothing else is set. */
 export type HubspotApiSource = {
     connector: ApiConnectorType.HUBSPOT;
@@ -437,6 +446,9 @@ export type HubspotPipelineObject = (typeof HUBSPOT_PIPELINE_OBJECTS)[number];
 
 export const getHubspotPipelinesPath = (object: string) =>
     `/crm/v3/pipelines/${object}`;
+
+/** The account's custom object schemas, each with its properties. */
+export const HUBSPOT_SCHEMAS_PATH = '/crm/v3/schemas';
 /** Every Salesforce call goes to this REST API version, so responses keep one shape. */
 export const SALESFORCE_API_VERSION = 'v62.0';
 

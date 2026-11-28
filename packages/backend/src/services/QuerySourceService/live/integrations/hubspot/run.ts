@@ -5,7 +5,6 @@ import {
     getHubspotSearchPath,
     HUBSPOT_OBJECTS,
     HUBSPOT_PIPELINE_OBJECTS,
-    type HubspotObject,
     type HubspotPipelineObject,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -17,6 +16,7 @@ import {
     type LiveRuntime,
 } from '../../sdk';
 import {
+    HUBSPOT_CUSTOM_OBJECT_ID,
     HUBSPOT_LABEL_SUFFIX,
     HUBSPOT_MAX_FILTERS,
     HUBSPOT_MAX_PAGES,
@@ -28,6 +28,7 @@ import {
     isUnreadableObjectError,
     type HubspotPipelineColumn,
     type HubspotRecordColumn,
+    type HubspotSearchObject,
 } from './api';
 import { toHubspotPropertyName } from './model';
 
@@ -99,12 +100,21 @@ const filtersSchema = z
         `HubSpot takes at most ${HUBSPOT_MAX_FILTERS} filters in one search`,
     );
 
+/** A standard object, or a custom object's id. */
+const searchObjectSchema = z.union([
+    z.enum(HUBSPOT_OBJECTS),
+    z
+        .string()
+        .regex(HUBSPOT_CUSTOM_OBJECT_ID)
+        .transform((id) => id as HubspotSearchObject),
+]);
+
 /** One search, as compile writes it: records, or how many match. */
 export const hubspotRequestSchema = z.discriminatedUnion('kind', [
     z
         .object({
             kind: z.literal('records'),
-            object: z.enum(HUBSPOT_OBJECTS),
+            object: searchObjectSchema,
             columns: z
                 .array(
                     z
@@ -132,7 +142,7 @@ export const hubspotRequestSchema = z.discriminatedUnion('kind', [
     z
         .object({
             kind: z.literal('count'),
-            object: z.enum(HUBSPOT_OBJECTS),
+            object: searchObjectSchema,
             filters: filtersSchema,
         })
         .strict(),
@@ -174,13 +184,15 @@ const searchResponseSchema = z.object({
 });
 
 /** The property a declared field filters and sorts by, per object. */
-const toPropertyName = (name: string, object: HubspotObject): string => {
+const toPropertyName = (name: string, object: HubspotSearchObject): string => {
     switch (name) {
         case 'id':
             return 'hs_object_id';
         case 'createdAt':
-            // Leads only have HubSpot's newer name for it
-            return object === 'leads' ? 'hs_createdate' : 'createdate';
+            // Leads and custom objects only have HubSpot's newer name for it
+            return object === 'leads' || HUBSPOT_CUSTOM_OBJECT_ID.test(object)
+                ? 'hs_createdate'
+                : 'createdate';
         case 'updatedAt':
             // Contacts kept their original name for it
             return object === 'contacts'
@@ -192,7 +204,10 @@ const toPropertyName = (name: string, object: HubspotObject): string => {
 };
 
 /** Search filters with declared fields named as properties; none sends no group. */
-const toFilterGroups = (filters: HubspotFilter[], object: HubspotObject) =>
+const toFilterGroups = (
+    filters: HubspotFilter[],
+    object: HubspotSearchObject,
+) =>
     filters.length === 0
         ? {}
         : {
@@ -279,7 +294,7 @@ const DIMENSION_TYPES: Record<HubspotColumnType, DimensionType> = {
 
 /** How many records match, from the search's total: one call. */
 const runCount = async (
-    object: HubspotObject,
+    object: HubspotSearchObject,
     filters: HubspotFilter[],
     runtime: LiveRuntime,
 ): Promise<LiveRunResult> => {
@@ -307,7 +322,7 @@ const runCount = async (
  * total says whether more records match, so no page is read for that alone.
  */
 const runRecords = async (
-    object: HubspotObject,
+    object: HubspotSearchObject,
     request: Extract<HubspotRequest, { kind: 'records' }>,
     limit: number,
     runtime: LiveRuntime,
