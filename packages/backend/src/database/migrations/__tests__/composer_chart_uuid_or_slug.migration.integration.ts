@@ -13,7 +13,6 @@ import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
-import { up } from '../20261128160000_rename_composer_chart_slugs_equal_to_another_chart_uuid';
 import { createFixture, type Fixture } from './composerChartFixture.mock';
 
 // Untyped on purpose: the test reads the raw schema.
@@ -43,7 +42,7 @@ const storedChart: ComposerStoredChart = {
     tableConfig: { columnOrder: ['total'] },
 };
 
-describe("a composer chart slug that is another chart's uuid", () => {
+describe('a composer chart read by uuid or slug', () => {
     let migrated: MigratedDatabase;
     let database: Knex;
     let model: ComposerChartModel;
@@ -62,19 +61,12 @@ describe("a composer chart slug that is another chart's uuid", () => {
             createdByUserUuid: fixture.userUuid,
         });
 
-    /** Chart `other` holds `owner`'s uuid as its slug, as a code upload could write before the fix. */
+    /** Chart `other` holds `owner`'s uuid as its slug, as a code upload can write. */
     const createCollision = async () => {
         const owner = await createChart(null);
         const other = await createChart(owner);
         return { owner, other };
     };
-
-    const slugOf = async (uuid: string) =>
-        (
-            await database(COMPOSER_CHARTS)
-                .where('composer_chart_uuid', uuid)
-                .first('slug')
-        ).slug;
 
     beforeAll(async () => {
         migrated = await createMigratedDatabase();
@@ -107,55 +99,5 @@ describe("a composer chart slug that is another chart's uuid", () => {
         await expect(
             model.getUuidByUuidOrSlug(fixture.projectUuid, slug),
         ).resolves.toBe(chart);
-    });
-
-    it("up renames only a slug that is another chart's uuid in its project", async () => {
-        const { owner, other } = await createCollision();
-        const upperOwner = await createChart(null);
-        const upper = await createChart(upperOwner.toUpperCase());
-        const lone = randomUUID();
-        const loneChart = await createChart(lone);
-        const ownerSlug = await slugOf(owner);
-        // Another project's chart uuid as a slug here is no collision
-        const elsewhere = await createFixture(database);
-        const foreign = await new ComposerChartModel({ database }).create({
-            uuid: null,
-            slug: null,
-            projectUuid: elsewhere.projectUuid,
-            owner: { type: 'space', spaceUuid: elsewhere.spaceUuid },
-            name: 'Elsewhere',
-            description: null,
-            pipeline,
-            chart: storedChart,
-            createdByUserUuid: elsewhere.userUuid,
-        });
-        const foreignSlugChart = await createChart(foreign);
-        // A collision whose new slug is already taken gets the next free one
-        const blockedOwner = await createChart(null);
-        const blocked = await createChart(blockedOwner);
-        await createChart(`${blockedOwner}-${blocked}`);
-
-        await database.transaction((trx) => up(trx));
-
-        expect(await slugOf(other)).toBe(`${owner}-${other}`);
-        expect(await slugOf(upper)).toBe(
-            `${upperOwner.toUpperCase()}-${upper}`,
-        );
-        expect(await slugOf(owner)).toBe(ownerSlug);
-        expect(await slugOf(loneChart)).toBe(lone);
-        expect(await slugOf(foreignSlugChart)).toBe(foreign);
-        expect(await slugOf(blocked)).toBe(`${blockedOwner}-${blocked}-2`);
-        await expect(
-            model.getUuidByUuidOrSlug(
-                fixture.projectUuid,
-                `${blockedOwner}-${blocked}-2`,
-            ),
-        ).resolves.toBe(blocked);
-        await expect(
-            model.getUuidByUuidOrSlug(fixture.projectUuid, blockedOwner),
-        ).resolves.toBe(blockedOwner);
-        await expect(
-            model.getUuidByUuidOrSlug(fixture.projectUuid, `${owner}-${other}`),
-        ).resolves.toBe(other);
     });
 });
