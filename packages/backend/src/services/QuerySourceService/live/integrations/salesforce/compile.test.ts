@@ -15,10 +15,10 @@ import { salesforceIntegration } from '.';
 import { buildLiveExplore } from '../../explores/definition';
 import { compileSalesforceQuery } from './compile';
 import {
-    isInternalSalesforceField,
+    isSalesforceSystemField,
     SALESFORCE_EXPLORES,
     withSalesforceFields,
-} from './explores';
+} from './model';
 import { OPPORTUNITY_DESCRIBE } from './salesforce.fixtures';
 import {
     salesforceRequestSchema,
@@ -39,7 +39,7 @@ const OPPORTUNITIES = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.SALESFORCE,
     baseVersion: 1,
-    capabilities: salesforceIntegration.capabilities,
+    capabilities: salesforceIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),
@@ -114,7 +114,7 @@ describe('Salesforce fields', () => {
             ]),
         );
         // Decimals, long text and hidden fields can't be grouped, so they
-        // aren't dimensions; built-in fields aren't added twice
+        // aren't dimensions; declared fields aren't added twice
         expect(dimensions).not.toEqual(expect.arrayContaining(['amount']));
         expect(dimensions).not.toContain('description');
         expect(dimensions).not.toContain('legacy__c');
@@ -184,16 +184,16 @@ describe('Salesforce fields', () => {
     });
 
     it('starts system fields and minimums and maximums hidden', () => {
-        expect(isInternalSalesforceField('SystemModstamp')).toBe(true);
-        expect(isInternalSalesforceField('CALENDAR_YEAR(SystemModstamp)')).toBe(
+        expect(isSalesforceSystemField('SystemModstamp')).toBe(true);
+        expect(isSalesforceSystemField('CALENDAR_YEAR(SystemModstamp)')).toBe(
             true,
         );
-        expect(isInternalSalesforceField('MAX(Amount)')).toBe(true);
-        expect(isInternalSalesforceField('SUM(Amount)')).toBe(false);
-        expect(isInternalSalesforceField('StageName')).toBe(false);
+        expect(isSalesforceSystemField('MAX(Amount)')).toBe(true);
+        expect(isSalesforceSystemField('SUM(Amount)')).toBe(false);
+        expect(isSalesforceSystemField('StageName')).toBe(false);
     });
 
-    it('keeps the built-in fields when the describe is unreadable', () => {
+    it('keeps the declared fields when the describe is unreadable', () => {
         expect(withSalesforceFields(OPPORTUNITIES_DEFINITION, {})).toBe(
             OPPORTUNITIES_DEFINITION,
         );

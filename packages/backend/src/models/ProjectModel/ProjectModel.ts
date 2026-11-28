@@ -3673,23 +3673,20 @@ export class ProjectModel {
         const [{ findSwitchedOffLiveExplore }, { parseLiveSourceFieldState }] =
             await Promise.all([
                 import('../../services/QuerySourceService/live/explores/build'),
-                import('../../services/QuerySourceService/live/explores/fields'),
+                import('../../services/QuerySourceService/live/explores/source'),
             ]);
         return findSwitchedOffLiveExplore(
-            rows.flatMap((row) =>
-                row.source_name
-                    ? [
-                          {
-                              name: row.name,
-                              sourceName: row.source_name,
-                              connector: row.connector,
-                              exploreEdits: parseLiveSourceFieldState(
-                                  row.api_source,
-                              ).explores,
-                          },
-                      ]
-                    : [],
-            ),
+            rows.flatMap((row) => {
+                if (!row.source_name) return [];
+                return [
+                    {
+                        name: row.name,
+                        sourceName: row.source_name,
+                        connector: row.connector,
+                        state: parseLiveSourceFieldState(row.api_source),
+                    },
+                ];
+            }),
             exploreName,
         );
     }

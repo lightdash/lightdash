@@ -10,12 +10,13 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { supabaseIntegration } from '.';
 import { buildLiveExplore } from '../../explores/definition';
+import { parseLiveRequest } from '../../integration';
 import { compileSupabaseQuery } from './compile';
 import {
     readSupabaseColumns,
     SUPABASE_TABLE_EXPLORE,
     withSupabaseColumns,
-} from './explores';
+} from './model';
 import { ORDERS_TABLE } from './supabase.fixtures';
 
 const DEFINITION = withSupabaseColumns(
@@ -30,7 +31,7 @@ const EXPLORE = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.SUPABASE,
     baseVersion: 1,
-    capabilities: supabaseIntegration.capabilities,
+    capabilities: supabaseIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),
@@ -250,7 +251,7 @@ describe('compileSupabaseQuery', () => {
             ]),
         });
         expect(() =>
-            supabaseIntegration.parseRequest(compiled.query),
+            parseLiveRequest(supabaseIntegration, compiled.query),
         ).not.toThrow();
     });
 });
